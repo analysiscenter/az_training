@@ -1,4 +1,5 @@
 """MyBatch"""
+
 import sys
 sys.path.append('..')
 import numpy as np
@@ -77,7 +78,7 @@ class MyBatch(Batch):
         return 'x', 'y', 'w', 'b', 'loss'
 
     @action
-    def generate(self, lenght=10, ttype="linear"):
+    def generate(self, lenght=10, ttype="linear", lambd=1):
         """
         Create batch by self.indices by rewrite self.x and self.y.
         lenght - size all data.
@@ -90,7 +91,7 @@ class MyBatch(Batch):
         return: self
         """
         if self.x is None or self.y is None:
-            self = self.load(lenght, ttype)
+            self = self.load(lenght, ttype, lambd)
         self.x, self.y = self.x[self.indices], self.y[self.indices]
 
         return self
@@ -112,7 +113,7 @@ class MyBatch(Batch):
         data_dict = {'linear': generate_linear_data(lenght),
                      'logistic': generate_logistic_data(lenght),
                      'poisson': generate_poisson_data(lambd, lenght)}
-        self.x, self.y = data_dict['ttype']
+        self.x, self.y = data_dict[ttype]
 
         return self
 
