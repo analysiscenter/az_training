@@ -15,9 +15,9 @@ def generate_linear_data(lenght=10):
     x - array [0..lenght]
     y - array [0..lenght] with some random noize
     """
-
     y = np.linspace(0, 10, lenght)
     x = y + np.random.random(lenght) - 0.5
+
     return x, y
 
 def generate_logistic_data(lenght=10):
@@ -32,6 +32,7 @@ def generate_logistic_data(lenght=10):
     """
     x = np.array(np.random.randint(-10, 10, lenght), dtype=np.float32)
     y = np.array([1. if i > 0 else 0. for i in x])
+
     return x, y
 
 def generate_poisson_data(lambd, lenght=10):
@@ -50,6 +51,7 @@ def generate_poisson_data(lambd, lenght=10):
     x = np.random.uniform(0, np.exp(-lambd), lenght)
     for _ in range(2):
         x = np.vstack((x, np.random.uniform(0, np.exp(-lambd), lenght)))
+
     return x.T, y
 
 class MyBatch(Batch):
@@ -89,8 +91,8 @@ class MyBatch(Batch):
         """
         if self.x is None or self.y is None:
             self = self.load(lenght, ttype)
-
         self.x, self.y = self.x[self.indices], self.y[self.indices]
+
         return self
 
     @action
@@ -108,10 +110,10 @@ class MyBatch(Batch):
         return: self
         """
         data_dict = {'linear': generate_linear_data(lenght),
-        'logistic': generate_logistic_data(lenght),
-        'poisson': generate_poisson_data(lambd, lenght)}
-
+                     'logistic': generate_logistic_data(lenght),
+                     'poisson': generate_poisson_data(lambd, lenght)}
         self.x, self.y = data_dict['ttype']
+
         return self
 
     @model()
@@ -128,7 +130,6 @@ class MyBatch(Batch):
         w - slope coefficient of straight line.
         b - bias.
         """
-
         x = tf.placeholder(name='input', dtype=tf.float32)
         y = tf.placeholder(name='true_y', dtype=tf.float32)
 
@@ -154,7 +155,6 @@ class MyBatch(Batch):
 
         return self.
         """
-
         x, y = models[0]
         optimizer, cost = models[1]
         params = models[2]
@@ -162,6 +162,7 @@ class MyBatch(Batch):
         self.w = params[0][0]
         self.b = params[1]
         self.loss = loss
+
         return self
 
     @model()
@@ -190,6 +191,7 @@ class MyBatch(Batch):
 
         optimize = tf.train.AdamOptimizer(learning_rate=0.005)
         train = optimize.minimize(loss)
+
         return [[x, y], [train, loss, predict], [w, b]]
 
     @action(model='logistic_model')
@@ -207,7 +209,6 @@ class MyBatch(Batch):
 
         return self.
         """
-
         x, y = models[0]
         optimizer, cost, predict = models[1]
         params = models[2]
@@ -216,6 +217,7 @@ class MyBatch(Batch):
         self.b = params[1]
         self.loss = loss
         result[:] = session.run([predict], feed_dict={x:test})[0]
+
         return self
 
     @model()
@@ -239,12 +241,14 @@ class MyBatch(Batch):
 
         predict = tf.exp(tf.matmul(x, w))
         loss = tf.reduce_sum(tf.nn.log_poisson_loss(y, predict))
+
         optimize = tf.train.AdamOptimizer(learning_rate=0.005)
         train = optimize.minimize(loss)
+
         return [[x, y], [train, loss, predict], [w]]
 
     @action(model='poisson_model')
-    def train_poisson_model(self, model, session, result, test):
+    def train_poisson_model(self, models, session, result, test):
         """
         Train poisson regression.
 
@@ -261,4 +265,5 @@ class MyBatch(Batch):
         self.w = params[0]
         self.loss = loss
         result[:] = session.run([predict], feed_dict={x:test})[0]
+
         return self
