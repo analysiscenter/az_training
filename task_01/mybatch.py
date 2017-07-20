@@ -5,7 +5,7 @@ sys.path.append('../')
 import tensorflow as tf
 from dataset import Dataset, DatasetIndex, Batch, action, model
 
-def generate_linear_data(lenght = 10):
+def generate_linear_data(lenght=10):
     """
     Generation of data for fit linear regression.
 
@@ -16,11 +16,11 @@ def generate_linear_data(lenght = 10):
     y - array [0..lenght] with some random noize
     """
 
-    y = np.linspace(0,10,lenght)
+    y = np.linspace(0, 10, lenght)
     X = y + np.random.random(lenght) - 0.5
-    return X,y
+    return X, y
 
-def generate_logistic_data(lenght = 10):
+def generate_logistic_data(lenght=10):
     """
     Generation of data for fit logistic regression.
 
@@ -30,9 +30,9 @@ def generate_logistic_data(lenght = 10):
     X - random numbers from the range of -10 to 10 
     y - array of 1 or 0. if X[i] < 0 y[i] = 0 else y[i] = 1
     """
-    X = np.array(np.random.randint(-10, 10, lenght),dtype=np.float32)
+    X = np.array(np.random.randint(-10, 10, lenght), dtype=np.float32)
     y = np.array([1. if i > 0 else 0. for i in X])
-    return X,y
+    return X, y
 
 def generate_poisson_data(lambd, lenght=10):
     """
@@ -47,10 +47,10 @@ def generate_poisson_data(lambd, lenght=10):
     X - matrix with shape(lenght,3) with random numbers of uniform distribution
     """
     y = np.random.poisson(lambd, size=lenght)
-    X = np.random.uniform(0,np.exp(-lambd), lenght)
+    X = np.random.uniform(0, np.exp(-lambd), lenght)
     for _ in range(2):
-        X = np.vstack(( X, np.random.uniform(0, np.exp(-lambd), lenght)))
-    return X.T,y
+        X = np.vstack((X, np.random.uniform(0, np.exp(-lambd), lenght)))
+    return X.T, y
 
 class MyBatch(Batch):
     """
@@ -60,18 +60,22 @@ class MyBatch(Batch):
         """
         Initialization of variable from parent class - Batch. 
         """    
-
         super().__init__(index, *args, **kwargs)
-    
+        self.x = None
+        self.y = None
+        self.W = None
+        self.b = None
+        sself.loss = None
+
     @property
     def components(self):
         """
         Define componentis.
         """
-        return 'x', 'y','W','b','loss'
+        return 'x', 'y', 'W', 'b', 'loss'
 
     @action
-    def generate(self, lenght = 10, ttype = "linear"):
+    def generate(self, lenght=10, ttype="linear"):
         """
         Create batch by self.indices by rewrite self.x and self.y.
         lenght - size all data.
@@ -85,13 +89,13 @@ class MyBatch(Batch):
         """
     
         if self.x == None or self.y == None:
-            self = self.load(lenght,ttype)
+            self = self.load(lenght, ttype)
             
         self.x, self.y = self.x[self.indices], self.y[self.indices]
         return self
     
     @action
-    def load(self, lenght = 10, ttype = 'linear', lambd = 1):
+    def load(self, lenght=10, ttype='linear', lambd=1):
         """
         Generate data for ttype-algorihm.
 
@@ -106,7 +110,7 @@ class MyBatch(Batch):
         """
     
         if ttype == 'poisson':
-            exec('self.x, self.y = generate_{}_data(lambd,lenght)'.format(ttype,lambd))
+            exec('self.x, self.y = generate_{}_data(lambd,lenght)'.format(ttype, lambd))
         else:
             exec('self.x, self.y = generate_{}_data(lenght)'.format(ttype))
         return self
@@ -126,19 +130,19 @@ class MyBatch(Batch):
         b - bias.
         """
         
-        X = tf.placeholder(name='input',dtype=tf.float32)
-        y = tf.placeholder(name='true_y',dtype=tf.float32)
+        X = tf.placeholder(name='input', dtype=tf.float32)
+        y = tf.placeholder(name='true_y', dtype=tf.float32)
         
-        W = tf.Variable(np.random.randint(-1,1,size=1),name='weight',dtype=tf.float32)
-        b = tf.Variable(np.random.randint(-1,1),dtype=tf.float32)
+        W = tf.Variable(np.random.randint(-1, 1, size=1), name='weight', dtype=tf.float32)
+        b = tf.Variable(np.random.randint(-1, 1), dtype=tf.float32)
 
-        predict = tf.multiply(W,X,name='output') + b
+        predict = tf.multiply(W, X, name='output') + b
         loss = tf.reduce_mean(tf.square(predict - y))
 
-        optimize = tf.train.GradientDescentOptimizer(learning_rate = 0.007)
+        optimize = tf.train.GradientDescentOptimizer(learning_rate=0.007)
         train = optimize.minimize(loss)
 
-        return [[X, y],[train, loss],[W,b]]
+        return [[X, y], [train, loss], [W, b]]
     
     @action(model='linear_model')
     def train_linear_model(self, model, session):
@@ -152,7 +156,7 @@ class MyBatch(Batch):
         return self.
         """
        
-        X,y = model[0]
+        X, y = model[0]
         optimizer, cost = model[1]
         params = model[2]
         _, loss, params = session.run([optimizer, cost, params], feed_dict={X:self.x, y: self.y})
@@ -176,18 +180,18 @@ class MyBatch(Batch):
         W - slope coefficient of straight line.
         b - bias.
         """
-        X = tf.placeholder(name='input',dtype=tf.float32)
-        y = tf.placeholder(name='true_y',dtype=tf.float32)
+        X = tf.placeholder(name='input', dtype=tf.float32)
+        y = tf.placeholder(name='true_y', dtype=tf.float32)
 
-        W = tf.Variable(np.random.randint(-1,1,size=1),name='weight',dtype=tf.float32)
-        b = tf.Variable(np.random.randint(-1,1),dtype=tf.float32)
+        W = tf.Variable(np.random.randint(-1, 1, size=1), name='weight', dtype=tf.float32)
+        b = tf.Variable(np.random.randint(-1, 1), dtype=tf.float32)
 
-        predict = tf.sigmoid(tf.multiply(W,X,name='output') + b)
-        loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=y,logits=predict))
+        predict = tf.sigmoid(tf.multiply(W, X, name='output') + b)
+        loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=predict))
 
-        optimize = tf.train.AdamOptimizer(learning_rate = 0.005)
+        optimize = tf.train.AdamOptimizer(learning_rate=0.005)
         train = optimize.minimize(loss)
-        return [[X, y],[train, loss, predict],[W,b]]
+        return [[X, y], [train, loss, predict], [W, b]]
 
     @action(model='logistic_model')
     def train_logistic_model(self, model, session, result, test):
@@ -205,7 +209,7 @@ class MyBatch(Batch):
         return self.
         """
 
-        X,y = model[0]
+        X, y = model[0]
         optimizer, cost, predict = model[1]
         params = model[2]
         _, loss, params = session.run([optimizer, cost, params], feed_dict={X:self.x, y: self.y})
@@ -229,16 +233,16 @@ class MyBatch(Batch):
         predict - model prediction.
         W - array of weights.
         """
-        X = tf.placeholder(name='input',shape = [None,3],dtype=tf.float32)
-        y = tf.placeholder(name='true_y',dtype=tf.float32)
+        X = tf.placeholder(name='input', shape=[None,3], dtype=tf.float32)
+        y = tf.placeholder(name='true_y', dtype=tf.float32)
 
-        W = tf.Variable(np.random.randint(-1,1,size=3).reshape(3,1),name='weight',dtype=tf.float32)
+        W = tf.Variable(np.random.randint(-1, 1, size=3).reshape(3, 1), name='weight', dtype=tf.float32)
 
-        predict = tf.exp(tf.matmul(X,W))
+        predict = tf.exp(tf.matmul(X, W))
         loss = tf.reduce_sum(tf.nn.log_poisson_loss(y,predict))
-        optimize = tf.train.AdamOptimizer(learning_rate = 0.005)
+        optimize = tf.train.AdamOptimizer(learning_rate=0.005)
         train = optimize.minimize(loss)
-        return [[X, y],[train, loss, predict],[W]]
+        return [[X, y], [train, loss, predict], [W]]
     
     @action(model='poisson_model')
     def train_poisson_model(self, model, session, result, test):
@@ -251,7 +255,7 @@ class MyBatch(Batch):
 
         return self.
         """
-        X,y = model[0]
+        X, y = model[0]
         optimizer, cost, predict = model[1]
         params = model[2]
         _, loss, params = session.run([optimizer, cost, params], feed_dict={X:self.x, y: self.y})
