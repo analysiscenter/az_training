@@ -1,9 +1,9 @@
 """MyBatch"""
 import sys
-sys.path.append('../')
+sys.path.append('..')
 import numpy as np
 import tensorflow as tf
-from dataset import Dataset, DatasetIndex, Batch, action, model
+from dataset import Batch, action, model
 
 def generate_linear_data(lenght=10):
     """
@@ -107,11 +107,11 @@ class MyBatch(Batch):
 
         return: self
         """
+        data_dict = {'linear': generate_linear_data(lenght),
+        'logistic': generate_logistic_data(lenght),
+        'poisson': generate_poisson_data(lambd, lenght)}
 
-        if ttype == 'poisson':
-            exec('self.x, self.y = generate_{}_data(lambd,lenght)'.format(ttype, lambd))
-        else:
-            exec('self.x, self.y = generate_{}_data(lenght)'.format(ttype))
+        self.x, self.y = data_dict['ttype']
         return self
 
     @model()
@@ -144,7 +144,7 @@ class MyBatch(Batch):
         return [[x, y], [train, loss], [w, b]]
 
     @action(model='linear_model')
-    def train_linear_model(self, model, session):
+    def train_linear_model(self, models, session):
         """
         Train linear regression.
 
@@ -155,9 +155,9 @@ class MyBatch(Batch):
         return self.
         """
 
-        x, y = model[0]
-        optimizer, cost = model[1]
-        params = model[2]
+        x, y = models[0]
+        optimizer, cost = models[1]
+        params = models[2]
         _, loss, params = session.run([optimizer, cost, params], feed_dict={x:self.x, y: self.y})
         self.w = params[0][0]
         self.b = params[1]
@@ -193,7 +193,7 @@ class MyBatch(Batch):
         return [[x, y], [train, loss, predict], [w, b]]
 
     @action(model='logistic_model')
-    def train_logistic_model(self, model, session, result, test):
+    def train_logistic_model(self, models, session, result, test):
         """
         Train logistic regression.
 
@@ -208,9 +208,9 @@ class MyBatch(Batch):
         return self.
         """
 
-        x, y = model[0]
-        optimizer, cost, predict = model[1]
-        params = model[2]
+        x, y = models[0]
+        optimizer, cost, predict = models[1]
+        params = models[2]
         _, loss, params = session.run([optimizer, cost, params], feed_dict={x:self.x, y: self.y})
         self.w = params[0][0]
         self.b = params[1]
@@ -254,9 +254,9 @@ class MyBatch(Batch):
 
         return self.
         """
-        x, y = model[0]
-        optimizer, cost, predict = model[1]
-        params = model[2]
+        x, y = models[0]
+        optimizer, cost, predict = models[1]
+        params = models[2]
         _, loss, params = session.run([optimizer, cost, params], feed_dict={x:self.x, y: self.y})
         self.w = params[0]
         self.loss = loss
