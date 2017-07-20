@@ -36,7 +36,7 @@ def generate_logistic_data(lenght=10):
 
     return x, y
 
-def generate_poisson_data(lambd, lenght=10):
+def generate_poisson_data(lam, lenght=10):
     """
     Generation of data for fit poisson regression.
 
@@ -48,12 +48,10 @@ def generate_poisson_data(lambd, lenght=10):
     y - array of poisson distribution numbers
     x - matrix with shape(lenght,3) with random numbers of uniform distribution
     """
-    y = np.random.poisson(lambd, size=lenght)
-    x = np.random.uniform(0, np.exp(-lambd), lenght)
-    for _ in range(2):
-        x = np.vstack((x, np.random.uniform(0, np.exp(-lambd), lenght)))
+    x = np.random.random(lenght * 3).reshape(lenght, 3)
+    y = np.random.poisson(np.exp(np.dot(x, lam)))
 
-    return x.T, y
+    return x, y
 
 class MyBatch(Batch):
     """
@@ -78,7 +76,7 @@ class MyBatch(Batch):
         return 'x', 'y', 'w', 'b', 'loss'
 
     @action
-    def generate(self, lenght=10, ttype="linear"):
+    def generate(self, lenght=10, ttype='linear', lam=np.array([0, 0, 0])):
         """
         Create batch by self.indices by rewrite self.x and self.y.
         lenght - size all data.
@@ -90,14 +88,13 @@ class MyBatch(Batch):
 
         return: self
         """
-        if self.x is None or self.y is None:
-            self = self.load(lenght, ttype)
+        self = self.load(lenght, ttype, lam)
         self.x, self.y = self.x[self.indices], self.y[self.indices]
 
         return self
 
     @action
-    def load(self, lenght=10, ttype='linear'):
+    def load(self, lenght=10, ttype='linear', lam=np.array([0, 0, 0])):
         """
         Generate data for ttype-algorihm.
 
@@ -110,10 +107,9 @@ class MyBatch(Batch):
 
         return: self
         """
-        lambd = 1
         data_dict = {'linear': generate_linear_data(lenght),
                      'logistic': generate_logistic_data(lenght),
-                     'poisson': generate_poisson_data(lambd, lenght)}
+                     'poisson': generate_poisson_data(lam, lenght)}
         self.x, self.y = data_dict[ttype]
 
         return self
@@ -241,7 +237,7 @@ class MyBatch(Batch):
 
         w = tf.Variable(np.random.randint(-1, 1, size=3).reshape(3, 1), name='weight', dtype=tf.float32)
 
-        predict = tf.exp(tf.matmul(x, w))
+        predict = tf.matmul(x, w)
         loss = tf.reduce_sum(tf.nn.log_poisson_loss(y, predict))
 
         optimize = tf.train.AdamOptimizer(learning_rate=0.005)
