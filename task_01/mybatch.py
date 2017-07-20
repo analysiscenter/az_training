@@ -1,3 +1,4 @@
+"""MyBatch"""
 import sys
 sys.path.append('../')
 import numpy as np
@@ -86,13 +87,12 @@ class MyBatch(Batch):
 
         return: self
         """
-    
         if self.x is None or self.y is None:
             self = self.load(lenght, ttype)
-            
+
         self.x, self.y = self.x[self.indices], self.y[self.indices]
         return self
-    
+
     @action
     def load(self, lenght=10, ttype='linear', lambd=1):
         """
@@ -107,13 +107,13 @@ class MyBatch(Batch):
 
         return: self
         """
-    
+
         if ttype == 'poisson':
             exec('self.x, self.y = generate_{}_data(lambd,lenght)'.format(ttype, lambd))
         else:
             exec('self.x, self.y = generate_{}_data(lenght)'.format(ttype))
         return self
-    
+
     @model()
     def linear_model():
         """
@@ -128,10 +128,10 @@ class MyBatch(Batch):
         w - slope coefficient of straight line.
         b - bias.
         """
-        
+
         x = tf.placeholder(name='input', dtype=tf.float32)
         y = tf.placeholder(name='true_y', dtype=tf.float32)
-        
+
         w = tf.Variable(np.random.randint(-1, 1, size=1), name='weight', dtype=tf.float32)
         b = tf.Variable(np.random.randint(-1, 1), dtype=tf.float32)
 
@@ -142,19 +142,19 @@ class MyBatch(Batch):
         train = optimize.minimize(loss)
 
         return [[x, y], [train, loss], [w, b]]
-    
+
     @action(model='linear_model')
     def train_linear_model(self, model, session):
         """
         Train linear regression.
 
         model - fit funtion. In this case it's linear_model.
-        
+
         session - tensorflow session.
 
         return self.
         """
-       
+
         x, y = model[0]
         optimizer, cost = model[1]
         params = model[2]
@@ -163,7 +163,7 @@ class MyBatch(Batch):
         self.b = params[1]
         self.loss = loss
         return self
-    
+
     @model()
     def logistic_model():
         """
@@ -198,7 +198,7 @@ class MyBatch(Batch):
         Train logistic regression.
 
         model - fit funtion. In this case it's linear_model.
-        
+
         session - tensorflow session.
 
         result - result of prediction.
@@ -242,14 +242,14 @@ class MyBatch(Batch):
         optimize = tf.train.AdamOptimizer(learning_rate=0.005)
         train = optimize.minimize(loss)
         return [[x, y], [train, loss, predict], [w]]
-    
+
     @action(model='poisson_model')
     def train_poisson_model(self, model, session, result, test):
         """
         Train poisson regression.
 
         model - fit funtion. In this case it's linear_model.
-        
+
         session - tensorflow session.
 
         return self.
