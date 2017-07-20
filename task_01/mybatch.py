@@ -78,7 +78,7 @@ class MyBatch(Batch):
         return 'x', 'y', 'w', 'b', 'loss'
 
     @action
-    def generate(self, lenght=10, ttype="linear", lambd=1):
+    def generate(self, lenght=10, ttype="linear"):
         """
         Create batch by self.indices by rewrite self.x and self.y.
         lenght - size all data.
@@ -91,13 +91,13 @@ class MyBatch(Batch):
         return: self
         """
         if self.x is None or self.y is None:
-            self = self.load(lenght, ttype, lambd)
+            self = self.load(lenght, ttype)
         self.x, self.y = self.x[self.indices], self.y[self.indices]
 
         return self
 
     @action
-    def load(self, lenght=10, ttype='linear', lambd=1):
+    def load(self, lenght=10, ttype='linear'):
         """
         Generate data for ttype-algorihm.
 
@@ -110,6 +110,7 @@ class MyBatch(Batch):
 
         return: self
         """
+        lambd = 1
         data_dict = {'linear': generate_linear_data(lenght),
                      'logistic': generate_logistic_data(lenght),
                      'poisson': generate_poisson_data(lambd, lenght)}
