@@ -9,18 +9,20 @@ from dataset import Dataset, Batch, action, model
 
 NUM_DIM = 13
 
-''' A Batch with linear regression model '''
 class MyBatch(Batch):
+''' A Batch with linear regression model '''
+
     def __init__(self, index, *args, **kwargs):
         super().__init__(index, *args, **kwargs)
 
     @property
     def components(self):
-        ''' define components '''
+        ''' Define components '''
         return "features", "labels"
 
     @model()
     def linear_regression():
+    ''' Define tf grapg for linear regression '''
         learning_rate = 0.01
         x_features = tf.placeholder(tf.float32, [None, NUM_DIM])
         y_target = tf.placeholder(tf.float32, [None, 1])
@@ -34,16 +36,17 @@ class MyBatch(Batch):
         return training_step, cost, x_features, y_target, y_cup
 
 
-
     @action(model='linear_regression')
     def train(self, model, my_sess, my_cost_history):
+    ''' Train batch ''' 
         training_step, cost, x_features, y_target = model[:-1]
-        sess.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
-        cost_history.append(sess.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
+        my_sess.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
+        my_cost_history.append(my_sess.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
         return self
 
     @action(model='linear_regression')
     def test(self, model, sess):
+    ''' Test batch '''
         x_features, y_target = model[2:4]
         y_cup = model[4]
         y_pred = sess.run(y_cup, feed_dict={x_features:self.features})
@@ -58,14 +61,14 @@ class MyBatch(Batch):
         plt.show()
         return self
 
-''' load some data '''
 def load_boston_data():
+    ''' load some data '''
     boston = load_boston()
     labels = np.reshape(boston.target, [boston.target.shape[0], 1])
     return boston.data, labels
 
-''' create Dataset with given data '''
 def load_dataset(input_data):
+    ''' create Dataset with given data '''
     dataset = Dataset(index=np.arange(input_data[0].shape[0]), batch_class=MyBatch, preloaded=input_data)
     dataset.cv_split()
     return dataset
