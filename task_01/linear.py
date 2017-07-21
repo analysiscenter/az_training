@@ -35,7 +35,7 @@ class MyBatch(Batch):
 
     @action(model='linear_regression')
     def train(self, model, my_sess, my_cost_history):
-        ''' Train batch ''' 
+        ''' Train batch '''
         training_step, cost, x_features, y_target = model[:-1]
         my_sess.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
         my_cost_history.append(my_sess.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
@@ -44,13 +44,13 @@ class MyBatch(Batch):
     @action(model='linear_regression')
     def test(self, model, sess):
         ''' Test batch '''
-        x_features, y_target = model[2:4]
+        x_features = model[2]
         y_cup = model[4]
         y_pred = sess.run(y_cup, feed_dict={x_features:self.features})
         mse = tf.reduce_mean(tf.square(y_pred - self.labels))
         print("MSE: %.4f" % sess.run(mse))
 
-        fig, axis = plt.subplots()
+        axis = plt.subplots()[1]
         axis.scatter(self.labels, y_pred)
         axis.plot([self.labels.min(), self.labels.max()], [self.labels.min(), self.labels.max()], 'k--')
         axis.set_xlabel('Measured')
