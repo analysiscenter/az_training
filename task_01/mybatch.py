@@ -78,6 +78,10 @@ class MyBatch(Batch):
     """ The core batch class which can load data, generate dataset
     and train linear regression, logistic regression, poisson regression"""
 
+    def __init__(self, index, *args, **kwargs):
+        """ Initialization of variable from parent class - Batch. """
+        super().__init__(index, *args, **kwargs)
+
     @property
     def components(self):
         """ Define componentis. """
