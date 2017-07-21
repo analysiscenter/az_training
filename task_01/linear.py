@@ -69,3 +69,4 @@ def load_dataset(input_data):
     dataset = Dataset(index=np.arange(input_data[0].shape[0]), batch_class=MyBatch, preloaded=input_data)
     dataset.cv_split()
     return dataset
+
