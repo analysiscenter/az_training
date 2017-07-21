@@ -34,21 +34,21 @@ class MyBatch(Batch):
 
 
     @action(model='linear_regression')
-    def train(self, model, my_sess, my_cost_history):
+    def train(self, model_spec, session, my_cost_history):
         ''' Train batch '''
         training_step, cost, x_features, y_target = model[:-1]
-        my_sess.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
-        my_cost_history.append(my_sess.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
+        session.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
+        my_cost_history.append(session.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
         return self
 
     @action(model='linear_regression')
-    def test(self, model, sess):
+    def test(self, model, session):
         ''' Test batch '''
         x_features = model[2]
         y_cup = model[4]
-        y_pred = sess.run(y_cup, feed_dict={x_features:self.features})
+        y_pred = session.run(y_cup, feed_dict={x_features:self.features})
         mse = tf.reduce_mean(tf.square(y_pred - self.labels))
-        print("MSE: %.4f" % sess.run(mse))
+        print("MSE: %.4f" % session.run(mse))
 
         axis = plt.subplots()[1]
         axis.scatter(self.labels, y_pred)
@@ -61,36 +61,11 @@ class MyBatch(Batch):
 def load_boston_data():
     ''' load some data '''
     boston = load_boston()
-    labels = np.reshape(boston.target, [boston.target.shape[0], 1])
-    return boston.data, labels
+    labels = np.reshape(boston.target, [boston.target.shape[0], 1]) #pylint: disable=no-member
+    return boston.data, labels #pylint: disable=no-member
 
 def load_dataset(input_data):
     ''' create Dataset with given data '''
     dataset = Dataset(index=np.arange(input_data[0].shape[0]), batch_class=MyBatch, preloaded=input_data)
     dataset.cv_split()
     return dataset
-
-
-if __name__ == "__main__":
-    BATCH_SIZE = 100
-    TRAINING_EPOCHS = 500
-
-    data = load_boston_data()
-    scale(data[0], axis=0, with_mean=True, with_std=True, copy=False)
-
-    my_dataset = load_dataset(data)
-
-    sess = tf.Session()
-    init = tf.global_variables_initializer()
-    sess.run(init)
-    cost_history = []
-
-    for batch in my_dataset.train.gen_batch(BATCH_SIZE, shuffle=True, n_epochs=TRAINING_EPOCHS):
-        batch.train(sess, cost_history)
-
-    plt.plot(range(len(cost_history)), cost_history)
-    plt.axis([0, TRAINING_EPOCHS * (len(my_dataset.train.indices)  / BATCH_SIZE), 0, np.max(cost_history)])
-    plt.show()
-
-    test_batch = my_dataset.test.next_batch(len(my_dataset.test.indices))
-    test_batch.test(sess)
