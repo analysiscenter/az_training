@@ -88,7 +88,7 @@ class MyBatch(Batch):
 
         return: self
         """
-        self = self.load(lenght, ttype, lam)
+        self = self.load(lenght=lenght, ttype=ttype, lam=lam)
         self.x, self.y = self.x[self.indices], self.y[self.indices]
 
         return self
