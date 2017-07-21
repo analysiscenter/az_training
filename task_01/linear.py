@@ -12,9 +12,6 @@ NUM_DIM = 13
 class MyBatch(Batch):
     ''' A Batch with linear regression model '''
 
-    def __init__(self, index, *args, **kwargs):
-        super().__init__(index, *args, **kwargs)
-
     @property
     def components(self):
         ''' Define components '''
