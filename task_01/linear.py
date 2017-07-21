@@ -63,7 +63,7 @@ def load_boston_data():
     labels = np.reshape(boston.target, [boston.target.shape[0], 1]) #pylint: disable=no-member
     return boston.data, labels #pylint: disable=no-member
 
-def load_dataset(input_data): 
+def load_dataset(input_data):
     ''' create Dataset with given data '''
     dataset = Dataset(index=np.arange(input_data[0].shape[0]), batch_class=MyBatch, preloaded=input_data)
     dataset.cv_split()
