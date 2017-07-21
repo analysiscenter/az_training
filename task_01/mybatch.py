@@ -1,150 +1,107 @@
-"""MyBatch"""
-
+"""File contains main class named myBatch.
+And function to generate data."""
 import sys
-sys.path.append('..')
-import numpy as np
+
 import tensorflow as tf
+import numpy as np
+
+sys.path.append('..')
 from dataset import Batch, action, model
 
-def generate_linear_data(lenght=10):
-    """
-    Generation of data for fit linear regression.
 
-    lenght - lenght of data.
+def generate_linear_data(size=10):
+    """ Generation of data for fit linear regression.
+    Args:
+        size: length of data.
 
-    return:
-    x - array [0..lenght]
-    y - array [0..lenght] with some random noize
-    """
-    y = np.linspace(0, 10, lenght)
-    x = y + np.random.random(lenght) - 0.5
-
-    return x, y
-
-def generate_logistic_data(lenght=10):
-    """
-    Generation of data for fit logistic regression.
-
-    lenght - lenght of data.
-
-    return:
-        x - random numbers from the range of -10 to 10
-    y - array of 1 or 0. if x[i] < 0 y[i] = 0 else y[i] = 1
-    """
-    x = np.array(np.random.randint(-10, 10, lenght), dtype=np.float32)
-    y = np.array([1. if i > 0 else 0. for i in x])
+    Output:
+        x: array [0..size]
+        y: array [0..size] with some random noize. """
+    x = np.random.randint(-10, 10, size)
+    w = np.random.random(1)
+    error = np.random.randint(-3, 3, size)
+    y = x * w + error
 
     return x, y
 
-def generate_poisson_data(lam, lenght=10):
-    """
-    Generation of data for fit poisson regression.
+def generate_logistic_data(size=10):
+    """ Generation of data for fit logistic regression.
+    Args:
+        size: length of data.
 
-    lenght - lenght of data.
+    Output:
+        x: random numbers from the range of -10 to 10
+        y: array of 1 or 0. if x[i] < 0 y[i] = 0 else y[i] = 1 """
+    x = np.array(np.random.randint(-100, 100, size), dtype=np.float32)
+    y = np.sign(x)
 
-    lambd - Poisson distribution parameter.
+    return x, y
 
-    return:
-    y - array of poisson distribution numbers
-    x - matrix with shape(lenght,3) with random numbers of uniform distribution
-    """
-    x = np.random.random(lenght * 3).reshape(lenght, 3)
+def generate_poisson_data(lam, size=10):
+    """ Generation of data for fit poisson regression.
+
+    size: size of data.
+
+    lambd: Poisson distribution parameter.
+
+    Output:
+        y: array of poisson distribution numbers.
+        x: matrix with shape(size,3) with random numbers of uniform distribution. """
+    x = np.random.random(size * 3).reshape(size, 3)
     y = np.random.poisson(np.exp(np.dot(x, lam)))
 
     return x, y
 
-def generate(lenght=10, ttype='linear', lam=np.array([0, 0, 0])):
-    """
-    Generate data for thee types of regression.
+def generate(size=10, ttype='linear', lam=np.array([0, 0, 0])):
 
-    ttype - name of using algorithm:
-        * 'linear' for linear regression. (default)
-        * 'logistic' for logistic regression.
-        * 'poisson' for poisson regression.
+    """ Generate data for thee types of regression.
+    Args:
+        ttype: name of using algorithm:
+            * 'linear' for linear regression. (default)
+            * 'logistic' for logistic regression.
+            * 'poisson' for poisson regression.
 
-    lam - array with lambda's as parameters of poisson distribution.
+        lam: array with lambda's as parameters of poisson distribution.
 
-    return: self
-    """
+    Output:
+        self """
     data_dict = {'linear': generate_linear_data,
                  'logistic': generate_logistic_data,
                  'poisson': generate_poisson_data}
     if ttype != 'poisson':
-        X, y = data_dict[ttype](lenght)
+        x, y = data_dict[ttype](size)
     else:
-        X, y = data_dict[ttype](lam, lenght)
-    return X, y
- 
+        x, y = data_dict[ttype](lam, size)  # pylint: disable=too-many-function-args
+    return x, y
+
 class MyBatch(Batch):
-    """
-    Main class
-    """
-    def __init__(self, index, *args, **kwargs):
-        """
-        Initialization of variable from parent class - Batch.
-        """
-        super().__init__(index, *args, **kwargs)
-        self.x = None
-        self.y = None
-        self.w = None
-        self.b = None
-        self.loss = None
+    """ The core batch class which can load data, generate dataset
+    and train linear regression, logistic regression, poisson regression"""
 
     @property
     def components(self):
-        """
-        Define componentis.
-        """
-        return 'w', 'b', 'loss'
+        """ Define componentis. """
+        return 'x', 'y'
 
-    @action
-    def load(self, src, fmt=None):
-        """
-        Loading data to self.x and self.y from:
-            src, if src - array of[x, y]
-            or {src}_x.{fmt} if src - file name and fmt - format file.
-
-        return: self
-        """
-        if fmt == 'csv':
-            srlf.x = list(map(float,open('{}_x.{}'.format(src, fmt), 'r').split('\n')[: -1]))
-            srlf.y = list(map(float,open('{}_y.{}'.format(src, fmt), 'r').split('\n')[: -1]))
-        else:
-            self.x, self.y = src
-
-        return self
-
-    @action
-    def generate_batch(self):
-        """
-        Generate batch by indices.
-        
-        return: self
-        """
-        self.x, self.y = self.x[self.indices], self.y[self.indices]
-
-        return self
     @model()
     def linear_model():
-        """
-        Function with graph of linear regression.
+        """ Function with graph of linear regression.
 
-        return:
-        array with shape = (3,2)
-        x - data.
-        y - answers to data.
-        train - function - optimizer.
-        loss - quality of model.
-        w - slope coefficient of straight line.
-        b - bias.
-        """
+        Output:
+            array with shape = (3,2)
+            x: data.
+            y: answers to data.
+            train: function - optimizer.
+            loss: quality of model.
+            w: slope coefficient of straight line.
+            b: bias. """
         x = tf.placeholder(name='input', dtype=tf.float32)
         y = tf.placeholder(name='true_y', dtype=tf.float32)
 
         w = tf.Variable(np.random.randint(-1, 1, size=1), name='weight', dtype=tf.float32)
         b = tf.Variable(np.random.randint(-1, 1), dtype=tf.float32)
 
-        predict = tf.multiply(w, x, name='output') + b
+        predict = tf.add(tf.multiply(w, x, name='output'), b)
         loss = tf.reduce_mean(tf.square(predict - y))
 
         optimize = tf.train.GradientDescentOptimizer(learning_rate=0.007)
@@ -153,48 +110,46 @@ class MyBatch(Batch):
         return [[x, y], [train, loss], [w, b]]
 
     @action(model='linear_model')
-    def train_linear_model(self, models, session):
-        """
-        Train linear regression.
+    def train_linear_model(self, models, session, dict_params):
+        """Train linear regression.
 
-        model - fit funtion. In this case it's linear_model.
+        Args:
+            model: fit funtion. In this case it's linear_model.
 
-        session - tensorflow session.
+            session: tensorflow session.
 
-        return self.
-        """
+        Output:
+            self. """
         x, y = models[0]
         optimizer, cost = models[1]
-        params = models[2]
-        _, loss, params = session.run([optimizer, cost, params], feed_dict={x:self.x, y: self.y})
-        self.w = params[0][0]
-        self.b = params[1]
-        self.loss = loss
+        weights = models[2]
+        _, loss, params = session.run([optimizer, cost, weights], feed_dict={x: self.x, y: self.y})
+        dict_params['w'] = params[0][0]
+        dict_params['b'] = params[1]
+        dict_params['loss'] = loss
 
         return self
 
     @model()
     def logistic_model():
-        """
-        Function with graph of logistic regression.
+        """ Function with graph of logistic regression.
 
-        return:
-        array with shape = (3,2(3))
-        x - data.
-        y - answers to data.
-        train - function - optimizer.
-        loss - quality of model.
-        predict - model prediction.
-        w - slope coefficient of straight line.
-        b - bias.
-        """
+        Output:
+            array with shape = (3,2(3))
+            x: data.
+            y: answers to data.
+            train: function - optimizer.
+            loss: quality of model.
+            predict: model prediction.
+            w: slope coefficient of straight line.
+            b: bias. """
         x = tf.placeholder(name='input', dtype=tf.float32)
         y = tf.placeholder(name='true_y', dtype=tf.float32)
 
         w = tf.Variable(np.random.randint(-1, 1, size=1), name='weight', dtype=tf.float32)
         b = tf.Variable(np.random.randint(-1, 1), dtype=tf.float32)
 
-        predict = tf.sigmoid(tf.multiply(w, x, name='output') + b)
+        predict = tf.sigmoid(tf.add(tf.multiply(w, x, name='output'), b))
         loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=predict))
 
         optimize = tf.train.AdamOptimizer(learning_rate=0.005)
@@ -203,45 +158,42 @@ class MyBatch(Batch):
         return [[x, y], [train, loss, predict], [w, b]]
 
     @action(model='logistic_model')
-    def train_logistic_model(self, models, session, result, test):
-        """
-        Train logistic regression.
+    def train_logistic_model(self, models, session, dict_params):
+        """ Train logistic regression.
+        Args:
+            model: fit funtion. In this case it's linear_model.
 
-        model - fit funtion. In this case it's linear_model.
+            session: tensorflow session.
 
-        session - tensorflow session.
+            result: result of prediction.
 
-        result - result of prediction.
+            test: data to predict.
 
-        test - data to predict.
-
-        return self.
-        """
+        Output:
+            self. """
         x, y = models[0]
         optimizer, cost, predict = models[1]
-        params = models[2]
-        _, loss, params = session.run([optimizer, cost, params], feed_dict={x:self.x, y: self.y})
-        self.w = params[0][0]
-        self.b = params[1]
-        self.loss = loss
-        result[:] = session.run([predict], feed_dict={x:test})[0]
+        weight = models[2]
+        _, loss, params = session.run([optimizer, cost, weight], feed_dict={x: self.x, y: self.y})
+        dict_params['w'] = params[0][0]
+        dict_params['b'] = params[1]
+        dict_params['loss'] = loss
+        dict_params['result'] = session.run([predict], feed_dict={x: dict_params['test']})[0]
 
         return self
 
     @model()
     def poisson_model():
-        """
-        Function with graph of poisson regression.
+        """ Function with graph of poisson regression.
 
-        return:
-        array with shape = (3,2(3))
-        x - data.
-        y - answers to data.
-        train - function - optimizer.
-        loss - quality of model.
-        predict - model prediction.
-        w - array of weights.
-        """
+        Output:
+            array with shape = (3,2(3))
+            x: data.
+            y: answers to data.
+            train: function - optimizer.
+            loss: quality of model.
+            predict: model prediction.
+            w: array of weights."""
         x = tf.placeholder(name='input', shape=[None, 3], dtype=tf.float32)
         y = tf.placeholder(name='true_y', dtype=tf.float32)
 
@@ -256,22 +208,21 @@ class MyBatch(Batch):
         return [[x, y], [train, loss, predict], [w]]
 
     @action(model='poisson_model')
-    def train_poisson_model(self, models, session, result, test):
-        """
-        Train poisson regression.
+    def train_poisson_model(self, models, session, dict_params):
+        """ Train poisson regression.
+        Args:
+            model: fit funtion. In this case it's linear_model.
 
-        model - fit funtion. In this case it's linear_model.
+            session: tensorflow session.
 
-        session - tensorflow session.
-
-        return self.
-        """
+        Output
+            self. """
         x, y = models[0]
         optimizer, cost, predict = models[1]
-        params = models[2]
-        _, loss, params = session.run([optimizer, cost, params], feed_dict={x:self.x, y: self.y})
-        self.w = params[0]
-        self.loss = loss
-        result[:] = session.run([predict], feed_dict={x:test})[0]
+        weight = models[2]
+        _, loss, params = session.run([optimizer, cost, weight], feed_dict={x: self.x, y: self.y})
+        dict_params['w'] = params[0]
+        dict_params['loss'] = loss
+        dict_params['result'] = session.run([predict], feed_dict={x: dict_params['test']})
 
         return self
