@@ -10,7 +10,7 @@ from dataset import Dataset, Batch, action, model
 NUM_DIM = 13
 
 class MyBatch(Batch):
-''' A Batch with linear regression model '''
+    ''' A Batch with linear regression model '''
 
     def __init__(self, index, *args, **kwargs):
         super().__init__(index, *args, **kwargs)
@@ -97,3 +97,4 @@ if __name__ == "__main__":
 
     test_batch = my_dataset.test.next_batch(len(my_dataset.test.indices))
     test_batch.test(sess)
+
