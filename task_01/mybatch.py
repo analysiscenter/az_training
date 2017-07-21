@@ -53,6 +53,28 @@ def generate_poisson_data(lam, lenght=10):
 
     return x, y
 
+def generate(lenght=10, ttype='linear', lam=np.array([0, 0, 0])):
+    """
+    Generate data for thee types of regression.
+
+    ttype - name of using algorithm:
+        * 'linear' for linear regression. (default)
+        * 'logistic' for logistic regression.
+        * 'poisson' for poisson regression.
+
+    lam - array with lambda's as parameters of poisson distribution.
+
+    return: self
+    """
+    data_dict = {'linear': generate_linear_data,
+                 'logistic': generate_logistic_data,
+                 'poisson': generate_poisson_data}
+    if ttype != 'poisson':
+        X, y = data_dict[ttype](lenght)
+    else:
+        X, y = data_dict[ttype](lam, lenght)
+    return X, y
+ 
 class MyBatch(Batch):
     """
     Main class
@@ -73,47 +95,35 @@ class MyBatch(Batch):
         """
         Define componentis.
         """
-        return 'x', 'y', 'w', 'b', 'loss'
+        return 'w', 'b', 'loss'
 
     @action
-    def generate(self, lenght=10, ttype='linear', lam=np.array([0, 0, 0])):
+    def load(self, src, fmt=None):
         """
-        Create batch by self.indices by rewrite self.x and self.y.
-        lenght - size all data.
-
-        ttype - name of using algorithm:
-            * 'linear' for linear regression. (default)
-            * 'logistic' for logistic regression.
-            * 'poisson' for poisson regression.
+        Loading data to self.x and self.y from:
+            src, if src - array of[x, y]
+            or {src}_x.{fmt} if src - file name and fmt - format file.
 
         return: self
         """
-        self = self.load(lenght=lenght, ttype=ttype, lam=lam)
+        if fmt == 'csv':
+            srlf.x = list(map(float,open('{}_x.{}'.format(src, fmt), 'r').split('\n')[: -1]))
+            srlf.y = list(map(float,open('{}_y.{}'.format(src, fmt), 'r').split('\n')[: -1]))
+        else:
+            self.x, self.y = src
+
+        return self
+
+    @action
+    def generate_batch(self):
+        """
+        Generate batch by indices.
+        
+        return: self
+        """
         self.x, self.y = self.x[self.indices], self.y[self.indices]
 
         return self
-
-    @action
-    def load(self, lenght=10, ttype='linear', lam=np.array([0, 0, 0])):
-        """
-        Generate data for ttype-algorihm.
-
-        lenght - size all data.
-
-        ttype - name of using algorithm:
-            * 'linear' for linear regression. (default)
-            * 'logistic' for logistic regression.
-            * 'poisson' for poisson regression.
-
-        return: self
-        """
-        data_dict = {'linear': generate_linear_data(lenght),
-                     'logistic': generate_logistic_data(lenght),
-                     'poisson': generate_poisson_data(lam, lenght)}
-        self.x, self.y = data_dict[ttype]
-
-        return self
-
     @model()
     def linear_model():
         """
