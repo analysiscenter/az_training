@@ -22,7 +22,7 @@ class MyBatch(Batch):
 
     @model()
     def linear_regression():
-    ''' Define tf grapg for linear regression '''
+        ''' Define tf grapg for linear regression '''
         learning_rate = 0.01
         x_features = tf.placeholder(tf.float32, [None, NUM_DIM])
         y_target = tf.placeholder(tf.float32, [None, 1])
@@ -38,7 +38,7 @@ class MyBatch(Batch):
 
     @action(model='linear_regression')
     def train(self, model, my_sess, my_cost_history):
-    ''' Train batch ''' 
+        ''' Train batch ''' 
         training_step, cost, x_features, y_target = model[:-1]
         my_sess.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
         my_cost_history.append(my_sess.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
@@ -46,7 +46,7 @@ class MyBatch(Batch):
 
     @action(model='linear_regression')
     def test(self, model, sess):
-    ''' Test batch '''
+        ''' Test batch '''
         x_features, y_target = model[2:4]
         y_cup = model[4]
         y_pred = sess.run(y_cup, feed_dict={x_features:self.features})
@@ -97,4 +97,3 @@ if __name__ == "__main__":
 
     test_batch = my_dataset.test.next_batch(len(my_dataset.test.indices))
     test_batch.test(sess)
-
