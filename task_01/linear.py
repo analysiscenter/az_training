@@ -3,7 +3,6 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.datasets import load_boston
-from sklearn.preprocessing import scale
 
 from dataset import Dataset, Batch, action, model
 
@@ -36,16 +35,16 @@ class MyBatch(Batch):
     @action(model='linear_regression')
     def train(self, model_spec, session, my_cost_history):
         ''' Train batch '''
-        training_step, cost, x_features, y_target = model[:-1]
+        training_step, cost, x_features, y_target = model_spec[:-1]
         session.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
         my_cost_history.append(session.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
         return self
 
     @action(model='linear_regression')
-    def test(self, model, session):
+    def test(self, model_spec, session):
         ''' Test batch '''
-        x_features = model[2]
-        y_cup = model[4]
+        x_features = model_spec[2]
+        y_cup = model_spec[4]
         y_pred = session.run(y_cup, feed_dict={x_features:self.features})
         mse = tf.reduce_mean(tf.square(y_pred - self.labels))
         print("MSE: %.4f" % session.run(mse))
@@ -64,7 +63,7 @@ def load_boston_data():
     labels = np.reshape(boston.target, [boston.target.shape[0], 1]) #pylint: disable=no-member
     return boston.data, labels #pylint: disable=no-member
 
-def load_dataset(input_data):
+def load_dataset(input_data): 
     ''' create Dataset with given data '''
     dataset = Dataset(index=np.arange(input_data[0].shape[0]), batch_class=MyBatch, preloaded=input_data)
     dataset.cv_split()
