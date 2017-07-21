@@ -1,4 +1,4 @@
-# Linear regression using dataset and tensor flow
+''' Linear regression using dataset and tensor flow '''
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -9,43 +9,44 @@ from dataset import Dataset, Batch, action, model
 
 NUM_DIM = 13
 
-# A Batch with linear regression model
+''' A Batch with linear regression model '''
 class MyBatch(Batch):
     def __init__(self, index, *args, **kwargs):
         super().__init__(index, *args, **kwargs)
 
     @property
     def components(self):
+        ''' define components '''
         return "features", "labels"
 
     @model()
     def linear_regression():
         learning_rate = 0.01
-        X_features = tf.placeholder(tf.float32, [None, NUM_DIM])
+        x_features = tf.placeholder(tf.float32, [None, NUM_DIM])
         y_target = tf.placeholder(tf.float32, [None, 1])
         weights = tf.Variable(tf.ones([NUM_DIM, 1]))
         bias = tf.Variable(tf.ones([1]))
 
-        y_cup = tf.add(tf.matmul(X_features, weights), bias)
+        y_cup = tf.add(tf.matmul(x_features, weights), bias)
         cost = tf.reduce_mean(tf.square(y_cup - y_target))
         training_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
 
-        return training_step, cost, X_features, y_target, y_cup
+        return training_step, cost, x_features, y_target, y_cup
 
 
 
     @action(model='linear_regression')
     def train(self, model, my_sess, my_cost_history):
-        training_step, cost, X_features, y_target = model[:-1]
-        sess.run(training_step, feed_dict={X_features:self.features, y_target:self.labels})
-        cost_history.append(sess.run(cost, feed_dict={X_features:self.features, y_target:self.labels}))
+        training_step, cost, x_features, y_target = model[:-1]
+        sess.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
+        cost_history.append(sess.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
         return self
 
     @action(model='linear_regression')
     def test(self, model, sess):
-        X_features, y_target = model[2:4]
+        x_features, y_target = model[2:4]
         y_cup = model[4]
-        y_pred = sess.run(y_cup, feed_dict={X_features:self.features})
+        y_pred = sess.run(y_cup, feed_dict={x_features:self.features})
         mse = tf.reduce_mean(tf.square(y_pred - self.labels))
         print("MSE: %.4f" % sess.run(mse))
 
@@ -57,13 +58,13 @@ class MyBatch(Batch):
         plt.show()
         return self
 
-# load some data
+''' load some data '''
 def load_boston_data():
     boston = load_boston()
     labels = np.reshape(boston.target, [boston.target.shape[0], 1])
     return boston.data, labels
 
-# create Dataset with given data
+''' create Dataset with given data '''
 def load_dataset(input_data):
     dataset = Dataset(index=np.arange(input_data[0].shape[0]), batch_class=MyBatch, preloaded=input_data)
     dataset.cv_split()
