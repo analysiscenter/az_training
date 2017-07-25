@@ -4,6 +4,7 @@ import sys
 
 import tensorflow as tf
 import numpy as np
+from sklearn.metrics import accuracy_score
 
 sys.path.append('..')
 from dataset import Batch, action, model
@@ -13,13 +14,19 @@ class MyBatch(Batch):
     """ The core batch class which can load data, generate dataset
     and train linear regression, logistic regression, poisson regression"""
 
+    def __init__(self, index, your_param1, your_param2, *args, **kwargs):
+        """ INIT """
+        super().__init__(index)
+        self.x = None
+        self.y = None
+
     @property
     def components(self):
         """ Define componentis. """
         return 'x', 'y'
 
     @action
-    def load(self, src):
+    def load(self, src, fmt=None):
         """ Loading data to self.x and self.y
         Args:
             * src: data in format (x, y)
