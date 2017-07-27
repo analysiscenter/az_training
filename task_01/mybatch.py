@@ -8,12 +8,12 @@ import numpy as np
 sys.path.append('..')
 from dataset import Batch, action, model
 
-NUM_DIM_LIN = 2
+NUM_DIM_LIN = 13
 class MyBatch(Batch):
     """ The core batch class which can load data, generate dataset
     and train linear regression, logistic regression, poisson regression"""
 
-    def __init__(self, index):
+    def __init__(self, index, *args, **kwargs):
         """ INIT """
         super().__init__(index)
         self.x = None
@@ -223,15 +223,16 @@ class MyBatch(Batch):
             loss: quality of model.
             predict: model prediction.
             w: array of weights."""
-        x = tf.placeholder(name='input', shape=[None, 2], dtype=tf.float32)
+        x = tf.placeholder(name='input', shape=[None, NUM_DIM_LIN], dtype=tf.float32)
         y = tf.placeholder(name='true_y', shape=[None, 1], dtype=tf.float32)
 
-        w = tf.Variable(np.random.uniform(-1, 1, size=2).reshape(2, 1), name='weight', dtype=tf.float32)
+        w = tf.Variable(np.random.uniform(-1, 1, size=NUM_DIM_LIN).reshape(NUM_DIM_LIN, 1), name='weight', dtype=tf.float32)
         b = tf.Variable(np.random.uniform(-1, 1, size=1).reshape(1, 1), dtype=tf.float32)
         predict = tf.add(tf.matmul(x, w), b)
-        loss = tf.reduce_sum(tf.nn.log_poisson_loss(y, predict))
+        y_pred = tf.exp(predict)
+        loss = tf.reduce_mean(tf.nn.log_poisson_loss(y, predict, compute_full_loss=False))
 
         optimize = tf.train.AdamOptimizer(learning_rate=0.01)
         train = optimize.minimize(loss)
 
-        return [[x, y], [train, loss, predict], [w, b]]
+        return [[x, y], [train, loss, y_pred], [w, b]]
