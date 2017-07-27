@@ -15,7 +15,7 @@ class MyBatch(Batch):
 
     def __init__(self, index, *args, **kwargs):
         """ INIT """
-        super().__init__(index)
+        super().__init__(index, *args, **kwargs))
         self.x = None
         self.y = None
 
@@ -226,7 +226,8 @@ class MyBatch(Batch):
         x = tf.placeholder(name='input', shape=[None, NUM_DIM_LIN], dtype=tf.float32)
         y = tf.placeholder(name='true_y', shape=[None, 1], dtype=tf.float32)
 
-        w = tf.Variable(np.random.uniform(-1, 1, size=NUM_DIM_LIN).reshape(NUM_DIM_LIN, 1), name='weight', dtype=tf.float32)
+        w = tf.Variable(np.random.uniform(-1, 1, size=NUM_DIM_LIN)\
+            .reshape(NUM_DIM_LIN, 1), name='weight', dtype=tf.float32)
         b = tf.Variable(np.random.uniform(-1, 1, size=1).reshape(1, 1), dtype=tf.float32)
         predict = tf.add(tf.matmul(x, w), b)
         y_pred = tf.exp(predict)
