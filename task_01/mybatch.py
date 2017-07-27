@@ -15,7 +15,7 @@ class MyBatch(Batch):
 
     def __init__(self, index, *args, **kwargs):
         """ INIT """
-        super().__init__(index, *args, **kwargs))
+        super().__init__(index, *args, **kwargs)
         self.x = None
         self.y = None
 
