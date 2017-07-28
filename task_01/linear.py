@@ -19,6 +19,12 @@ class MyBatch(Batch):
         ''' Define components '''
         return "features", "labels"
 
+    @action()
+    def preprocess_linear_data(self):
+        ''' Normalize data '''
+        scale(self.features, axis=0, with_mean=True, with_std=True, copy=False)
+        return self
+
     @model()
     def linear_regression():
         ''' Define tf graph for linear regression '''
@@ -29,7 +35,7 @@ class MyBatch(Batch):
         bias = tf.Variable(tf.ones([1]))
 
         y_cup = tf.add(tf.matmul(x_features, weights), bias)
-        cost = tf.reduce_mean(tf.square(y_cup - y_target))
+        cost = tf.add(tf.reduce_mean(tf.square(y_target - y_cup)), tf.multiply(tf.reduce_sum(tf.square(weights)), 0.1))
         training_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
         return training_step, cost, x_features, y_target, y_cup
     
@@ -115,8 +121,9 @@ class MyBatch(Batch):
         bias = tf.Variable(tf.zeros([1]))
 
         log_input = tf.add(tf.matmul(x_features, weights), bias)
-        cost = tf.reduce_mean(tf.nn.log_poisson_loss(y_target, log_input, compute_full_loss=False))
-        
+        cost = tf.reduce_mean(tf.add(tf.nn.log_poisson_loss(y_target, log_input, compute_full_loss=False), tf.multiply(tf.reduce_sum(tf.square(weights)), 0.1)))
+        # cost = tf.add(tf.reduce_mean(tf.square(y_target - y_cup)), tf.multiply(tf.reduce_sum(tf.square(weights)), 0.1))
+
         # y_cup = tf.exp(log_input)
             
         training_step = tf.train.AdamOptimizer(learning_rate).minimize(cost)
@@ -145,11 +152,14 @@ class MyBatch(Batch):
         return self
 
 
-def load_boston_data():
+def load_linear_data(num_samples=500):
     ''' load some data '''
-    boston = load_boston()
-    labels = np.reshape(boston.target, [boston.target.shape[0], 1])
-    return boston.data, labels
+    features = np.random.random_sample([num_samples, NUM_DIM])
+    weights = np.random.random_sample([NUM_DIM])
+    xw = np.dot(features, weights)
+    labels = np.random.normal(num_samples) + xw
+    labels = np.reshape(labels, [num_samples, 1])
+    return features, labels
 
 
 def load_poisson_data():
@@ -180,11 +190,6 @@ def load_dataset(n_samples):
     return dataset
 
 
-def preprocess_linear_data(data):
-    ''' Normalize data '''
-    scale(data[0], axis=0, with_mean=True, with_std=True, copy=False)
-    return data
-
 
 def preprocess_logistic_data(data):
     ''' Change labbel of the second class to '-1' instead of 0'''
@@ -202,8 +207,8 @@ def plot_cost(cost_history):
 def plot_test_linear(x_features, y_true, y_pred):
     axis = plt.subplots()[1]
     axis.scatter(y_true, y_pred)
-    axis.plot(np.sort(x_features[:, 0], y_pred, 'k--')
-    axis.plot(np.sort(x_features[:, 0], y_true)
+    axis.plot(np.sort(x_features[:, 0], y_pred, 'k--'))
+    axis.plot(np.sort(x_features[:, 0], y_true))
     axis.set_xlabel('x')
     axis.set_ylabel('y')
     plt.show()
