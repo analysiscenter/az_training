@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import os
 import blosc
-from dataset import Batch, action, model
+from dataset import Batch, action, model, inbatch_parallel
 from layers import conv_mpool_activation, fc_layer
 import tensorflow as tf
 
