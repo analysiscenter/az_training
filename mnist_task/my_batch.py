@@ -1,11 +1,15 @@
 """ Custom batch class for storing mnist batch and models
 """
+import sys
+
 import numpy as np
 import os
 import blosc
 from dataset import Batch, action, model
 from layers import conv_mpool_activation, fc_layer
 import tensorflow as tf
+
+sys.path.append("/notebooks/Dari")
 
 class MnistBatch(Batch):
     """ Mnist batch and models
@@ -14,6 +18,31 @@ class MnistBatch(Batch):
         """ Init func, inherited from base batch
         """
         super().__init__(index, *args, **kwargs)
+
+    @action
+    def post_function(list_results):
+        result_batch = np.array(list_results)
+        return result_batch
+
+    @action
+    @inbatch_parallel(init='indices', post='post_function', target='threads')
+    def shift_flattened_pic(pic, max_margin=8):
+    """ Apply random shift to a flattened pic
+    
+    Args:
+        pic: ndarray of shape=(784) representing a pic to be flattened
+    Return:
+        flattened shifted pic
+    """
+    squared = pic.reshape(28, 28)
+    padded = np.pad(squared, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
+                    mode='minimum')
+    left_lower = np.random.randint(2 * max_margin, size=2)
+    slicing = (slice(left_lower[0], left_lower[0] + 28),
+               slice(left_lower[1], left_lower[1] + 28))
+    res = padded[slicing]
+    return res
+    
 
     @property
     def components(self):
