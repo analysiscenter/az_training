@@ -19,29 +19,34 @@ class MnistBatch(Batch):
         """
         super().__init__(index, *args, **kwargs)
 
-    @action
-    def post_function(list_results):
+
+    def post_function(self, list_results):
         result_batch = np.array(list_results)
+        self.images[:] = result_batch
         return result_batch
+
+    def init_function(self):
+        return range(len(self.images))
 
     @action
     @inbatch_parallel(init='indices', post='post_function', target='threads')
-    def shift_flattened_pic(pic, max_margin=8):
-    """ Apply random shift to a flattened pic
-    
-    Args:
-        pic: ndarray of shape=(784) representing a pic to be flattened
-    Return:
-        flattened shifted pic
-    """
-    squared = pic.reshape(28, 28)
-    padded = np.pad(squared, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
-                    mode='minimum')
-    left_lower = np.random.randint(2 * max_margin, size=2)
-    slicing = (slice(left_lower[0], left_lower[0] + 28),
-               slice(left_lower[1], left_lower[1] + 28))
-    res = padded[slicing]
-    return res
+    def shift_flattened_pic(self, idx, max_margin=8):
+        pic = self.images[idx]
+        """ Apply random shift to a flattened pic
+        
+        Args:
+            pic: ndarray of shape=(784) representing a pic to be flattened
+        Return:
+            flattened shifted pic
+        """
+        squared = pic.reshape(28, 28)
+        padded = np.pad(squared, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
+                        mode='minimum')
+        left_lower = np.random.randint(2 * max_margin, size=2)
+        slicing = (slice(left_lower[0], left_lower[0] + 28),
+                   slice(left_lower[1], left_lower[1] + 28))
+        res = padded[slicing]
+        return res
     
 
     @property
