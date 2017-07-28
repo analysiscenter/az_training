@@ -9,7 +9,7 @@ from dataset import Batch, action, model
 from layers import conv_mpool_activation, fc_layer
 import tensorflow as tf
 
-sys.path.append("/notebooks/Dari")
+# sys.path.append("/notebooks/Dari")
 
 class MnistBatch(Batch):
     """ Mnist batch and models
