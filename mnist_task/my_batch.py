@@ -46,6 +46,7 @@ class MnistBatch(Batch):
         slicing = (slice(left_lower[0], left_lower[0] + 28),
                    slice(left_lower[1], left_lower[1] + 28))
         res = padded[slicing]
+        res = res.reshape(-1)
         return res
     
 
