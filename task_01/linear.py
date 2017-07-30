@@ -27,8 +27,8 @@ class MyBatch(Batch):
 
     @action()
     def preprocess_binary_data(self):
-        ''' Normalize data '''
-        self.labels = 2*self.labels - np.ones((len(self.labels), 1), dtype=np.float32)
+        ''' Change label of the second class to '-1' instead of 0'''
+        self.labels[:] = 2*self.labels - np.ones((len(self.labels), 1), dtype=np.float32)
         return self
 
     @model()
@@ -159,8 +159,8 @@ def load_poisson_data():
     '''generate poisson data'''
     features = np.random.random_sample([500, NUM_DIM])
     weights = np.random.random_sample([NUM_DIM])
-    xw = np.exp(np.dot(features, weights))
-    labels = np.reshape(np.array([np.random.poisson(lmbd) for lmbd in xw]), [500, 1])
+    x_mult_w = np.exp(np.dot(features, weights))
+    labels = np.reshape(np.array([np.random.poisson(lmbd) for lmbd in x_mult_w]), [500, 1])
     labels.astype(np.float32)
     weights = np.reshape(weights, [NUM_DIM, 1])
     return weights, features, labels
