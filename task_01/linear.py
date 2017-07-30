@@ -92,7 +92,6 @@ class MyBatch(Batch):
     @action(model='logistic_regression')
     def train_logistic(self, model, sess, my_cost_history, acc_history):
         ''' Train logistic regression on the batch '''
-        # self.train_any(model, sess, my_cost_history)
         training_step, cost, x_features, y_target = model[:-2]
         acc = model[-1]
         sess.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
@@ -122,10 +121,6 @@ class MyBatch(Batch):
 
         log_input = tf.add(tf.matmul(x_features, weights), bias)
         cost = tf.reduce_mean(tf.add(tf.nn.log_poisson_loss(y_target, log_input, compute_full_loss=False), tf.multiply(tf.reduce_sum(tf.square(weights)), 0.1)))
-        # cost = tf.add(tf.reduce_mean(tf.square(y_target - y_cup)), tf.multiply(tf.reduce_sum(tf.square(weights)), 0.1))
-
-        # y_cup = tf.exp(log_input)
-            
         training_step = tf.train.AdamOptimizer(learning_rate).minimize(cost)
         return training_step, cost, x_features, y_target, log_input, weights
 
@@ -140,13 +135,7 @@ class MyBatch(Batch):
     @action(model='poisson_regression')
     def test_poisson(self, model, sess, y_true, y_pred, weights):
         ''' Test poisson regression on the batch '''
-        # y_pred = np.zeros([len(self.labels), 1])
         self.predict_any(model[:-1], sess, y_pred)
-        # cost = model[1]
-        
-        # y_pred_int = sess.run(tf.cast(tf.round(y_pred) + 1, tf.int32))
-
-        # mse = tf.reduce_mean(tf.square(y_pred_int - self.labels))
         weights[:] = sess.run(model[-1], feed_dict={model[2]:self.features})
         y_true[:] = self.labels
         return self
