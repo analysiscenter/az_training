@@ -18,14 +18,21 @@ class MnistBatch(Batch):
         """ Init func, inherited from base batch
         """
         super().__init__(index, *args, **kwargs)
+        self.images = None
+        self.labels = None
+
 
 
     def post_function(self, list_results):
-        result_batch = np.reshape(np.array(list_results), self.images.shape)
-        self.images[:] = result_batch
+        '''Post function for parallel shift, gathers results of every worker'''
+        result_batch = np.stack(list_results)
+        self.images = result_batch
         return self
 
     def init_function(self):
+        '''Init function for parallel shift
+        returns list of indices, each of them will be sent to the worker separately
+        '''
         return range(self.images.shape[0])
 
     @action
@@ -108,6 +115,7 @@ class MnistBatch(Batch):
         net = tf.nn.relu(net)
         net = fc_layer('fc_second', net, 10)
 
+        probs = tf.nn.softmax(logits=net)
         # placeholder for correct labels
         y_ = tf.placeholder(tf.float32, [None, 10])
 
@@ -120,13 +128,15 @@ class MnistBatch(Batch):
         labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, name='labels')
         accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
 
-        return [[x, y_, loss, train_step], [labels, labels_hat, accuracy]]
+        return [[x, y_, loss, train_step], [labels, labels_hat, accuracy], [probs]]
 
     @action(model='convy')
-    def predict(self, model, sess, pics, y_true, y_predict):
+    def predict(self, model, sess, pics, y_true, y_predict, probabilities):
         ''' Predict labels '''
         x, y_, _, _ = model[0]
         labels, labels_hat, _ = model[1]
+        probs = model[2][0]
+        probabilities.append(sess.run(probs, feed_dict={x:self.images}))
         y_predict.append(sess.run(labels_hat, feed_dict={x:self.images}))
         y_true.append(sess.run(labels, feed_dict={y_:self.labels}))
         pics.append(self.images)
