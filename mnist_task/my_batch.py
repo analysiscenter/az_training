@@ -102,7 +102,7 @@ class MnistBatch(Batch):
              [true categorical labels, categorical_hat labels, accuracy]]
         """
         # build the net
-          training = tf.placeholder(tf.bool, shape=[], name='mode')
+        training = tf.placeholder(tf.bool, shape=[], name='mode')
         x = tf.placeholder(tf.float32, [None, 784])
         x_as_pics = tf.reshape(x, shape=[-1, 28, 28, 1])
         net = conv_mpool_bnorm_activation('conv_first', x_as_pics, n_channels=4, mpool=True, bnorm=True, training=training,
