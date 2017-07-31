@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-def conv_mpool_activation(scope, input_layer, n_channels=2, mpool=False, kernel_conv=(5, 5), 
-                          stride_conv=(1, 1), kernel_pool=(2, 2), stride_pool=(2, 2),  activation=tf.nn.relu):
+def conv_mpool_bnorm_activation(scope, input_layer, n_channels=2, mpool=False, bnorm=True, training=None, kernel_conv=(5, 5),
+                                stride_conv=(1, 1), kernel_pool=(2, 2), stride_pool=(2, 2),  activation=tf.nn.relu):
     """ Conv -> mpooling (optional) -> activation layer
     """
     with tf.variable_scope(scope):
@@ -28,8 +28,11 @@ def conv_mpool_activation(scope, input_layer, n_channels=2, mpool=False, kernel_
             strides = (1, ) + tuple(stride_pool) + (1, )
             output = tf.nn.max_pool(output, ksize=ksize, strides=strides, padding='SAME')
 
-        return tf.identity(activation(output), name='output')
+        # bnorm if needed
+        if bnorm:
+            output = tf.layers.batch_normalization(output, training=training, name='batch-norm')
 
+        return tf.identity(activation(output), name='output')
 
 def fc_layer(scope, input_layer, n_outs):
     """ Build fully-connected layer with n_outs outputs
@@ -46,3 +49,4 @@ def fc_layer(scope, input_layer, n_outs):
         b = tf.Variable(tf.zeros([n_outs]), name='bias')
         output = tf.nn.xw_plus_b(input_layer, W, b, name='output')
         return output
+        
