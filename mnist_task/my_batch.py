@@ -20,18 +20,17 @@ class MnistBatch(Batch):
         super().__init__(index, *args, **kwargs)
 
 
-    # def post_function(self, list_results):
-    #     result_batch = np.array(list_results)
-    #     self.images[:] = result_batch
-    #     return result_batch
+    def post_function(self, list_results):
+        result_batch = np.reshape(np.array(list_results), self.images.shape)
+        self.images[:] = result_batch
+        return self
 
     def init_function(self):
-        return range(len(self.images))
+        return range(self.images.shape[0])
 
     @action
-    @inbatch_parallel(init='indices', post='_post_default', target='threads')
+    @inbatch_parallel(init='init_function', post='post_function', target='threads')
     def shift_flattened_pic(self, idx, max_margin=8):
-        pic = self.images[idx]
         """ Apply random shift to a flattened pic
         
         Args:
@@ -39,6 +38,8 @@ class MnistBatch(Batch):
         Return:
             flattened shifted pic
         """
+        pic = self.images[idx]
+        
         squared = pic.reshape(28, 28)
         padded = np.pad(squared, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
                         mode='minimum')
@@ -48,8 +49,8 @@ class MnistBatch(Batch):
         res = padded[slicing]
         res = res.reshape(-1)
         return res
-    
 
+    
     @property
     def components(self):
         """ Components of mnist-batch
@@ -120,6 +121,16 @@ class MnistBatch(Batch):
         accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
 
         return [[x, y_, loss, train_step], [labels, labels_hat, accuracy]]
+
+    @action(model='convy')
+    def predict(self, model, sess, pics, y_true, y_predict):
+        ''' Predict labels '''
+        x, y_, _, _ = model[0]
+        labels, labels_hat, _ = model[1]
+        y_predict.append(sess.run(labels_hat, feed_dict={x:self.images}))
+        y_true.append(sess.run(labels, feed_dict={y_:self.labels}))
+        pics.append(self.images)
+        return self
 
     @action(model='convy')
     def train_convy(self, model, sess):
