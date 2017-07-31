@@ -20,16 +20,16 @@ class MnistBatch(Batch):
         super().__init__(index, *args, **kwargs)
 
 
-    def post_function(self, list_results):
-        result_batch = np.array(list_results)
-        self.images[:] = result_batch
-        return result_batch
+    # def post_function(self, list_results):
+    #     result_batch = np.array(list_results)
+    #     self.images[:] = result_batch
+    #     return result_batch
 
     def init_function(self):
         return range(len(self.images))
 
     @action
-    @inbatch_parallel(init='indices', post='post_function', target='threads')
+    @inbatch_parallel(init='indices', post='_post_default', target='threads')
     def shift_flattened_pic(self, idx, max_margin=8):
         pic = self.images[idx]
         """ Apply random shift to a flattened pic
