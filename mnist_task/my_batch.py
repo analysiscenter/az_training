@@ -112,6 +112,12 @@ class MnistBatch(Batch):
         net = conv_mpool_bnorm_activation('conv_third', net, n_channels=32, kernel_conv=(3, 3), bnorm=True, training=training,
                                           mpool=True, kernel_pool=(2, 2), stride_pool=(2, 2))
         net = tf.contrib.layers.flatten(net)
+
+        # dropout 
+        keep_prob = tf.placeholder(tf.float32)
+        net = tf.nn.dropout(net, keep_prob)
+
+
         net = fc_layer('fc_first', net, 128)
         net = tf.nn.relu(net)
         net = fc_layer('fc_second', net, 10)
@@ -133,16 +139,16 @@ class MnistBatch(Batch):
         labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, name='labels')
         accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
 
-        return [[x, y_, loss, train_step, training], [labels, labels_hat, accuracy], [probs]]
+        return [[x, y_, loss, train_step, training, keep_prob], [labels, labels_hat, accuracy], [probs]]
 
     @action(model='convy')
     def predict(self, model, sess, pics, y_true, y_predict, probabilities):
         ''' Predict labels '''
-        x, y_, _, _, _= model[0]
+        x, y_, _, _, training, keep_prob = model[0]
         labels, labels_hat, _ = model[1]
         probs = model[2][0]
-        probabilities.append(sess.run(probs, feed_dict={x:self.images}))
-        y_predict.append(sess.run(labels_hat, feed_dict={x:self.images}))
+        probabilities.append(sess.run(probs, feed_dict={x:self.images, training: False, keep_prob: 1.0}))
+        y_predict.append(sess.run(labels_hat, feed_dict={x:self.images, training: False, keep_prob: 1.0}))
         y_true.append(sess.run(labels, feed_dict={y_:self.labels}))
         pics.append(self.images)
         return self
@@ -155,8 +161,8 @@ class MnistBatch(Batch):
             model: do not supply this arg, always the output of convy-model defined above
             sess: tf-session in which learning variables are to be updated
         """
-        x, y_, _, train_step, training = model[0]
-        sess.run(train_step, feed_dict={x: self.images, y_: self.labels, training: True})
+        x, y_, _, train_step, training, keep_prob = model[0]
+        sess.run(train_step, feed_dict={x: self.images, y_: self.labels, training: True, keep_prob: 0.7})
         return self
 
     @action(model='convy')
@@ -169,7 +175,7 @@ class MnistBatch(Batch):
             accs: list with accuracies
         """
         _, _, accuracy = model[1]
-        x, y_, _, _, training = model[0]
+        x, y_, _, _, training, keep_prob = model[0]
 
-        accs.append(sess.run(accuracy, feed_dict={x: self.images, y_: self.labels, training: False}))
+        accs.append(sess.run(accuracy, feed_dict={x: self.images, y_: self.labels, training: False, keep_prob: 1.0}))
         return self
