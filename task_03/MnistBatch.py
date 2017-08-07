@@ -41,7 +41,7 @@ class MnistBatch(ImagesBatch):
         if fmt == 'blosc':
             # read blosc images, labels
             with open(os.path.join(src, 'mnist_pics.blk'), 'rb') as file:
-                self.images = blosc.unpack_array(file.read())[self.indices]
+                self.images = blosc.unpack_array(file.read())[self.indices].reshape(-1, 28, 28)
 
             with open(os.path.join(src, 'mnist_labels.blk'), 'rb') as file:
                 self.labels = blosc.unpack_array(file.read())[self.indices]
