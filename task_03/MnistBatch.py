@@ -71,13 +71,6 @@ class MnistBatch(ImagesBatch):
 
         x_as_pics = tf.reshape(x, shape=[-1, 28, 28, 1])
 
-        # net = conv_layer('conv_first', x_as_pics, n_channels=4, mpool=True, bnorm=True, training=training,
-        #                                   kernel_conv=(7, 7), kernel_pool=(6, 6), stride_pool=(2, 2))
-        # net = conv_layer('conv_second', net, n_channels=16, kernel_conv=(5, 5), bnorm=True, training=training,
-        #                                   mpool=True, kernel_pool=(5, 5), stride_pool=(2, 2))
-        # net = conv_layer('conv_third', net, n_channels=32, kernel_conv=(3, 3), bnorm=True, training=training,
-        #                                   mpool=True, kernel_pool=(2, 2), stride_pool=(2, 2))
-
         net = tf.layers.conv2d(inputs=x_as_pics, filters=16, kernel_size=(7, 7), strides=(2, 2), \
                                padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d())
         # if bnorm:
@@ -88,7 +81,7 @@ class MnistBatch(ImagesBatch):
             net = tf.layers.batch_normalization(net, training=training, name='batch-norm1')
         net = tf.nn.relu(net)
 
-        net = tf.layers.conv2d(inputs=x_as_pics, filters=32, kernel_size=(5, 5), strides=(1, 1), \
+        net = tf.layers.conv2d(inputs=net, filters=32, kernel_size=(5, 5), strides=(1, 1), \
                                padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d())
         # if bnorm:
         #     net = tf.layers.batch_normalization(net, training=training, name='batch-norm4')
@@ -97,7 +90,7 @@ class MnistBatch(ImagesBatch):
         if bnorm:
             net = tf.layers.batch_normalization(net, training=training, name='batch-norm2')
         net = tf.nn.relu(net)
-        net = tf.layers.conv2d(inputs=x_as_pics, filters=64, kernel_size=(3, 3), strides=(1, 1), \
+        net = tf.layers.conv2d(inputs=net, filters=64, kernel_size=(3, 3), strides=(1, 1), \
                                padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d())
         net = tf.layers.max_pooling2d(net, pool_size=(2, 2), strides=(1, 1), padding='SAME')
         # bnorm if needed
