@@ -1,26 +1,38 @@
-import sys 
-import os
+""" File with class batch with resnet network """
+import sys
 
-import blosc
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.layers import xavier_initializer_conv2d as xavier
-  
+
 sys.path.append('..')
 from dataset import action, model, Batch
 
+
+
 def conv_block(input_tensor, kernel, filters, name, strides=(2, 2)):
-    
+    """ Function to create block of ResNet network which incluce
+    three convolution layers and one skip-connetion layer.
+
+    Args:
+        input_tensor: input tensorflow layer.
+        kernel: tuple of kernel size in convolution layer.
+        filters: list of nums filters in convolution layers.
+        name: name of block.
+        strides: typle of strides in convolution layer.
+
+    Output:
+        x: Block output layer """
     filters1, filters2, filters3 = filters
     x = tf.layers.conv2d(input_tensor, filters1, (1, 1), strides, name='convo' + name, activation=tf.nn.relu,\
                          kernel_initializer=xavier())
-    
+
     x = tf.layers.conv2d(x, filters2, kernel, name='convt' + name, activation=tf.nn.relu, padding='SAME',\
                          kernel_initializer=xavier())
-    
+
     x = tf.layers.conv2d(x, filters3, (1, 1), name='convtr' + name,\
                          kernel_initializer=xavier())
-    
+
     shortcut = tf.layers.conv2d(input_tensor, filters3, (1, 1), strides, name='short' + name, \
                          kernel_initializer=xavier())
     x = tf.concat([x, shortcut], axis=1)
@@ -28,180 +40,279 @@ def conv_block(input_tensor, kernel, filters, name, strides=(2, 2)):
     return x
 
 def identity_block(input_tensor, kernel, filters, name):
-    
+    """ Function to create block of ResNet network which incluce
+    three convolution layers.
+
+    Args:
+        input_tensor: input tensorflow layer.
+        kernel: tuple of kernel size in convolution layer.
+        filters: list of nums filters in convolution layers.
+        name: name of block.
+
+    Output:
+        x: Block output layer """
     filters1, filters2, filters3 = filters
     x = tf.layers.conv2d(input_tensor, filters1, (1, 1), name='convo' + name, activation=tf.nn.relu,\
                          kernel_initializer=xavier())
-    
+
     x = tf.layers.conv2d(x, filters2, kernel, name='convt' + name, activation=tf.nn.relu, padding='SAME',\
                          kernel_initializer=xavier())
-    
+
     x = tf.layers.conv2d(x, filters3, (1, 1), name='convtr' + name,\
                          kernel_initializer=xavier())
-    
-  
+
+
     x = tf.concat([x, input_tensor], axis=1)
     x = tf.nn.relu(x)
     return x
 
-def create_train(opt, src, global_step, loss, it):
-    def learning_rate(last, src):
-        
+def create_train(opt, src, global_step, loss, it, global_it, learn, scaled):
+    """ Function for create optimizer to each layer.
+        Args:
+            src: name of layer which be optimize.
+            glogal_step: tenforflow Variable. Need to count train steps.
+            loss: loss function.
+            it: number of last iteraion for current layer.
+            global_it: number of last interation for all layers.
+            learn: Basic learning rate for current layer.
+            scaled: method of disable layers.
+        Output:
+            New optimizer. """
+    def learning_rate(last, src, global_it, learn, scaled):
+        """ Function for create step of changing learning rate.
+
+        Args:
+            last: number of last iteration.
+            src: mane of layer which be optimize.
+            global_it: number of last interation for all layers.
+            learn: Basic learning rate for current layer.
+            scaled: method of disable layers.
+
+        Output:
+            bound: list of bounders - number of iteration, after which learning rate will change.
+            values: list of new learnings rates.
+            var: name of optimize layers"""
+
         last = int(last)
-        bound = list(np.linspace(0, last, len(range(2, last+1)), dtype=np.int32))
-        values = [0.5 * 0.1/last * (1 + np.cos(np.pi * i / last)) for i in range(2, last+1)]
+        if scaled is True:
+            values = [0.5 * learn/last * (1 + np.cos(np.pi * i / last)) for i in range(2, last+1)] + [1e-2]
+        else:
+            values = [0.5 * learn * (1 + np.cos(np.pi * i / last)) for i in range(2, last+1)] + [1e-2]
+
+
+        bound = list(np.linspace(0, last, len(range(2, last+1)), dtype=np.int32)) + [global_it]
+
         var = [i for i in tf.trainable_variables() if src in i.name or 'dense' in i.name]
 
-        return bound, values, var
+        return list(np.int32(bound)), list(np.float32(values)), var
 
-    b, v, var = learning_rate(it, src)
-    learning_rate = tf.train.piecewise_constant(global_step, b, v)
+    b, val, var = learning_rate(it, src, global_it, learn, scaled)
+
+    learning_rate = tf.train.piecewise_constant(global_step, b, val)
 
     return opt(learning_rate, 0.9, use_nesterov=True).minimize(loss, global_step, var)
 
 class ResBatch(Batch):
-    """ """
-	# def __init__(self, index, *args, **kwargs):
- #        """ 
- #        """
- #        super().__init__(index, *args, **kwargs)
- #        self.x = None
- #        self.y = None
+    """ Batch to train models with and without FreezeOut """
 
+    def __init__(self, index, *args, **kwargs):
+        """ Init function """
+        super().__init__(index, *args, **kwargs)
+        self.global_it = 0
+        self.degree = 0
+        self.learn = 0
+        self.scaled = False
     @property
     def components(self):
         """ Define componentis. """
-        return 'x', 'y'  
+        return 'images', 'lables'
 
-    @action
-    def load(self, src, fmt='blosc'):
-        """ Load mnist pics with specifed indices
 
+    @model(mode='dynamic')
+    def freeznet(self):
+        """ Simple implementation of ResNet with FreezeOut method.
         Args:
-            fmt: format of source. Can be either 'blosc' or 'ndarray'
-            src: if fmt='blosc', then src is a path to dir with blosc-packed
-                mnist images and labels are stored.
-                if fmt='ndarray' - this is a tuple with arrays of images and labels
-
-        Return:
             self
-        """
-        if fmt == 'blosc':
-            # read blosc images, labels
-            with open(os.path.join(src, 'mnist_pics.blk'), 'rb') as file:
-                self.images = blosc.unpack_array(file.read())[self.indices].reshape(-1, 28, 28)
 
-            with open(os.path.join(src, 'mnist_labels.blk'), 'rb') as file:
-                self.labels = blosc.unpack_array(file.read())[self.indices]
-        elif fmt == 'ndarray':
-            all_images, all_labels = src
-            self.images = all_images[self.indices].reshape(-1, 28, 28)
-            self.labels = all_labels[self.indices]
+        Outputs:
+            Method return list with len = 2 and some params:
+            [0][0]: indices - Plcaeholder which takes batch indices.
+            [0][1]: all_data - Placeholder which takes all images.
+            [0][2]; all_lables - Placeholder for lables.
+            [0][3]: loss - Value of loss function.
+            [0][4]: train - List of train optimizers.
+            [0][5]: prob - softmax output, need to prediction.
+
+            [1][0]: accuracy - Current accuracy
+            [1][1]: session - tf session """
+        with tf.Graph().as_default():
+
+            indices = tf.placeholder(tf.int32, shape=[None, 1], name='indices')
+
+            all_data = tf.placeholder(tf.float32, shape=[50000, 28, 28], name='all_data')
+
+            x_a = tf.gather_nd(all_data, indices, name='x_a')
+
+            x_f_to_tens = tf.reshape(x_a, shape=[-1, 28, 28, 1], name='x_to_tens')
+
+            net = tf.layers.conv2d(x_f_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
+                                   kernel_initializer=xavier(), name='1')
+            net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='max_pool')
+
+            net = conv_block(net, 3, [32, 32, 128], name='2', strides=(1, 1))
+            net = identity_block(net, 3, [32, 32, 128], name='3')
+
+            net = conv_block(net, 3, [64, 64, 256], name='4', strides=(1, 1))
+            net = identity_block(net, 3, [64, 64, 256], name='5')
+
+            net = tf.layers.average_pooling2d(net, (7, 7), strides=(1, 1))
+            net = tf.contrib.layers.flatten(net)
+
+
+            with tf.variable_scope('dense'):
+                net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer(), name='dense')
+
+            prob = tf.nn.softmax(net, name='soft')
+
+            all_lables = tf.placeholder(tf.float32, [None, 10], name='all_lables')
+
+            y = tf.gather_nd(all_lables, indices, name='y')
+
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y), name='loss')
+
+            global_steps = []
+            train = []
+
+            for i in range(1, 6):
+                global_steps.append(tf.Variable(0, trainable=False, name='var_{}'.format(i)))
+                train.append(create_train(tf.train.MomentumOptimizer, str(i), \
+                                          global_steps[-1], loss, self.global_it * (i / 10 + 0.5) ** self.degree, \
+                                           self.global_it, self.learn, self.scaled))
+
+            lables_hat = tf.cast(tf.argmax(net, axis=1), tf.float32, name='lables_hat')
+            lables = tf.cast(tf.argmax(y, axis=1), tf.float32, name='lables')
+            accuracy = tf.reduce_mean(tf.cast(tf.equal(lables_hat, lables), tf.float32, name='accuracy'))
+
+            session = tf.Session()
+            session.run(tf.global_variables_initializer())
+
+        return [[indices, all_data, all_lables, loss, train, prob], [accuracy, session]]
+
+    @action()
+    def initializer(self, params):
+        """ Function for initilize parameters for freeze model.
+        Args:
+            params: - list with len = 4:
+                [0] - global iteration must be int.
+                [1] - basic learnining rate must be float or int.
+                [2] - degree 1 or 3/
+                [3] - method scaled(True) or unscaled(False).
+        Output:
+            self """
+        self.global_it = params[1]
+        self.learn = params[2]
+        self.degree = params[0]
+        self.scaled = params[3]
 
         return self
 
-    @model()
-    def Freeznet():
+    @action(model='freeznet')
+    def train_freez(self, models, train_loss, data, lables):
+        """ Function for traning ResNet with freezeout method.
+        Args:
+            sess: tensorflow session.
+            train_loss: list with info of train loss.
+            train_acc: list with info of train accuracy.
 
-        x = tf.placeholder(tf.float32, shape=[None, 784])
+        Output:
+            self """
+        indices, all_data, all_lables, loss, train, _ = models[0]
+        session = models[1][1]
 
-        x_f_to_tens = tf.reshape(x, shape=[-1, 28, 28, 1])
-
-        net = tf.layers.conv2d(x_f_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
-                               kernel_initializer=xavier(), name='1')
-        net = tf.layers.max_pooling2d(net, (2, 2),(2, 2))
-
-        net = conv_block(net, 3, [32, 32, 128], name='2', strides=(1, 1))
-        net = identity_block(net, 3, [32, 32, 128], name='3')
-        net = identity_block(net, 3, [32, 32, 128], name='4')
-
-        net = conv_block(net, 3, [64, 64, 256], name='5', strides=(1, 1))
-        net = identity_block(net, 3, [64, 64, 256], name='6')
-        net = identity_block(net, 3, [64, 64, 256], name='7')
-
-        net = tf.layers.average_pooling2d(net, (7, 7), strides=(1, 1))
-        net = tf.contrib.layers.flatten(net)
-
-        with tf.variable_scope('dense'):
-            net = tf.layers.dense(net, 10)
-
-        prob = tf.nn.softmax(net)
-        y = tf.placeholder(tf.float32, [None, 10])
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y), name='loss')
-
-        it = 400
-        train = []
-        global_steps = []
-        for i in range(1, 8):
-            global_steps.append(tf.Variable(0, trainable=False))
-            train.append(create_train(tf.train.MomentumOptimizer, str(i), \
-                                      global_steps[-1], loss, it*(i/10 + 0.5)))
-
-
-        lables_hat = tf.cast(tf.argmax(net, axis=1), tf.float32, name='lables_hat')
-        lables = tf.cast(tf.argmax(y, axis=1), tf.float32, name='lables')
-        accuracy = tf.reduce_mean(tf.cast(tf.equal(lables_hat, lables), tf.float32, name='accuracy'))
-        return [[x, y, loss, train, prob], [accuracy]]
-
-    @action(model='Freeznet')
-    def train_freez(self, models, sess, train_loss, train_acc):
-
-        accuracy = models[1][-1]
-        x, y, loss, train, _ = models[0]
-
-        acc, loss, _ = sess.run([accuracy, loss, train], feed_dict={x:self.images.reshape(-1, 784), y:self.labels.reshape(-1, 10)})
+        loss, _ = session.run([loss, train], feed_dict={indices:self.indices.reshape(-1, 1), all_lables:lables, \
+            all_data:data})
 
         train_loss.append(loss)
-        train_acc.append(acc)
 
         return self
 
-    @model()
-    def Resnet():
-        x1 = tf.placeholder(tf.float32, shape=[None, 784])
+    @model(mode='dynamic')
+    def resnet(self):
+        """ Simple implementation of Resnet.
+        Args:
+            self
 
-        x1_to_tens = tf.reshape(x1, shape=[-1, 28, 28, 1])
+        Outputs:
+            Method return list with len = 2 and some params:
+            [0][0]: indices - Plcaeholder which takes batch indices.
+            [0][1]: all_data - Placeholder which takes all images.
+            [0][2]; all_lables - Placeholder for lables.
+            [0][3]: loss - Value of loss function.
+            [0][4]: train - List of train optimizers.
+            [0][5]: prob - softmax output, need to prediction.
 
-        net1 = tf.layers.conv2d(x1_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
-                               kernel_initializer=xavier(), name='11')
-        net1 = tf.layers.max_pooling2d(net1, (2, 2),(2, 2))
+            [1][0]: accuracy - Current accuracy
+            [1][1]: session - tf session """
+        with tf.Graph().as_default():
+            indices = tf.placeholder(tf.int32, shape=[None, 1])
 
-        net1 = conv_block(net1, 3, [32, 32, 128], name='22', strides=(1, 1))
+            all_data = tf.placeholder(tf.float32, shape=[50000, 28, 28])
 
-        net1 = identity_block(net1, 3, [32, 32, 128], name='33')
-        net1 = identity_block(net1, 3, [32, 32, 128], name='43')
+            x_a = tf.gather_nd(all_data, indices)
 
-        net1 = conv_block(net1, 3, [64, 64, 256], name='53', strides=(1, 1))
-        net1 = identity_block(net1, 3, [64, 64, 256], name='63')
-        net1 = identity_block(net1, 3, [64, 64, 256], name='73')
+            x1_to_tens = tf.reshape(x_a, shape=[-1, 28, 28, 1])
 
-        net1 = tf.layers.average_pooling2d(net1, (7, 7), strides=(1, 1))
-        net1 = tf.contrib.layers.flatten(net1)
+            net1 = tf.layers.conv2d(x1_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
+                kernel_initializer=xavier(), name='11')
+            net1 = tf.layers.max_pooling2d(net1, (2, 2), (2, 2))
 
-        with tf.variable_scope('dense3'):
-            net1 = tf.layers.dense(net1, 10)
+            net1 = conv_block(net1, 3, [32, 32, 128], name='22', strides=(1, 1))
 
-        prob1 = tf.nn.softmax(net1)
-        y1 = tf.placeholder(tf.float32, [None, 10])
-        loss1 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net1, labels=y1), name='loss3')
+            net1 = identity_block(net1, 3, [32, 32, 128], name='33')
 
-        train1 = tf.train.MomentumOptimizer(0.01, 0.9, use_nesterov=True).minimize(loss1)
-        lables_hat1 = tf.cast(tf.argmax(net1, axis=1), tf.float32, name='lables_3at')
-        lables1 = tf.cast(tf.argmax(y1, axis=1), tf.float32, name='labl3es')
+            net1 = conv_block(net1, 3, [64, 64, 256], name='53', strides=(1, 1))
+            net1 = identity_block(net1, 3, [64, 64, 256], name='63')
 
-        accuracy1 = tf.reduce_mean(tf.cast(tf.equal(lables_hat1, lables1), tf.float32, name='a3ccuracy'))
+            net1 = tf.layers.average_pooling2d(net1, (7, 7), strides=(1, 1))
+            net1 = tf.contrib.layers.flatten(net1)
 
-        return [[x1, y1, loss1, train1, prob1], [accuracy1]]
-	
-    @action(model='Resnet')
-    def train_res(self, models, sess,train_loss,  train_acc):
+            with tf.variable_scope('dense3'):
+                net1 = tf.layers.dense(net1, 10, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
-        accuracy = models[1][-1]
-        x, y, loss, train, _ = models[0]
 
-        acc, loss, _ = sess.run([accuracy, loss, train], feed_dict={x:self.images.reshape(-1, 784), y:self.labels.reshape(-1, 10)})
+            prob1 = tf.nn.softmax(net1)
+            all_lables = tf.placeholder(tf.float32, [None, 10])
+
+            y = tf.gather_nd(all_lables, indices)
+
+            loss1 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net1, labels=y), name='loss3')
+
+            train1 = tf.train.MomentumOptimizer(0.03, 0.8, use_nesterov=True).minimize(loss1)
+
+            lables_hat1 = tf.cast(tf.argmax(net1, axis=1), tf.float32, name='lables_3at')
+            lables1 = tf.cast(tf.argmax(y, axis=1), tf.float32, name='labl3es')
+
+            accuracy1 = tf.reduce_mean(tf.cast(tf.equal(lables_hat1, lables1), tf.float32, name='a3ccuracy'))
+            session = tf.Session()
+            session.run(tf.global_variables_initializer())
+        return [[indices, all_data, all_lables, loss1, train1, prob1], [accuracy1, session]]
+
+    @action(model='resnet')
+    def train_res(self, models, train_loss, data, lables):
+        """ Function for traning ResNet.
+        Args:
+            sess: tensorflow session.
+            train_loss: list with info of train loss.
+            train_acc: list with info of train accuracy.
+
+        Output:
+            self """
+
+        session = models[1][1]
+        indices, all_data, all_lables, loss, train, _ = models[0]
+        loss, _ = session.run([loss, train], feed_dict={indices:self.indices.reshape(-1, 1),\
+         all_lables:lables, all_data:data})
 
         train_loss.append(loss)
-        train_acc.append(acc)
 
         return self
