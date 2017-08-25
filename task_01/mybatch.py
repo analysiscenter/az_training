@@ -25,7 +25,7 @@ class MyBatch(Batch):
         return 'x', 'y'
 
     @action
-    def load(self, src, fmt='blosc'):
+    def load(self, src, fmt='blosc', components=None, *args, **kwargs):
         """ Loading data to self.x and self.y
         Args:
             * src: data in format (x, y)
