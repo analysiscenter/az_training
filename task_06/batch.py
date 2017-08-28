@@ -118,10 +118,7 @@ class ResBatch(Batch):
     def __init__(self, index, *args, **kwargs):
         """ Init function """
         super().__init__(index, *args, **kwargs)
-        self.global_it = 0
-        self.degree = 0
-        self.learn = 0
-        self.scaled = False
+
     @property
     def components(self):
         """ Define componentis. """
@@ -129,10 +126,14 @@ class ResBatch(Batch):
 
 
     @model(mode='dynamic')
-    def freeznet(self):
+    def freeznet(self, config=None):
         """ Simple implementation of ResNet with FreezeOut method.
         Args:
-            self
+            config: dict with params:
+                -iteartions: Total number iteration for train model.
+                -degree: 1 or 3.
+                -learning_rate: initial learning rate.
+                -scaled: True or False.
 
         Outputs:
             Method return list with len = 2 and some params:
@@ -145,6 +146,11 @@ class ResBatch(Batch):
 
             [1][0]: accuracy - Current accuracy
             [1][1]: session - tf session """
+        iteration = config['iteration']
+        degree = config['degree']
+        learning_rate = config['learning_rate']
+        scaled = config['scaled']
+
         with tf.Graph().as_default():
 
             indices = tf.placeholder(tf.int32, shape=[None, 1], name='indices')
@@ -186,8 +192,8 @@ class ResBatch(Batch):
             for i in range(1, 6):
                 global_steps.append(tf.Variable(0, trainable=False, name='var_{}'.format(i)))
                 train.append(create_train(tf.train.MomentumOptimizer, str(i), \
-                                          global_steps[-1], loss, self.global_it * (i / 10 + 0.5) ** self.degree, \
-                                           self.global_it, self.learn, self.scaled))
+                                          global_steps[-1], loss, iteration * (i / 10 + 0.5) ** degree, \
+                                           iteration, learning_rate, scaled))
 
             lables_hat = tf.cast(tf.argmax(net, axis=1), tf.float32, name='lables_hat')
             lables = tf.cast(tf.argmax(y, axis=1), tf.float32, name='lables')
@@ -197,24 +203,6 @@ class ResBatch(Batch):
             session.run(tf.global_variables_initializer())
 
         return [[indices, all_data, all_lables, loss, train, prob], [accuracy, session]]
-
-    @action()
-    def initializer(self, params):
-        """ Function for initilize parameters for freeze model.
-        Args:
-            params: - list with len = 4:
-                [0] - global iteration must be int.
-                [1] - basic learnining rate must be float or int.
-                [2] - degree 1 or 3/
-                [3] - method scaled(True) or unscaled(False).
-        Output:
-            self """
-        self.global_it = params[1]
-        self.learn = params[2]
-        self.degree = params[0]
-        self.scaled = params[3]
-
-        return self
 
     @action(model='freeznet')
     def train_freez(self, models, train_loss, data, lables):
@@ -237,7 +225,7 @@ class ResBatch(Batch):
         return self
 
     @model(mode='dynamic')
-    def resnet(self):
+    def resnet(self, config=None):
         """ Simple implementation of Resnet.
         Args:
             self
