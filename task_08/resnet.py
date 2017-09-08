@@ -4,7 +4,7 @@ import time
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.layers import Xavier_initializer_conv2d as Xavier
+from tensorflow.contrib.layers import xavier_initializer_conv2d as Xavier
 
 sys.path.append('..')
 from dataset import action, model, Batch
@@ -71,7 +71,7 @@ def bottle_identity_block(input_tensor, kernel, filters, trainable=None, name=No
     X = tf.layers.conv2d(X, filters3, (1, 1), name='second_conv_1X1_of_' + name,\
                          kernel_initializer=Xavier(uniform=True))
    
-     if trainable is not None:
+    if trainable is not None:
         off = tf.cond(trainable, \
               lambda: tf.where(tf.random_uniform([1, ], 0, 1)> (1 - prob_on), tf.ones([1, ]), \
               tf.zeros([1, ])), lambda: tf.ones([1, ]) * prob_on)[0]
@@ -176,7 +176,7 @@ class ResBottleBatch(Batch):
                                    kernel_initializer=Xavier(), name='first_convolution')
 
             filters = np.array([32, 32, 128])
-            net = tf.layers.maX_pooling2d(net, (2, 2), (2, 2), name='maX_pool')
+            net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='max_pool')
 
             net = bottle_identity_block(net, 3, [16, 16, 64], name='first_identity_block')
            
@@ -188,19 +188,19 @@ class ResBottleBatch(Batch):
 
             net = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
-            net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.Xavier_initializer(), name='dense')
+            net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer(), name='dense')
 
-            prob = tf.nn.softmaX(net, name='soft')
+            prob = tf.nn.softmax(net, name='soft')
 
             all_labels = tf.placeholder(tf.float32, [None, 10], name='all_labels')
             y = tf.gather_nd(all_labels, indices, name='y')
 
-            loss = tf.reduce_mean(tf.nn.softmaX_cross_entropy_with_logits(logits=net, labels=y), name='loss')
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y), name='loss')
 
             train_step = tf.train.AdamOptimizer().minimize(loss)
 
-            labels_predict = tf.cast(tf.argmaX(net, aXis=1), tf.float32)
-            labels_true = tf.cast(tf.argmaX(y, aXis=1), tf.float32)
+            labels_predict = tf.cast(tf.argmax(net, axis=1), tf.float32)
+            labels_true = tf.cast(tf.argmax(y, axis=1), tf.float32)
 
             accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_predict, labels_true), tf.float32))
 
@@ -249,7 +249,7 @@ class ResBottleBatch(Batch):
             net = tf.layers.conv2d(X_f_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
                                    kernel_initializer=Xavier(), name='first_convolution')
 
-            net = tf.layers.maX_pooling2d(net, (2, 2), (2, 2), name='maX_pool')
+            net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='max_pool')
 
             net = identity_block(net, 3, 32, name='first_identity_block')
             
@@ -261,19 +261,19 @@ class ResBottleBatch(Batch):
 
             net = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
-            net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.Xavier_initializer(), name='dense')
+            net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer(), name='dense')
 
-            prob = tf.nn.softmaX(net, name='soft')
+            prob = tf.nn.softmax(net, name='soft')
 
             all_labels = tf.placeholder(tf.float32, [None, 10], name='all_labels')
             y = tf.gather_nd(all_labels, indices, name='y')
 
-            loss = tf.reduce_mean(tf.nn.softmaX_cross_entropy_with_logits(logits=net, labels=y), name='loss')
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y), name='loss')
 
             train_step = tf.train.AdamOptimizer().minimize(loss)
 
-            labels_predict = tf.cast(tf.argmaX(net, aXis=1), tf.float32)
-            labels_true = tf.cast(tf.argmaX(y, aXis=1), tf.float32)
+            labels_predict = tf.cast(tf.argmax(net, axis=1), tf.float32)
+            labels_true = tf.cast(tf.argmax(y, axis=1), tf.float32)
 
             accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_predict, labels_true), tf.float32))
 
@@ -297,13 +297,14 @@ class ResBottleBatch(Batch):
 
     @action(model='resnet')
     def accuracy_res(self, model, data, resnet_acc):
-                """ Function to calculate accuracy.
+        """ Function to calculate accuracy.
         Args:
             data: all dataset.
             bottle_acc: list with accuracy values.
 
         Output:
             self """
+
         resnet_acc.append(accuracy(self.indices, model, data))
         return self
 
@@ -353,17 +354,17 @@ class ResBottleBatch(Batch):
             net = tf.contrib.layers.flatten(net)
             net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.Xavier_initializer(), name='dense')
 
-            prob = tf.nn.softmaX(net, name='soft')
+            prob = tf.nn.softmax(net, name='soft')
 
             all_labels = tf.placeholder(tf.float32, [None, 10], name='all_labels')
             y = tf.gather_nd(all_labels, indices, name='y')
 
-            loss = tf.reduce_mean(tf.nn.softmaX_cross_entropy_with_logits(logits=net, labels=y), name='loss')
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y), name='loss')
 
             train_step = tf.train.AdamOptimizer().minimize(loss)
 
-            labels_predict = tf.cast(tf.argmaX(net, aXis=1), tf.float32)
-            labels_true = tf.cast(tf.argmaX(y, aXis=1), tf.float32)
+            labels_predict = tf.cast(tf.argmax(net, axis=1), tf.float32)
+            labels_true = tf.cast(tf.argmax(y, axis=1), tf.float32)
 
             accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_predict, labels_true), tf.float32))
 
@@ -442,17 +443,17 @@ class ResBottleBatch(Batch):
             net = tf.contrib.layers.flatten(net)
             net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.Xavier_initializer(), name='dense')
 
-            prob = tf.nn.softmaX(net, name='soft')
+            prob = tf.nn.softmax(net, name='soft')
 
             all_labels = tf.placeholder(tf.float32, [None, 10], name='all_labels')
             y = tf.gather_nd(all_labels, indices, name='y')
 
-            loss = tf.reduce_mean(tf.nn.softmaX_cross_entropy_with_logits(logits=net, labels=y), name='loss')
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y), name='loss')
 
             train_step = tf.train.AdamOptimizer().minimize(loss)
 
-            labels_predict = tf.cast(tf.argmaX(net, aXis=1), tf.float32)
-            labels_true = tf.cast(tf.argmaX(y, aXis=1), tf.float32)
+            labels_predict = tf.cast(tf.argmax(net, axis=1), tf.float32)
+            labels_true = tf.cast(tf.argmax(y, axis=1), tf.float32)
 
             accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_predict, labels_true), tf.float32))
 
