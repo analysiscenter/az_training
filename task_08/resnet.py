@@ -37,13 +37,12 @@ def bottle_conv_block(input_tensor, kernel, filters, trainable=None, name=None, 
 
     shortcut = tf.layers.conv2d(input_tensor, filters3, (1, 1), strides, \
                name='shortcut_conv_1X1_of_' + name, kernel_initializer=Xavier(uniform=True))
-    
-    if trainable is not None:
-        off = tf.cond(trainable, \
-              lambda: tf.where(tf.random_uniform([1, ], 0, 1)> (1 - prob_on), tf.ones([1, ]), \
-              tf.zeros([1, ])), lambda: tf.ones([1, ]) * prob_on)[0]
-        X = X * off
 
+    off = tf.cond(trainable, \
+          lambda: tf.where(tf.random_uniform([1, ], 0, 1)> (1 - prob_on), tf.ones([1, ]), \
+          tf.zeros([1, ])), lambda: tf.ones([1, ]) * prob_on)[0]
+    X = X * off
+ 
     X = tf.add(X, shortcut)
     X = tf.nn.relu(X)
     return X
@@ -70,12 +69,11 @@ def bottle_identity_block(input_tensor, kernel, filters, trainable=None, name=No
 
     X = tf.layers.conv2d(X, filters3, (1, 1), name='second_conv_1X1_of_' + name,\
                          kernel_initializer=Xavier(uniform=True))
-   
-    if trainable is not None:
-        off = tf.cond(trainable, \
-              lambda: tf.where(tf.random_uniform([1, ], 0, 1)> (1 - prob_on), tf.ones([1, ]), \
-              tf.zeros([1, ])), lambda: tf.ones([1, ]) * prob_on)[0]
-        X = X * off
+
+    off = tf.cond(trainable, \
+          lambda: tf.where(tf.random_uniform([1, ], 0, 1)> (1 - prob_on), tf.ones([1, ]), \
+          tf.zeros([1, ])), lambda: tf.ones([1, ]) * prob_on)[0]
+    X = X * off
 
     X = tf.add(X, input_tensor)
     X = tf.nn.relu(X)
@@ -151,7 +149,7 @@ def train(ind, model, data, all_time):
     t = time.time()
     _, loss = sess.run([train, loss], feed_dict={indices:ind.reshape(-1, 1), all_images:data[0], \
                                                  all_labels:data[1], trainable: True})
-    all_time[0] += time.time() - t
+    all_time.append(time.time() - t)
     return loss
 
 class ResBottleBatch(Batch):
@@ -178,13 +176,13 @@ class ResBottleBatch(Batch):
             filters = np.array([32, 32, 128])
             net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='max_pool')
 
-            net = bottle_identity_block(net, 3, [16, 16, 64], name='first_identity_block')
+            net = bottle_identity_block(net, 3, [16, 16, 64], trainable, name='first_identity_block')
            
-            net = bottle_conv_block(net, 3, filters, name='first_conv_block', strides=(2, 2))
-            net = bottle_identity_block(net, 3, filters, name='second_identity_block')
+            net = bottle_conv_block(net, 3, filters, trainable, name='first_conv_block', strides=(2, 2))
+            net = bottle_identity_block(net, 3, filters, trainable, name='second_identity_block')
 
-            net = bottle_conv_block(net, 3, filters * 2, name='second_conv_block', strides=(2, 2))
-            net = bottle_identity_block(net, 3, filters * 2, name='third_identity_block')
+            net = bottle_conv_block(net, 3, filters * 2, trainable, name='second_conv_block', strides=(2, 2))
+            net = bottle_identity_block(net, 3, filters * 2, trainable, name='third_identity_block')
 
             net = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
@@ -251,13 +249,13 @@ class ResBottleBatch(Batch):
 
             net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='max_pool')
 
-            net = identity_block(net, 3, 32, name='first_identity_block')
+            net = identity_block(net, 3, 32, trainable, name='first_identity_block')
             
-            net = conv_block(net, 3, 64, name='first_conv_block', strides= (2, 2))
-            net = identity_block(net, 3, 64, name='second_identity_block')
+            net = conv_block(net, 3, 64, trainable, name='first_conv_block', strides= (2, 2))
+            net = identity_block(net, 3, 64, trainable, name='second_identity_block')
             
-            net = conv_block(net, 3, 128, name='second_conv_block', strides= (2, 2))
-            net = identity_block(net, 3, 128, name='third_identity_block')
+            net = conv_block(net, 3, 128, trainable, name='second_conv_block', strides= (2, 2))
+            net = identity_block(net, 3, 128, trainable, name='third_identity_block')
 
             net = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
@@ -325,9 +323,9 @@ class ResBottleBatch(Batch):
 
             net = tf.layers.conv2d(X_f_to_tens, 64, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
                                    kernel_initializer=Xavier(), name='first_convolution')
-            net = tf.layers.maX_pooling2d(net, (2, 2), (2, 2), name='maX_pool')
+            net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='maX_pool')
 
-            filters = np.array([32, 32, 128])
+            filters = np.array([32, 32, 128]) * 2
             net = bottle_conv_block(net, 3, filters, trainable, strides=(1, 1), prob_on=threshold[0])
             net = bottle_identity_block(net, 3, filters, trainable, prob_on=threshold[1])
             net = bottle_identity_block(net, 3, filters, trainable, prob_on=threshold[2])
@@ -352,7 +350,7 @@ class ResBottleBatch(Batch):
 
             net = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
-            net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.Xavier_initializer(), name='dense')
+            net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer(), name='dense')
 
             prob = tf.nn.softmax(net, name='soft')
 
@@ -413,35 +411,35 @@ class ResBottleBatch(Batch):
             net = tf.layers.conv2d(X_f_to_tens, 64, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
                                    kernel_initializer=Xavier(), name='first_convolution')
 
-            net = tf.layers.maX_pooling2d(net, (2, 2), (2, 2), name='maX_pool')
+            net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='maX_pool')
 
            
-            filters = np.array([32, 32, 128])
-            net = bottle_conv_block(net, 3, filters , strides=(1, 1))
-            net = bottle_identity_block(net, 3, filters)
-            net = bottle_identity_block(net, 3, filters)
+            filters = np.array([32, 32, 128]) * 2
+            net = bottle_conv_block(net, 3, filters, trainable, strides=(1, 1))
+            net = bottle_identity_block(net, 3, filters, trainable)
+            net = bottle_identity_block(net, 3, filters, trainable)
 
-            net = bottle_conv_block(net, 3, filters * 2, strides=(2, 2))
-            net = bottle_identity_block(net, 3, filters * 2)
-            net = bottle_identity_block(net, 3, filters * 2)
-            net = bottle_identity_block(net, 3, filters * 2)
+            net = bottle_conv_block(net, 3, filters * 2, trainable, strides=(2, 2))
+            net = bottle_identity_block(net, 3, filters * 2, trainable)
+            net = bottle_identity_block(net, 3, filters * 2, trainable)
+            net = bottle_identity_block(net, 3, filters * 2, trainable)
 
-            net = bottle_conv_block(net, 3, filters * 4, strides=(2, 2))
-            net = bottle_identity_block(net, 3, filters * 4)
-            net = bottle_identity_block(net, 3, filters * 4)
-            net = bottle_identity_block(net, 3, filters * 4)
-            net = bottle_identity_block(net, 3, filters * 4)
-            net = bottle_identity_block(net, 3, filters * 4)
+            net = bottle_conv_block(net, 3, filters * 4, trainable, strides=(2, 2))
+            net = bottle_identity_block(net, 3, filters * 4, trainable)
+            net = bottle_identity_block(net, 3, filters * 4, trainable)
+            net = bottle_identity_block(net, 3, filters * 4, trainable)
+            net = bottle_identity_block(net, 3, filters * 4, trainable)
+            net = bottle_identity_block(net, 3, filters * 4, trainable)
 
-            net = bottle_conv_block(net, 3, filters * 8, strides=(1, 1))
-            net = bottle_identity_block(net, 3, filters * 8)
-            net = bottle_identity_block(net, 3, filters * 8)
-            net = bottle_identity_block(net, 3, filters * 8)
-            net = bottle_identity_block(net, 3, filters * 8)
+            net = bottle_conv_block(net, 3, filters * 8, trainable, strides=(1, 1))
+            net = bottle_identity_block(net, 3, filters * 8, trainable)
+            net = bottle_identity_block(net, 3, filters * 8, trainable)
+            net = bottle_identity_block(net, 3, filters * 8, trainable)
+            net = bottle_identity_block(net, 3, filters * 8, trainable)
 
             net = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
-            net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.Xavier_initializer(), name='dense')
+            net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer(), name='dense')
 
             prob = tf.nn.softmax(net, name='soft')
 
