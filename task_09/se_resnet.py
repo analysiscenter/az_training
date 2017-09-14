@@ -254,7 +254,7 @@ class SEResNet(Batch):
 
     @action(model='seResNet')
     def accuracy_se(self, model, data, acc):
-         """ Function to calculate accuracy.
+        """ Function to calculate accuracy.
         Args:
             data: all dataset.
             bottle_acc: list with accuracy values.
