@@ -174,6 +174,16 @@ def train(ind, model, data, all_time):
     all_time[0] += time.time() - t
     return loss
 
+def get_maps(ind, model, data, maps):
+
+    indices, all_images, all_labels = model[0][:3]
+    sess = model[1][1]
+    filters = model[2]
+    filters = sess.run(filters, {indices:ind.reshape(-1, 1), all_images:data[0], \
+                                                 all_labels:data[1]})
+    maps['avgpool'].append(filters[0])
+    maps['answers'].append(filters[1])
+    return maps
 class SEResNet(Batch):
     """ Class to compare results of training ResNet with Squeese and excitation and simple ResNet"""
     def __init__(self, indeX, *args, **kwargs):
@@ -217,8 +227,8 @@ class SEResNet(Batch):
             net = se_identity_block(net, 3, filters * 8)
             net = se_identity_block(net, 3, filters * 8)
 
-            net = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
-            net = tf.contrib.layers.flatten(net)
+            avgpool = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
+            net = tf.contrib.layers.flatten(avgpool)
             net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
             prob = tf.nn.softmax(net, name='soft')
@@ -237,7 +247,7 @@ class SEResNet(Batch):
             session = tf.Session()
             session.run(tf.global_variables_initializer())
 
-        return [[indices, all_images, all_labels, loss, train_step], [accuracy, session], [labels_predict]]
+        return [[indices, all_images, all_labels, loss, train_step], [accuracy, session], [avgpool, y]]
 
     @action(model='seResNet')
     def train_se(self, model, data, list_loss, all_time):
@@ -250,6 +260,12 @@ class SEResNet(Batch):
         Output:
             self"""
         list_loss.append(train(self.indices, model, data, all_time))
+        return self
+
+    @action(model='seResNet')
+    def get_maps_se(self, model, data, maps):
+
+        maps=get_maps(self.indices, model, data, maps)
         return self
 
     @action(model='seResNet')
@@ -300,7 +316,7 @@ class SEResNet(Batch):
             net = bottle_conv_block(net, 3, filters * 8, strides=(2, 2))
             net = bottle_identity_block(net, 3, filters * 8)
             net = bottle_identity_block(net, 3, filters * 8)
-            net = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
+            avgpool = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
             net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
@@ -320,7 +336,7 @@ class SEResNet(Batch):
             session = tf.Session()
             session.run(tf.global_variables_initializer())
 
-        return [[indices, all_images, all_labels, loss, train_step], [accuracy, session], [labels_predict]]
+        return [[indices, all_images, all_labels, loss, train_step], [accuracy, session], [avgpool, y]]
 
     @action(model='bottlenet')
     def train_bottle(self, model, data, train_loss, all_time):
@@ -346,4 +362,10 @@ class SEResNet(Batch):
         Output:
             self """
         bottle_acc.append(accuracy(self.indices, model, data))
+        return self
+
+    @action(model='bottlenet')
+    def get_maps_bo(self, model, data, maps):
+
+        maps=get_maps(self.indices, model, data, maps)
         return self
