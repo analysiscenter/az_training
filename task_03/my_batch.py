@@ -9,7 +9,9 @@ import blosc
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from dataset import Batch, action, model, inbatch_parallel, ImagesBatch
+sys.path.append("..")
+from dataset import Batch, action, model, inbatch_parallel
+from dataset.dataset.image import ImagesBatch
 
 
 class MnistBatch(ImagesBatch):
@@ -209,8 +211,21 @@ class MnistBatch(ImagesBatch):
         return self
 
 def draw_stats(stats, title):
+    ''' Draw statistics plot '''
     plt.title(title)
     plt.plot(stats)
     plt.xlabel('iteration')
     plt.ylabel('accuracy')
+    plt.show()
+
+def draw_digit(pics, y_predict, y_true, probs, answer):
+    ''' Draw a random digit '''
+    if answer:
+        pos = np.where(np.array(y_predict[0]) == np.array(y_true[0]))[0]
+    else:
+        pos = np.where(np.array(y_predict[0]) != np.array(y_true[0]))[0]
+    item = np.random.randint(len(pos) - 1)
+    plt.imshow(np.reshape(pics[0][pos[item]], (28, 28)))
+    plt.title('Predict: %.0f with prob %.2f, true: %.0f' %(y_predict[0][pos[item]], \
+    np.amax(probs[0][pos[item]]), y_true[0][pos[item]]))
     plt.show()
