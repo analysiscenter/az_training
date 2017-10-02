@@ -1,5 +1,6 @@
 # az_training
 
+<<<<<<< HEAD
 * task_01 using dataset and tensorflow libraries write logistic, linear and poisson regression
 * task_02 Create CNN for recognition MNIST images with parallel augmentation
 * task_03 Write CNN (with batch_norm, dropout, changing learning rate) for recognition MNIST images with augmentation and early stopping
