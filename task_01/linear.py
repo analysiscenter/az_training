@@ -1,4 +1,5 @@
-''' Logistic regression using dataset and tensor flow '''
+''' Regression models implementation using dataset and tensor flow '''
+import sys
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -6,6 +7,7 @@ from sklearn.datasets import make_blobs
 from sklearn.preprocessing import scale
 from sklearn.datasets import make_classification
 
+sys.path.append("..")
 from dataset import Dataset, Batch, action, model
 
 NUM_DIM = 13

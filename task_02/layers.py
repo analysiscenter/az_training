@@ -49,4 +49,3 @@ def fc_layer(scope, input_layer, n_outs):
         b = tf.Variable(tf.zeros([n_outs]), name='bias')
         output = tf.nn.xw_plus_b(input_layer, W, b, name='output')
         return output
-        

@@ -46,7 +46,7 @@ class MnistBatch(Batch):
             flattened shifted pic
         """
         pic = self.images[idx]
-        
+
         squared = pic.reshape(28, 28)
         padded = np.pad(squared, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
                         mode='minimum')
@@ -57,7 +57,7 @@ class MnistBatch(Batch):
         res = res.reshape(-1)
         return res
 
-    
+
     @property
     def components(self):
         """ Components of mnist-batch
@@ -124,6 +124,7 @@ class MnistBatch(Batch):
 
         probs = tf.nn.softmax(logits=net)
         # placeholder for correct labels
+
         y_ = tf.placeholder(tf.float32, [None, 10])
 
         # loss
