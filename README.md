@@ -1,3 +1,3 @@
 # az_training
 
-pumpurum
+* task_01
