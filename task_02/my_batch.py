@@ -1,15 +1,18 @@
 """ Custom batch class for storing mnist batch and models
 """
+import os
 import sys
+import blosc
 
 import numpy as np
-import os
-import blosc
-from dataset import Batch, action, model, inbatch_parallel
-from layers import conv_mpool_bnorm_activation, fc_layer
+import matplotlib.pyplot as plt
 import tensorflow as tf
 
-sys.path.append("/notebooks/Dari/az_trainig")
+sys.path.append("..")
+
+from dataset import Batch, action, model, inbatch_parallel
+from layers import conv_mpool_bnorm_activation, fc_layer
+
 
 class MnistBatch(Batch):
     """ Mnist batch and models
@@ -93,7 +96,7 @@ class MnistBatch(Batch):
 
     @model()
     def convy():
-        """ Conv-net mnist classifier
+        """ Conv-net mnist classifier with layers defined in layers.py
 
         Args:
             ___
@@ -105,11 +108,11 @@ class MnistBatch(Batch):
         training = tf.placeholder(tf.bool, shape=[], name='mode')
         x = tf.placeholder(tf.float32, [None, 784])
         x_as_pics = tf.reshape(x, shape=[-1, 28, 28, 1])
-        net = conv_mpool_bnorm_activation('conv_first', x_as_pics, n_channels=4, mpool=True, bnorm=True, training=training,
+        net = conv_mpool_bnorm_activation('conv_first', x_as_pics, n_channels=4, mpool=True, bnorm=False, training=training,
                                           kernel_conv=(7, 7), kernel_pool=(6, 6), stride_pool=(2, 2))
-        net = conv_mpool_bnorm_activation('conv_second', net, n_channels=16, kernel_conv=(5, 5), bnorm=True, training=training,
+        net = conv_mpool_bnorm_activation('conv_second', net, n_channels=16, kernel_conv=(5, 5), bnorm=False, training=training,
                                           mpool=True, kernel_pool=(5, 5), stride_pool=(2, 2))
-        net = conv_mpool_bnorm_activation('conv_third', net, n_channels=32, kernel_conv=(3, 3), bnorm=True, training=training,
+        net = conv_mpool_bnorm_activation('conv_third', net, n_channels=32, kernel_conv=(3, 3), bnorm=False, training=training,
                                           mpool=True, kernel_pool=(2, 2), stride_pool=(2, 2))
         net = tf.contrib.layers.flatten(net)
 
@@ -180,3 +183,23 @@ class MnistBatch(Batch):
 
         accs.append(sess.run(accuracy, feed_dict={x: self.images, y_: self.labels, training: False, keep_prob: 1.0}))
         return self
+
+def draw_stats(stats, label):
+    ''' Draw accuracy/iterations plot '''
+    plt.title(label)
+    plt.plot(stats)
+    plt.xlabel('iteration')
+    plt.ylabel('aaccuracy')
+    plt.show()
+
+def draw_digit(pics, y_predict, y_true, probs, answer):
+    ''' Draw a random digit '''
+    if answer:
+        pos = np.where(np.array(y_predict[0]) == np.array(y_true[0]))[0]
+    else:
+        pos = np.where(np.array(y_predict[0]) != np.array(y_true[0]))[0]
+    item = np.random.randint(len(pos) - 1)
+    plt.imshow(np.reshape(pics[0][pos[item]], (28, 28)))
+    plt.title('Predict: %.0f with prob %.2f, true: %.0f' %(y_predict[0][pos[item]], \
+    np.amax(probs[0][pos[item]]), y_true[0][pos[item]]))
+    plt.show()
