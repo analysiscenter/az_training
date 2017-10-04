@@ -1,5 +1,5 @@
-"""File contains main class named myBatch.
-And function to generate data."""
+"""File contains main class named myBatch
+and function to generate data."""
 import sys
 
 import tensorflow as tf
@@ -11,7 +11,7 @@ from dataset import Batch, action, model
 NUM_DIM_LIN = 13
 class MyBatch(Batch):
     """ The core batch class which can load data, generate dataset
-    and train linear regression, logistic regression, poisson regression"""
+    and train linear regression, logistic regression, poisson regression """
 
     def __init__(self, index, *args, **kwargs):
         """ INIT """
@@ -21,7 +21,7 @@ class MyBatch(Batch):
 
     @property
     def components(self):
-        """ Define componentis. """
+        """ Define components. """
         return 'x', 'y'
 
     @action
@@ -35,19 +35,17 @@ class MyBatch(Batch):
         self.x = src[0][self.indices].reshape(-1, src[0].shape[1])
         self.y = src[1][self.indices].reshape(-1, 1)
         return self
+
     @action
     def train(self, models, session, dict_params):
-        """ Train funcion for all types of regressions.
+        """ Train function for all types of regressions.
 
         Args:
-            model: fit funtion.
-
-            session: tensorflow session.
-
-            dict_params: parameters of model.
-
+            model: fit function
+            session: tensorflow session
+            dict_params: parameters of model
         Outpt:
-            self. """
+            self """
 
         x, y = models[0]
         optimizer, cost, _ = models[1]
@@ -56,8 +54,8 @@ class MyBatch(Batch):
         dict_params['w'].append(params[0])
         dict_params['b'].append(params[1])
         dict_params['loss'].append(loss)
-
         return self
+
     @action
     def predict(self, models, session, predict):
         """ Predict for all models
@@ -68,7 +66,8 @@ class MyBatch(Batch):
             self """
         x, _ = models[0]
         pred = models[1][-1]
-        predict.append(session.run([pred], feed_dict={x: self.x}))
+        predict['predict'].append(session.run([pred], feed_dict={x: self.x}))
+        predict['indices'].append(self.indices)
         return self
 
 ############## linear regression ##############
@@ -88,12 +87,11 @@ class MyBatch(Batch):
         """Train linear regression.
 
         Args:
-            model: fit funtion. In this case it's linear_model.
-
-            session: tensorflow session.
+            model: fit function. In this case it's linear_model
+            session: tensorflow session
 
         Output:
-            self. """
+            self """
         self.train(models, session, dict_params)
         return self
 
@@ -102,23 +100,27 @@ class MyBatch(Batch):
         """ Function with graph of linear regression.
 
         Output:
-            array with shape = (3,2)
-            x: data.
-            y: answers to data.
-            train: function - optimizer.
-            loss: quality of model.
-            w: slope coefficient of straight line.
-            b: bias. """
+           list of 3 sublists:
+
+            x: data
+            y: answers to data
+
+            train: function - optimizer
+            loss: quality of model
+            predict: model prediction
+
+            w: slope coefficient of straight line
+            b: bias """
         x = tf.placeholder(name='input', dtype=tf.float32, shape=[None, NUM_DIM_LIN])
         y = tf.placeholder(name='true_y', dtype=tf.float32, shape=[None, 1])
 
-        w = tf.Variable(np.random.uniform(-1, 1, size=NUM_DIM_LIN).reshape(-1, 1), name='weight', dtype=tf.float32)
-        b = tf.Variable(np.random.uniform(-1, 1, size=1).reshape(-1, 1), dtype=tf.float32)
+        w = tf.Variable(np.random.normal(size=NUM_DIM_LIN).reshape(-1, 1), name='weight', dtype=tf.float32)
+        b = tf.Variable(np.random.normal(size=1).reshape(-1, 1), dtype=tf.float32)
 
         predict = tf.add(tf.matmul(x, w, name='output'), b)
-        loss = tf.add(tf.reduce_mean(tf.square(predict - y)), tf.multiply(tf.reduce_sum(tf.square(w)), 0.1))
+        loss = tf.add(tf.reduce_mean(tf.square(y - predict)), tf.multiply(tf.reduce_sum(tf.square(w)), 0.001))
 
-        optimize = tf.train.AdamOptimizer(learning_rate=0.2)
+        optimize = tf.train.GradientDescentOptimizer(0.01)
         train = optimize.minimize(loss)
 
         return [[x, y], [train, loss, predict], [w, b]]
@@ -139,16 +141,12 @@ class MyBatch(Batch):
     def train_logistic_model(self, models, session, dict_params):
         """ Train logistic regression.
         Args:
-            model: fit funtion. In this case it's linear_model.
-
-            session: tensorflow session.
-
-            result: result of prediction.
-
-            test: data to predict.
-
+            model: fit function. In this case it's linear_model
+            session: tensorflow session
+            result: result of prediction
+            test: data to predict
         Output:
-            self. """
+            self """
         self.train(models, session, dict_params)
         return self
 
@@ -157,32 +155,35 @@ class MyBatch(Batch):
         """ Function with graph of logistic regression.
 
         Output:
-            array with shape = (3,2(3))
-            x: data.
-            y: answers to data.
-            train: function - optimizer.
-            loss: quality of model.
-            predict: model prediction.
-            w: slope coefficient of straight line.
-            b: bias. """
+            
+            list of 4 sublists:
+            x: data
+            y: answers to data
+
+            train: function - optimizer
+            loss: quality of model
+            predict: model prediction
+            
+            w: slope coefficient of straight line
+            b: bias
+
+            mul: """
         x = tf.placeholder(name='input', dtype=tf.float32, shape=[None, 2])
         y = tf.placeholder(name='true_y', dtype=tf.float32, shape=[None, 1])
 
         w = tf.Variable(tf.random_uniform(shape=(2, 1), minval=-1, maxval=1, name='weight', dtype=tf.float32))
         b = tf.Variable(tf.random_uniform(shape=(1, 1), minval=-1, maxval=1, dtype=tf.float32))
-        # w = tf.Variable(tf.zeros([2,1]))
-        # b = tf.Variable(tf.zeros([1,1]))
-        mul = tf.matmul(x, w, name='output')#.shape()
-        mul = tf.add(mul, b)
+
+        mul = tf.add(tf.matmul(x, w, name='output'), b)
         predict = tf.sigmoid(mul)
+
         loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=y, logits=mul))
 
-        optimize = tf.train.AdamOptimizer(learning_rate=0.01)
-        train = optimize.minimize(loss)
+        train = tf.train.AdamOptimizer(0.01).minimize(loss)
 
         return [[x, y], [train, loss, predict], [w, b], [mul]]
 
-############## logistic regression ##############
+############## poisson regression ##############
     @action(model='poisson_regression')
     def predict_poisson(self, models, session, predict):
         """ Predict for logistic regression
@@ -198,31 +199,31 @@ class MyBatch(Batch):
     def train_poisson_model(self, models, session, dict_params):
         """ Train logistic regression.
         Args:
-            model: fit funtion. In this case it's linear_model.
-
-            session: tensorflow session.
-
-            result: result of prediction.
-
-            test: data to predict.
-
+            model: fit function. In this case it's poisson_regression
+            session: tensorflow session
+            result: result of prediction
+            test: data to predict
         Output:
-            self. """
+            self """
         self.train(models, session, dict_params)
         return self
 
     @model()
     def poisson_regression():
-        """ Function with graph of poisson regression.
+        """ Function with graph of poisson regression
 
         Output:
-            array with shape = (3,2(3))
-            x: data.
-            y: answers to data.
-            train: function - optimizer.
-            loss: quality of model.
-            predict: model prediction.
-            w: array of weights."""
+        list of 3 sublists:
+
+            x: data
+            y: answers to data
+
+            train: function - optimizer
+            loss: quality of model
+            predict: model prediction
+
+            w: slope coefficient of straight line
+            b: bias """
         x = tf.placeholder(name='input', shape=[None, NUM_DIM_LIN], dtype=tf.float32)
         y = tf.placeholder(name='true_y', shape=[None, 1], dtype=tf.float32)
 
