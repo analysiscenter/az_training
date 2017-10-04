@@ -1,4 +1,4 @@
-''' Regression models implementation using dataset and tensor flow '''
+''' Regression models implementation using dataset and tensorflow '''
 import sys
 import numpy as np
 import tensorflow as tf
@@ -50,15 +50,15 @@ class MyBatch(Batch):
     def train_any(self, model, sess, my_cost_history):
         ''' Train any regression on the batch '''
         training_step, cost, x_features, y_target = model[:-1]
-        sess.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
-        my_cost_history.append(sess.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
+        sess.run(training_step, feed_dict={x_features: self.features, y_target: self.labels})
+        my_cost_history.append(sess.run(cost, feed_dict={x_features: self.features, y_target: self.labels}))
         return my_cost_history
 
     def predict_any(self, model, sess, y_pred):
         '''Predict target for any model'''
         x_features = model[2]
         y_cup = model[4]
-        y_pred[:] = sess.run(y_cup, feed_dict={x_features:self.features})
+        y_pred[:] = sess.run(y_cup, feed_dict={x_features: self.features})
 
 
     @action(model='linear_regression')
@@ -72,8 +72,8 @@ class MyBatch(Batch):
         ''' Test batch '''
         self.predict_any(model, sess, y_pred)
         mse.append(sess.run(tf.reduce_mean(tf.square(y_pred - self.labels))))
-        y_true[:] = self.labels
-        x_features[:] = self.features
+        y_true.append(self.labels)
+        x_features.append(self.features)
         return self
 
     @model()
@@ -100,9 +100,9 @@ class MyBatch(Batch):
         ''' Train logistic regression on the batch '''
         training_step, cost, x_features, y_target = model[:-2]
         acc = model[-1]
-        sess.run(training_step, feed_dict={x_features:self.features, y_target:self.labels})
-        my_cost_history.append(sess.run(cost, feed_dict={x_features:self.features, y_target:self.labels}))
-        acc_history.append(sess.run(acc, feed_dict={x_features:self.features, y_target:self.labels}))
+        sess.run(training_step, feed_dict={x_features: self.features, y_target: self.labels})
+        my_cost_history.append(sess.run(cost, feed_dict={x_features: self.features, y_target: self.labels}))
+        acc_history.append(sess.run(acc, feed_dict={x_features: self.features, y_target: self.labels}))
         return self
 
     @action(model='logistic_regression')
@@ -142,8 +142,8 @@ class MyBatch(Batch):
     def test_poisson(self, model, sess, y_true, y_pred, weights):
         ''' Test poisson regression on the batch '''
         self.predict_any(model[:-1], sess, y_pred)
-        weights[:] = sess.run(model[-1], feed_dict={model[2]:self.features})
-        y_true[:] = self.labels
+        weights.append(sess.run(model[-1], feed_dict={model[2]: self.features}))
+        y_true.append(self.labels)
         return self
 
 
@@ -152,7 +152,8 @@ def load_linear_data(num_samples=500):
     features = np.random.random_sample([num_samples, NUM_DIM])
     weights = np.random.random_sample([NUM_DIM])
     x_mult_w = np.dot(features, weights)
-    labels = np.random.normal(num_samples) + x_mult_w
+
+    labels = np.random.normal(loc=0.0, scale=0.1, size=num_samples) + x_mult_w
     labels = np.reshape(labels, [num_samples, 1])
     return features, labels
 
@@ -203,7 +204,7 @@ def plot_log_cost(sess, data, cost_history):
     log_input = tf.matmul(x_features, weights)
     cost = tf.reduce_mean(tf.nn.log_poisson_loss(y_target, log_input, compute_full_loss=False))
 
-    origin_loss = sess.run(cost, feed_dict={weights:data[0], x_features:data[1], y_target:data[2]})
+    origin_loss = sess.run(cost, feed_dict={weights: data[0], x_features: data[1], y_target: data[2]})
 
     plt.plot(range(len(cost_history)), cost_history)
     plt.plot(np.linspace(0, len(cost_history), len(cost_history)), [origin_loss]*len(cost_history), '-', color='g')
