@@ -89,7 +89,8 @@ class MyBatch(Batch):
         y_cup = tf.sign(wx_b)
 
         margin = tf.multiply(y_target, wx_b)
-        cost = tf.reduce_mean(tf.log(tf.add(tf.ones([1]), tf.exp(-margin))))
+        cost = tf.reduce_mean(tf.add(tf.log(tf.add(tf.ones([1]), tf.exp(-margin))), \
+            tf.multiply(tf.reduce_sum(tf.square(weights)), 0.1)))
         training_step = tf.train.AdamOptimizer(learning_rate).minimize(cost)
         acc = tf.contrib.metrics.accuracy(tf.cast(y_cup, tf.int32), tf.cast(y_target, tf.int32))
 
