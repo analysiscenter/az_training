@@ -36,7 +36,7 @@ class MnistBatch(Batch):
         '''Init function for parallel shift
         returns list of indices, each of them will be sent to the worker separately
         '''
-        return range(self.images.shape[0])
+        return [{'idx': i}  for i in range(self.images.shape[0])]
 
     @action
     @inbatch_parallel(init='init_function', post='post_function', target='threads')
@@ -44,10 +44,11 @@ class MnistBatch(Batch):
         """ Apply random shift to a flattened pic
         
         Args:
-            pic: ndarray of shape=(784) representing a pic to be flattened
+            idx: index in the self.images of a pic to be flattened
         Return:
             flattened shifted pic
         """
+
         pic = self.images[idx]
 
         squared = pic.reshape(28, 28)
@@ -151,9 +152,9 @@ class MnistBatch(Batch):
         x, y_, _, _, training, keep_prob = model[0]
         labels, labels_hat, _ = model[1]
         probs = model[2][0]
-        probabilities.append(sess.run(probs, feed_dict={x:self.images, training: False, keep_prob: 1.0}))
-        y_predict.append(sess.run(labels_hat, feed_dict={x:self.images, training: False, keep_prob: 1.0}))
-        y_true.append(sess.run(labels, feed_dict={y_:self.labels}))
+        probabilities.append(sess.run(probs, feed_dict={x: self.images, training: False, keep_prob: 1.0}))
+        y_predict.append(sess.run(labels_hat, feed_dict={x: self.images, training: False, keep_prob: 1.0}))
+        y_true.append(sess.run(labels, feed_dict={y_: self.labels}))
         pics.append(self.images)
         return self
 
@@ -184,14 +185,17 @@ class MnistBatch(Batch):
         accs.append(sess.run(accuracy, feed_dict={x: self.images, y_: self.labels, training: False, keep_prob: 1.0}))
         return self
 
-def draw_stats(stats, label):
+def draw_stats(all_stats, labels, title):
     ''' Draw accuracy/iterations plot '''
-    plt.title(label)
-    plt.plot(stats)
+    colors = ['r', 'g', 'b', 'plum']
+    plt.title(title)
+    for i, stats in enumerate(all_stats):
+        plt.plot(stats, label=labels[i], c=colors[i])
     plt.xlabel('iteration')
     plt.ylabel('aaccuracy')
+    plt.legend()
     plt.show()
-
+  
 def draw_digit(pics, y_predict, y_true, probs, answer):
     ''' Draw a random digit '''
     if answer:
