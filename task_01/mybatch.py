@@ -155,7 +155,7 @@ class MyBatch(Batch):
         """ Function with graph of logistic regression.
 
         Output:
-            
+
             list of 4 sublists:
             x: data
             y: answers to data
@@ -163,7 +163,7 @@ class MyBatch(Batch):
             train: function - optimizer
             loss: quality of model
             predict: model prediction
-            
+
             w: slope coefficient of straight line
             b: bias
 
