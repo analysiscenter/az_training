@@ -11,10 +11,10 @@
 * task_08 - Build different ResNet varians:
   - Compare simple ResNet vs ResNet with Bottleneck blocks.
   - Compare ResNet with Bottleneck blocks and Stochastic ResNet.
-  * task_09 - Implementation of squeeze and excitation block on ResNet blocks.
-  * task_10 - implementation of architectures such as:
+* task_09 - Implementation of squeeze and excitation block on ResNet blocks.
+* task_10 - implementation of architectures such as:
   - VGG
   - Inception-v1 or GoogLeNet
   - Unet
   - SSD
-  * task_11 - Specific NN, which recognize two numbers in the image and their colors.
+* task_11 - Specific NN, which recognize two numbers in the image and their colors.
