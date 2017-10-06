@@ -29,11 +29,11 @@ class MnistBatch(Batch):
 
     @action
     def load(self, src, fmt='blosc'):
-        """ Load mnist pics with specifed indices
+        """ Load mnist pics with specified indices
 
         Args:
             fmt: format of source. Can be either 'blosc' or 'ndarray'
-            src: if fmt='blosc', then src is a path to dir with blosc-packed
+            src: if fmt='blosc' then src is a path to dir with blosc-packed
                 mnist images and labels are stored.
                 if fmt='ndarray' - this is a tuple with arrays of images and labels
 
@@ -95,16 +95,22 @@ class MnistBatch(Batch):
         dict_pred['answer'].append(np.argmax(np.array(dict_pred['predict'][-1])\
             .reshape(-1, 10), axis=1) == np.argmax(self.labels, axis=1))
         return self
+
     @model()
     def convy():
         """ Conv-net mnist classifier
 
-        Args:
-            ___
         Return:
-            [[placeholder fo
-            r input, ph for true labels, loss, train_step],
-             [true categorical labels, categorical_hat labels, accuracy]]
+            list of 2 sublists:
+            x: placeholder with data
+            predict: model prediction
+            loss: quality of model
+            train: function - optimizer
+            y: placeholder with answers to data
+
+            labels: true labels
+            labels_hat: predict of network
+            accuracy: model accuracy
         """
         # build the net
 
