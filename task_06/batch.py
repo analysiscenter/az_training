@@ -8,11 +8,9 @@ from tensorflow.contrib.layers import xavier_initializer_conv2d as xavier
 sys.path.append('..')
 from dataset import action, model, Batch
 
-
-
 def conv_block(input_tensor, kernel, filters, name, strides=(2, 2)):
-    """ Function to create block of ResNet network which incluce
-    three convolution layers and one skip-connetion layer.
+    """ Function to create block of ResNet network which include
+    three convolution layers and one skip-connection layer.
 
     Args:
         input_tensor: input tensorflow layer.
@@ -40,7 +38,7 @@ def conv_block(input_tensor, kernel, filters, name, strides=(2, 2)):
     return x
 
 def identity_block(input_tensor, kernel, filters, name):
-    """ Function to create block of ResNet network which incluce
+    """ Function to create block of ResNet network which include
     three convolution layers.
 
     Args:
