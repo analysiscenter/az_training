@@ -12,6 +12,32 @@ def dense_net_layers(inp, reuse):
     y_hat = tf.layers.dense(net, 10, name='second_layer', reuse=reuse)
     return y_hat
 
+def conv_net_layers(inp, reuse):
+    x_as_pics = tf.reshape(inp, shape=[-1, 28, 28, 1])
+    net = tf.layers.conv2d(inputs=x_as_pics, filters=16, kernel_size=(7, 7), strides=(2, 2), 
+                           padding='SAME', name = 'layer1', reuse=reuse,
+                           kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d())
+    net = tf.layers.max_pooling2d(net, pool_size=(4, 4), strides=(2, 2))
+    net = tf.layers.batch_normalization(net, name='batch-norm1', reuse=reuse)
+    net = tf.nn.relu(net)
+    net = tf.layers.conv2d(inputs=net, filters=32, kernel_size=(5, 5), strides=(1, 1), 
+                           padding='SAME', name = 'layer2', reuse=reuse,
+                           kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d())
+    net = tf.layers.max_pooling2d(net, pool_size=(3, 3), strides=(2, 2))
+    net = tf.layers.batch_normalization(net, name='batch-norm2', reuse=reuse)
+    net = tf.nn.relu(net)
+    net = tf.layers.conv2d(inputs=net, filters=64, kernel_size=(3, 3), strides=(1, 1), \
+                           padding='SAME', name = 'layer3', reuse=reuse,
+                           kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d())
+    net = tf.layers.max_pooling2d(net, pool_size=(2, 2), strides=(1, 1), padding='SAME')
+    net = tf.layers.batch_normalization(net, name='batch-norm3', reuse=reuse)
+    #net = tf.layers.dropout(net)
+    net = tf.contrib.layers.flatten(net)
+    net = tf.layers.dense(net, 128, name = 'layer4', reuse=reuse)
+    #net = tf.layers.dropout(net)
+    y_hat = tf.layers.dense(net, 10, name = 'layer5', reuse=reuse)
+    return y_hat
+
 
 def split_tensors(tensors, number):
     return [tf.split(tensor, number) for tensor in tensors]
@@ -41,7 +67,7 @@ class Subbatch(Batch):
     @model(mode='static')
     def dense_net(pipeline):
         n_subbatches = pipeline.get_variable("NUM_SUBBATCHES")
-        scope = "static_dn"
+        scope = "static_cn"
         sess = pipeline.get_variable("session")
 
         with sess.graph.as_default():
@@ -66,7 +92,35 @@ class Subbatch(Batch):
 
         return x, y, step, total_loss, accuracy
 
-    @action(model='dense_net')
+    @model(mode='static')
+    def conv_net(pipeline):
+        n_subbatches = pipeline.get_variable("NUM_SUBBATCHES")
+        scope = "static_dn"
+        sess = pipeline.get_variable("session")
+
+        with sess.graph.as_default():
+            with tf.variable_scope(scope):
+
+                x = tf.placeholder(tf.float32, shape=[None, 784], name='image')
+                y = tf.placeholder(tf.float32, shape=[None, 10], name='label')
+                opt = tf.train.GradientDescentOptimizer(0.01)
+
+                total_y_hat = conv_net_layers(x, reuse=False)
+
+                gradients_as_tensor = subbatch_gradients(x, y, n_subbatches, conv_net_layers, opt)
+                total_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=total_y_hat, labels=y))
+                step = opt.apply_gradients(gradients_as_tensor)                
+
+                y_pred = tf.nn.softmax(total_y_hat)
+                labels_hat = tf.cast(tf.argmax(y_pred, axis=1), tf.float32, name='labels_hat')
+                labels = tf.cast(tf.argmax(y, axis=1), tf.float32, name='labels')
+                accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
+
+                sess.run(tf.global_variables_initializer())
+
+        return x, y, step, total_loss, accuracy
+
+    @action(model='conv_net')
     def train(self, models, sess, iter_time, acc):
         x, y, step, total_loss, accuracy = models
 
