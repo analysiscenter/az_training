@@ -8,11 +8,25 @@ from dataset import Dataset, Batch, model, DatasetIndex, action
 
 
 def dense_net_layers(inp, reuse):
+    """TensorFlow dense network
+    input:
+        inp: neural network input
+        reuse: If true reuse layers
+    output:
+        logit output
+    """
     net = tf.layers.dense(inp, 20, name='first_layer', reuse=reuse)
     y_hat = tf.layers.dense(net, 10, name='second_layer', reuse=reuse)
     return y_hat
 
 def conv_net_layers(inp, reuse):
+    """TensorFlow convolutional network
+    input:
+        inp: neural network input
+        reuse: If true reuse layers
+    output:
+        logit output
+    """
     x_as_pics = tf.reshape(inp, shape=[-1, 28, 28, 1])
     net = tf.layers.conv2d(inputs=x_as_pics, filters=16, kernel_size=(7, 7), strides=(2, 2), 
                            padding='SAME', name = 'layer1', reuse=reuse,
@@ -37,6 +51,42 @@ def conv_net_layers(inp, reuse):
     #net = tf.layers.dropout(net)
     y_hat = tf.layers.dense(net, 10, name = 'layer5', reuse=reuse)
     return y_hat
+
+def subbatch_static_model(sess, scope, n_subbatches, layers):
+    """Compute gradients by subbatches
+    input:
+        sess: tf session
+        scope: tf scope
+        n_subbatches: int, the number of subbatches
+        layers: function which describes tf network
+    output:
+        x: tf placeholder for network input
+        y: tf placeholder for network
+        step: tf operation, training step
+        total_loss: loss on the batch
+        accuracy: accuracy on the batch
+    """
+    with sess.graph.as_default():
+        with tf.variable_scope(scope):
+
+            x = tf.placeholder(tf.float32, shape=[None, 784], name='image')
+            y = tf.placeholder(tf.float32, shape=[None, 10], name='label')
+            opt = tf.train.GradientDescentOptimizer(0.01)
+
+            total_y_hat = layers(x, reuse=False)
+
+            gradients_as_tensor = subbatch_gradients(x, y, n_subbatches, layers, opt)
+            total_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=total_y_hat, labels=y))
+            step = opt.apply_gradients(gradients_as_tensor)                
+
+            y_pred = tf.nn.softmax(total_y_hat)
+            labels_hat = tf.cast(tf.argmax(y_pred, axis=1), tf.float32, name='labels_hat')
+            labels = tf.cast(tf.argmax(y, axis=1), tf.float32, name='labels')
+            accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
+
+            sess.run(tf.global_variables_initializer())
+
+    return x, y, step, total_loss, accuracy
 
 
 def split_tensors(tensors, number):
@@ -65,62 +115,13 @@ class Subbatch(Batch):
         self.y = None
 
     @model(mode='static')
-    def dense_net(pipeline):
+    def neural_net(pipeline):
         n_subbatches = pipeline.get_variable("NUM_SUBBATCHES")
         scope = "static_cn"
         sess = pipeline.get_variable("session")
+        return subbatch_static_model(sess, scope, n_subbatches, conv_net_layers)
 
-        with sess.graph.as_default():
-            with tf.variable_scope(scope):
-
-                x = tf.placeholder(tf.float32, shape=[None, 784], name='image')
-                y = tf.placeholder(tf.float32, shape=[None, 10], name='label')
-                opt = tf.train.GradientDescentOptimizer(0.01)
-
-                total_y_hat = dense_net_layers(x, reuse=False)
-
-                gradients_as_tensor = subbatch_gradients(x, y, n_subbatches, dense_net_layers, opt)
-                total_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=total_y_hat, labels=y))
-                step = opt.apply_gradients(gradients_as_tensor)                
-
-                y_pred = tf.nn.softmax(total_y_hat)
-                labels_hat = tf.cast(tf.argmax(y_pred, axis=1), tf.float32, name='labels_hat')
-                labels = tf.cast(tf.argmax(y, axis=1), tf.float32, name='labels')
-                accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
-
-                sess.run(tf.global_variables_initializer())
-
-        return x, y, step, total_loss, accuracy
-
-    @model(mode='static')
-    def conv_net(pipeline):
-        n_subbatches = pipeline.get_variable("NUM_SUBBATCHES")
-        scope = "static_dn"
-        sess = pipeline.get_variable("session")
-
-        with sess.graph.as_default():
-            with tf.variable_scope(scope):
-
-                x = tf.placeholder(tf.float32, shape=[None, 784], name='image')
-                y = tf.placeholder(tf.float32, shape=[None, 10], name='label')
-                opt = tf.train.GradientDescentOptimizer(0.01)
-
-                total_y_hat = conv_net_layers(x, reuse=False)
-
-                gradients_as_tensor = subbatch_gradients(x, y, n_subbatches, conv_net_layers, opt)
-                total_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=total_y_hat, labels=y))
-                step = opt.apply_gradients(gradients_as_tensor)                
-
-                y_pred = tf.nn.softmax(total_y_hat)
-                labels_hat = tf.cast(tf.argmax(y_pred, axis=1), tf.float32, name='labels_hat')
-                labels = tf.cast(tf.argmax(y, axis=1), tf.float32, name='labels')
-                accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
-
-                sess.run(tf.global_variables_initializer())
-
-        return x, y, step, total_loss, accuracy
-
-    @action(model='conv_net')
+    @action(model='neural_net')
     def train(self, models, sess, iter_time, acc):
         x, y, step, total_loss, accuracy = models
 
