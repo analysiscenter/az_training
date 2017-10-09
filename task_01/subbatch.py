@@ -86,7 +86,7 @@ def subbatch_static_model(sess, scope, n_subbatches, layers):
 
             sess.run(tf.global_variables_initializer())
 
-    return x, y, step, total_loss, accuracy
+    return x, y, step, total_loss, accuracy, sess
 
 
 def split_tensors(tensors, number):
@@ -122,8 +122,8 @@ class Subbatch(Batch):
         return subbatch_static_model(sess, scope, n_subbatches, conv_net_layers)
 
     @action(model='neural_net')
-    def train(self, models, sess, iter_time, acc):
-        x, y, step, total_loss, accuracy = models
+    def train(self, models, iter_time, acc):
+        x, y, step, total_loss, accuracy, sess = models
 
         start = time()
         sess.run(step, feed_dict={x: self.x, y: self.y})
