@@ -1,24 +1,30 @@
 import sys
+import os
 import pickle
 from time import time
 import tensorflow as tf
 import numpy as np
+import psutil
 
 sys.path.append('../')
 from networks import conv_net_layers, dense_net_layers
 
 def load(size):
-    """Load MNIST data
+    """
+    Load MNIST data
 
     Parameters
     ----------
-    size : size of the loaded data
+    size : int
+    size of the loaded data
 
     Returns
     -------
-    images : np.array of MNIST images
+    images : np.array
+    MNIST images
 
-    output : corresponding np.array of one-hot labels
+    output : np.array
+    MNIST one-hot labels
     """
 
     with open('./mnist/mnist_labels.pkl', 'rb') as file:
@@ -26,6 +32,7 @@ def load(size):
     with open('./mnist/mnist_pics.pkl', 'rb') as file:
         images = pickle.load(file)[:size]
     return images, labels
+
 
 def train_on_batch(session, x_ph, y_ph, batch_x, batch_y, 
                    micro_batch_size, set_zero, accum_op, train_op):
@@ -47,15 +54,19 @@ def train_on_batch(session, x_ph, y_ph, batch_x, batch_y,
     n_splits = np.ceil(len(batch_x) / micro_batch_size)
     x_splitted = np.array_split(batch_x, n_splits)
     y_splitted = np.array_split(batch_y, n_splits)
-    
+
+    pid = os.getpid()
     start = time()
+    mem_before = psutil.Process(pid).memory_percent()
     session.run(set_zero)
     for x, y in zip(x_splitted, y_splitted):
         session.run(accum_op, feed_dict={x_ph: x, y_ph: y})
     session.run(train_op)
     stop = time()
+    mem_after = psutil.Process(pid).memory_percent()
     time_it = stop - start
-    return time_it
+    memory = mem_after - mem_before
+    return time_it, memory
 
 def define_model():
     """
@@ -65,7 +76,7 @@ def define_model():
     -------
     session : tf.Session
 
-    x_ph, y_ph : tf.Placeholder for input
+    x_ph, y_ph : tf.Placeholder for inputs
 
     set_zero, accum_op, train_op, loss, accuracy : : model operations
     """
