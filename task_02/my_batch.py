@@ -84,7 +84,8 @@ class MnistBatch(Batch):
         """ Create queue to parallel.
         Return:
             Array with """
-        return np.arange(len(self.indices))
+        return [{'ind':i}  for i in range(self.images.shape[0])]
+
 
     @action(model='convy')
     def prediction(self, models, sess, dict_pred):
