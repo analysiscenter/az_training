@@ -7,8 +7,8 @@ import numpy as np
 import tensorflow as tf
 
 sys.path.append('..')
-from dataset import action, model, inbatch_parallel, ImagesBatch, any_action_failed
-
+from dataset import action, model, inbatch_parallel, any_action_failed
+from dataset.dataset.image import ImagesBatch
 class MnistBatch(ImagesBatch):
     """ Mnist batch and models
     """
@@ -115,7 +115,7 @@ class MnistBatch(ImagesBatch):
 
 
         global_step = tf.Variable(0, trainable=False)
-        starter_lr = 0.0001
+        starter_lr = 0.001
         learning_rate = tf.train.exponential_decay(starter_lr, global_step, 150, 0.96, staircase=True)
 
         #optimization step
@@ -141,7 +141,7 @@ class MnistBatch(ImagesBatch):
         accuracy = models[1][-2]
         x, y_, _, train_step, training, keep_prob, _ = models[0]
         acc, _ = sess.run([accuracy, train_step], feed_dict={x: self.images.reshape(-1, 784), \
-                                                             y_: self.labels, training: True, keep_prob: 0.5})
+                                                             y_: self.labels, training: True, keep_prob: 0.4})
         train_acc.append(acc)
         # sess.run(train_step, feed_dict={x: self.images, y_: self.labels, training: True, keep_prob: 0.8})
         return self
@@ -172,9 +172,9 @@ class MnistBatch(ImagesBatch):
         x, _, _, _, training, keep_prob, y = models[0]
         dict_pred['imgs'].append(self.images)
         dict_pred['predict'].append(sess.run(y, feed_dict={x: self.images.reshape(-1, 784), \
-                                                           training: True, keep_prob: 0.5}))
-        dict_pred['answer'].append(np.argmax(np.array(dict_pred['predict'][-1])\
-            .reshape(-1, 10), axis=1) == np.argmax(self.labels, axis=1))
+                                                           training: False, keep_prob: 1.}))
+        dict_pred['answer'].append(self.labels)#np.argmax(np.array(dict_pred['predict'][-1])\
+            #.reshape(-1, 10), axis=1) == np.argmax(self.labels, axis=1))
         return self
 
     @action
