@@ -3,11 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ipywidgets import interactive
 
-def plot_examples(prediction, n_examples=5):
+def plot_examples(prediction):
     images, masks, proba = prediction[0]
     IMAGE_SIZE = prediction[0][2][2].shape[0]
-    n_examples = 3
-    fig = plt.figure(figsize = (15, 12))
+    n_examples = len(images)
+    if IMAGE_SIZE == 64:
+        fig = plt.figure(figsize = (15, 3.5*n_examples))
+    else:
+        fig = plt.figure(figsize = (15, 3.5*n_examples))
     for i in range(n_examples):
         plt.subplot(n_examples, 4, i*4 + 1)
         plt.title('Image')
@@ -24,8 +27,8 @@ def plot_examples(prediction, n_examples=5):
 
 
     plt.subplots_adjust(bottom=0.1, right=0.8, top=0.9)
-    cax = plt.axes([0.85, 0.1, 0.025, 0.8])
-    plt.colorbar(cax=cax)
+    cax = plt.axes([0.1, 0.95, 0.75, 0.01])
+    plt.colorbar(cax=cax, orientation='horizontal')
     plt.show()
 
 def plot_example_interactive(prediction, index):
