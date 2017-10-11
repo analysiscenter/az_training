@@ -20,12 +20,12 @@ class LinkNetBatch(Batch):
     @inbatch_parallel(init='init_func', post='post_func', target='threads')
     def noise_and_mask(self, ind):
         level = 0.7
-        # threshold = 0.1
+        #threshold = 0.1
         pure_mnist = self.images[ind].reshape(28, 28)
 
         new_x, new_y = np.random.randint(0, SIZE-28, 2)
         mask = np.zeros((SIZE, SIZE))
-        mask[new_x:new_x+28, new_y:new_y+28] = 1  # += pure_mnist > threshold
+        mask[new_x:new_x+28, new_y:new_y+28] += 1 #pure_mnist > threshold
 
         noised_mnist = np.random.random((SIZE, SIZE))*level
         noised_mnist[new_x:new_x+28, new_y:new_y+28] += pure_mnist
@@ -68,50 +68,57 @@ class LinkNetBatch(Batch):
         x_as_pics = tf.reshape(x_ph, [-1, SIZE, SIZE, 1])
         mask_as_pics = tf.reshape(mask_ph, [-1, SIZE, SIZE, 1])
 
-        mask_as_pics = tf.concat([mask_as_pics, 1 - mask_as_pics], axis=3)
+        mask_as_pics_one_hot = tf.concat([1 - mask_as_pics, mask_as_pics], axis=3)
 
-        logits = linknet_layers(x_as_pics, training, 2)
+        logits = linknet_layers(mask_as_pics_one_hot, training, 2)
 
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=mask_as_pics, logits=logits)
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=mask_as_pics_one_hot, logits=logits)
         loss = tf.reduce_mean(cross_entropy)
 
         y_pred_softmax = tf.nn.softmax(logits)
         y_pred = tf.cast(tf.argmax(y_pred_softmax, axis=3), tf.float32, name='mask_prediction')
         
+        iou = tf.metrics.mean_iou(tf.reshape(mask_as_pics, [-1, SIZE, SIZE]) , y_pred, 2)
+        
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-            step = tf.train.AdamOptimizer(0.01).minimize(loss)
+            step = tf.train.AdamOptimizer().minimize(loss)
 
         #step = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
 
-        return x_ph, mask_ph, training, step, loss, y_pred, y_pred_softmax, mask_as_pics
+        return x_ph, mask_ph, training, step, loss, iou, y_pred, y_pred_softmax, mask_as_pics
 
     @action(model='linknet')
-    def train(self, models, sess, log):
-        x_ph, mask_ph, training, step, loss, _, _, _ = models
+    def train(self, models, sess):
+        x_ph, mask_ph, training, step, _, _, _, _, _ = models
         sess.run(step, feed_dict={x_ph: self.images, mask_ph: self.masks, training: True})
-        batch_loss = sess.run(loss, feed_dict={x_ph: self.images, mask_ph: self.masks, training: True})
-        log.append(batch_loss)
+        return self
+    
+    @action(model='linknet')
+    def get_stat(self, models, sess, log, trainable):
+        x_ph, mask_ph, training, _, loss, iou, _, _, _ = models
+        batch_loss = sess.run(loss, feed_dict={x_ph: self.images, mask_ph: self.masks, training: trainable})
+        batch_iou = sess.run(iou, feed_dict={x_ph: self.images, mask_ph: self.masks, training: trainable})
+        log.append([batch_loss, batch_iou])
         return self
 
     @action(model='linknet')
     def predict(self, models, sess, pred):
-        x_ph, mask_ph, training, step, loss, y_pred, _, _ = models
+        x_ph, mask_ph, training, _, _, _, y_pred, _, _ = models
         res = sess.run(y_pred, feed_dict={x_ph: self.images, mask_ph: self.masks, training: False})
         pred.append([self.images, res])
         return self
 
     @action(model='linknet')
     def predict_proba(self, models, sess, pred):
-        x_ph, mask_ph, training, step, loss, _, y_pred, _ = models
+        x_ph, mask_ph, training, _, _, _, _, y_pred, _ = models
         proba = sess.run(y_pred, feed_dict={x_ph: self.images, mask_ph: self.masks, training: False})
-        loss_test = sess.run(loss, feed_dict={x_ph: self.images, mask_ph: self.masks, training: False})
-        pred.append([loss_test, self.images, self.masks, proba])
+        pred.append([self.images, self.masks, proba])
         return self
 
     @action(model='linknet')
     def get_mask(self, models, sess, masks):
-        x_ph, mask_ph, training, step, loss, _, y_pred, mask_as_pics = models
+        x_ph, mask_ph, training, _, _, _, _, _, mask_as_pics = models
         mask = sess.run(mask_as_pics, feed_dict={x_ph: self.images, mask_ph: self.masks, training: False})
         masks.append(mask)
         return self
