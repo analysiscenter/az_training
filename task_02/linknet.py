@@ -83,6 +83,8 @@ class LinkNetBatch(Batch):
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             step = tf.train.AdamOptimizer().minimize(loss)
+            
+        print(update_ops)
 
         #step = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
 
