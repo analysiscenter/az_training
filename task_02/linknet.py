@@ -2,15 +2,12 @@
 LinkNet implementation as Batch class
 """
 
-import sys
 import pickle
 import numpy as np
 import tensorflow as tf
 
-sys.path.append('..')
-
-from dataset import Batch, model, action, inbatch_parallel, any_action_failed
-from layers import linknet_layers
+from ..dataset import Batch, model, action, inbatch_parallel, any_action_failed
+from .layers import linknet_layers
 
 SIZE = 128
 
