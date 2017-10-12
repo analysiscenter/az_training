@@ -10,7 +10,7 @@ MOMENTUM = 0.1
 def encoder_block(inp, training, output_map_size, name):
     """LinkNet encoder block.
     """
-    with tf.variable_scope(name):
+    with tf.variable_scope(name): # pylint: disable=not-context-manager
         net = tf.layers.conv2d(inp, output_map_size, (3, 3),
                                strides=(2, 2),
                                padding='SAME',
@@ -76,7 +76,7 @@ def encoder_block(inp, training, output_map_size, name):
 def decoder_block(inp, training, input_map_size, output_map_size, name):
     """LinkNet decoder block.
     """
-    with tf.variable_scope(name):
+    with tf.variable_scope(name): # pylint: disable=not-context-manager
         net = tf.layers.conv2d(inp, input_map_size//4, (1, 1),
                                padding='SAME',
                                kernel_initializer=Xavier(),
@@ -118,7 +118,7 @@ def decoder_block(inp, training, input_map_size, output_map_size, name):
 def linknet_layers(inp, training, n_classes):
     """LinkNet tf.layers.
     """
-    with tf.variable_scope('LinkNet'):
+    with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
         net = tf.layers.conv2d(inp, 64, (7, 7),
                                strides=(2, 2),
                                padding='SAME',

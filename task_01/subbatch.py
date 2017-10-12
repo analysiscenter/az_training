@@ -1,5 +1,4 @@
 """Split into microbatches on tf level"""
-import sys
 import pickle
 from time import time
 import tensorflow as tf
@@ -24,7 +23,7 @@ def subbatch_static_model(sess, scope, n_subbatches, layers):
         accuracy: accuracy on the batch
     """
     with sess.graph.as_default():
-        with tf.variable_scope(scope):
+        with tf.variable_scope(scope): # pylint: disable=not-context-manager
 
             x = tf.placeholder(tf.float32, shape=[None, 784], name='image')
             y = tf.placeholder(tf.float32, shape=[None, 10], name='label')
@@ -98,7 +97,7 @@ class Subbatch(Batch):
         return self
 
     @action
-    def load(self):
+    def load_images(self):
         """Load images and labels from files."""
         with open('./mnist/mnist_labels.pkl', 'rb') as file:
             self.y = pickle.load(file)[self.indices]

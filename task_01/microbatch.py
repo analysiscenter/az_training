@@ -1,13 +1,11 @@
 """Spliting into microbatches on np level"""
 
-import sys
 import pickle
 from time import time
 import tensorflow as tf
 import numpy as np
 
-sys.path.append('../')
-from networks import conv_net_layers
+from .networks import conv_net_layers
 
 def load(size):
     """
@@ -79,7 +77,7 @@ def define_model():
     set_zero, accum_op, train_op, loss : : model operations
     """
     graph = tf.Graph()
-    with graph.as_default():
+    with graph.as_default(): # pylint: disable=not-context-manager
         x_ph = tf.placeholder(tf.float32, shape=[None, 784], name='image')
         y_ph = tf.placeholder(tf.float32, shape=[None, 10], name='label')
 
