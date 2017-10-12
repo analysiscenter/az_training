@@ -71,7 +71,7 @@ class LinkNetBatch(Batch):
             return self
 
     @action
-    def load(self):
+    def load_images(self):
         """Load MNIST images from file."""
         with open('../mnist/mnist_pics.pkl', 'rb') as file:
             self.images = pickle.load(file)[self.indices]
