@@ -158,7 +158,7 @@ class ResBatch(Batch):
             net = conv_block(net, 3, [64, 64, 256], name='4', strides=(1, 1))
             net = identity_block(net, 3, [64, 64, 256], name='5')
 
-            net = tf.layers.average_pooling2d(net, (7,7), strides=(1, 1))
+            net = tf.layers.average_pooling2d(net, (7, 7), strides=(1,1))
             net = tf.contrib.layers.flatten(net)
 
 
