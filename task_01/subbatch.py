@@ -77,7 +77,7 @@ class Subbatch(Batch):
         self.y = None
 
     @model(mode='static')
-    def neural_net(pipeline):
+    def neural_net(self, pipeline):
         """Neural network model."""
         n_subbatches = pipeline.get_variable("NUM_SUBBATCHES")
         scope = "static_cn"
