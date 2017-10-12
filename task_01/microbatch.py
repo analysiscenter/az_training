@@ -25,9 +25,9 @@ def load(size):
     MNIST one-hot labels
     """
 
-    with open('./mnist/mnist_labels.pkl', 'rb') as file:
+    with open('../mnist/mnist_labels.pkl', 'rb') as file:
         labels = pickle.load(file)[:size]
-    with open('./mnist/mnist_pics.pkl', 'rb') as file:
+    with open('../mnist/mnist_pics.pkl', 'rb') as file:
         images = pickle.load(file)[:size]
     return images, labels
 
