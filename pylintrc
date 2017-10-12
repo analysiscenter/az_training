@@ -8,8 +8,10 @@ max-args=8
 max-locals=20
 
 [BASIC]
-good-names=_,x,y,z,i,j,k,l,m,n,p,r,u
+good-names=_,x,y,z,i,j,k,l,m,n,p,r,u,b,w,y_,it
 
+[MESSAGE CONTROL]
+disable=no-self-use, no-method-argument
 [TYPECHECK]
 ignored-modules=numpy
 
