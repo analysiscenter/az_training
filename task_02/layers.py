@@ -5,7 +5,7 @@ from tensorflow.contrib.layers import xavier_initializer_conv2d as Xavier
 sys.path.append('..')
 from dataset import Batch, action, model
 
-B_NORM = False
+B_NORM = True
 
 
 def encoder_block(inp, training, output_map_size, name):
