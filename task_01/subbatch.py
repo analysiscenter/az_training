@@ -4,7 +4,9 @@ import pickle
 from time import time
 import tensorflow as tf
 
-sys.path.append('../')
+sys.path.append('..')
+sys.path.append('.')
+
 from dataset import Batch, model, action
 from networks import conv_net_layers
 
