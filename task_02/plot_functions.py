@@ -1,3 +1,5 @@
+"""Visualization functions."""
+
 import matplotlib.pyplot as plt
 from ipywidgets import interactive
 

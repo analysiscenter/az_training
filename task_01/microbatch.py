@@ -1,3 +1,5 @@
+"""Spliting into microbatches on np level"""
+
 import sys
 import os
 import pickle
@@ -34,7 +36,7 @@ def load(size):
     return images, labels
 
 
-def train_on_batch(session, x_ph, y_ph, batch_x, batch_y, 
+def train_on_batch(session, x_ph, y_ph, batch_x, batch_y,
                    micro_batch_size, set_zero, accum_op, train_op):
     """
     Perform training on batch
@@ -84,9 +86,9 @@ def define_model():
     with graph.as_default():
         x_ph = tf.placeholder(tf.float32, shape=[None, 784], name='image')
         y_ph = tf.placeholder(tf.float32, shape=[None, 10], name='label')
-        
+
         batch_size = tf.cast(tf.shape(x_ph)[0], tf.float32)
-        
+
         logits = conv_net_layers(x_ph, False)
         y_hat = tf.nn.softmax(logits)
         loss_sum = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_ph))
@@ -95,7 +97,7 @@ def define_model():
         labels_hat = tf.cast(tf.argmax(y_hat, axis=1), tf.float32, name='labels_hat')
         labels = tf.cast(tf.argmax(y_ph, axis=1), tf.float32, name='labels')
         accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
-        
+
         opt = tf.train.AdamOptimizer()
         train_vars = tf.trainable_variables()
 
@@ -111,7 +113,7 @@ def define_model():
         accum_op = [accum_grad, accum_batch_size]
 
         train_op = opt.apply_gradients([(grad_accum[i] / batch_size_accum, g[1]) for i, g in enumerate(grad)])
-        
+
         session = tf.Session()
         session.run(tf.global_variables_initializer())
     return session, x_ph, y_ph, set_zero, accum_op, train_op, loss, accuracy
