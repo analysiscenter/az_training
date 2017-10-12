@@ -82,7 +82,7 @@ class LinkNetBatch(Batch):
 
 
     @model()
-    def linknet(self):
+    def linknet():
         """Define LinkNet model."""
         x_ph = tf.placeholder(tf.float32, shape=[None, SIZE, SIZE], name='image')
         mask_ph = tf.placeholder(tf.float32, shape=[None, SIZE, SIZE], name='mask')

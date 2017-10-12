@@ -14,7 +14,7 @@ def plot_examples(images, masks, proba):
     """
     images, masks, proba = images[0], masks[0], proba[0]
     n_examples = len(images)
-    fig = plt.figure(figsize=(15, 3.5*n_examples))
+    plt.figure(figsize=(15, 3.5*n_examples))
     for i in range(n_examples):
         plt.subplot(n_examples, 4, i*4 + 1)
         plt.title('Image')
@@ -48,7 +48,9 @@ def plot_example_interactive(images, masks, proba, index):
 
     """
     images, masks, proba = images[0], masks[0], proba[0]
-    def f(threshold):
+    def interactive_f(threshold):
+        """Function for interactive plot.
+        """
         plt.figure(figsize=(18, 10))
         plt.subplot(131)
         plt.title('Image')
@@ -61,7 +63,7 @@ def plot_example_interactive(images, masks, proba, index):
         plt.imshow(proba[index][:, :, 1] > threshold, vmin=0, vmax=1)
         plt.show()
 
-    interactive_plot = interactive(f, threshold=(0.0, 1.0, 0.05))
+    interactive_plot = interactive(interactive_f, threshold=(0.0, 1.0, 0.05))
     output = interactive_plot.children[-1]
     output.layout.height = '350px'
     return interactive_plot
