@@ -70,6 +70,7 @@ def subbatch_gradients(x, y, n_subbatches, models, opt):
 
 
 class Subbatch(Batch):
+    """Batch class for microbatches."""
 
     def __init__(self, index, *args, **kwargs):
         """Init function."""

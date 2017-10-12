@@ -1,6 +1,5 @@
 """LinkNet"""
 
-import sys
 import tensorflow as tf
 from tensorflow.contrib.layers import xavier_initializer_conv2d as Xavier
 
@@ -18,9 +17,9 @@ def encoder_block(inp, training, output_map_size, name):
                                kernel_initializer=Xavier(),
                                name='encoder_conv_1')
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm1', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm1',
                                                 momentum=MOMENTUM)
         net = tf.nn.relu(net)
 
@@ -29,9 +28,9 @@ def encoder_block(inp, training, output_map_size, name):
                                kernel_initializer=Xavier(),
                                name='encoder_conv_2')
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm2', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm2',
                                                 momentum=MOMENTUM)
         net = tf.nn.relu(net)
 
@@ -40,9 +39,9 @@ def encoder_block(inp, training, output_map_size, name):
                                     kernel_initializer=Xavier(),
                                     name='encoder_short_1')
         if B_NORM:
-            shortcut = tf.layers.batch_normalization(shortcut, 
-                                                     training=training, 
-                                                     name='batch-norm-short', 
+            shortcut = tf.layers.batch_normalization(shortcut,
+                                                     training=training,
+                                                     name='batch-norm-short',
                                                      momentum=MOMENTUM)
         shortcut = tf.nn.relu(shortcut)
 
@@ -53,9 +52,9 @@ def encoder_block(inp, training, output_map_size, name):
                                kernel_initializer=Xavier(),
                                name='encoder_conv_3')
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm3', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm3',
                                                 momentum=MOMENTUM)
         net = tf.nn.relu(net)
 
@@ -64,9 +63,9 @@ def encoder_block(inp, training, output_map_size, name):
                                kernel_initializer=Xavier(),
                                name='encoder_conv_4')
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm4', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm4',
                                                 momentum=MOMENTUM)
         net = tf.nn.relu(net)
 
@@ -83,9 +82,9 @@ def decoder_block(inp, training, input_map_size, output_map_size, name):
                                kernel_initializer=Xavier(),
                                name='decoder_conv_1')
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm1', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm1',
                                                 momentum=MOMENTUM)
         net = tf.nn.relu(net)
 
@@ -96,9 +95,9 @@ def decoder_block(inp, training, input_map_size, output_map_size, name):
                                          name='decoder_conv_2'
                                         )
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm2', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm2',
                                                 momentum=MOMENTUM)
         net = tf.nn.relu(net)
 
@@ -107,9 +106,9 @@ def decoder_block(inp, training, input_map_size, output_map_size, name):
                                kernel_initializer=Xavier(),
                                name='decoder_conv_3')
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm3', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm3',
                                                 momentum=MOMENTUM)
         outp = tf.nn.relu(net)
 
@@ -127,9 +126,9 @@ def linknet_layers(inp, training, n_classes):
                                name='conv_1')
         net = tf.layers.max_pooling2d(net, (3, 3), strides=(2, 2), padding='SAME')
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm1', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm1',
                                                 momentum=MOMENTUM)
         net = tf.nn.relu(net)
 
@@ -156,9 +155,9 @@ def linknet_layers(inp, training, n_classes):
                                          name='output_conv_1')
 
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm2', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm2',
                                                 momentum=MOMENTUM)
         net = tf.nn.relu(net)
 
@@ -167,9 +166,9 @@ def linknet_layers(inp, training, n_classes):
                                kernel_initializer=Xavier(),
                                name='output_conv_2')
         if B_NORM:
-            net = tf.layers.batch_normalization(net, 
-                                                training=training, 
-                                                name='batch-norm3', 
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm3',
                                                 momentum=MOMENTUM)
         net = tf.nn.relu(net)
 

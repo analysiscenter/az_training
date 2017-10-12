@@ -9,7 +9,7 @@ import numpy as np
 import psutil
 
 sys.path.append('../')
-from networks import conv_net_layers, dense_net_layers
+from networks import conv_net_layers
 
 def load(size):
     """

@@ -16,6 +16,8 @@ SIZE = 128
 
 
 class LinkNetBatch(Batch):
+    """Batch class for LinkNet."""
+
     def __init__(self, index, *args, **kwargs):
         """Init function."""
         super().__init__(index, *args, **kwargs)
@@ -31,7 +33,7 @@ class LinkNetBatch(Batch):
     @inbatch_parallel(init='init_func', post='post_func', target='threads')
     def noise_and_mask(self, ind):
         """Generate noised images and masks.
-        
+
         Parameters
         ----------
         ind : int or np.array
@@ -80,7 +82,7 @@ class LinkNetBatch(Batch):
 
 
     @model()
-    def linknet():
+    def linknet(self):
         """Define LinkNet model."""
         x_ph = tf.placeholder(tf.float32, shape=[None, SIZE, SIZE], name='image')
         mask_ph = tf.placeholder(tf.float32, shape=[None, SIZE, SIZE], name='mask')
@@ -108,7 +110,7 @@ class LinkNetBatch(Batch):
 
     def get_tensor_value(self, models, sess, index, training):
         """Get values of model return.
-        
+
         Parameters
         ----------
         models : list of tensors
@@ -143,7 +145,7 @@ class LinkNetBatch(Batch):
     @action(model='linknet')
     def train(self, models, sess):
         """Train iteration.
-        
+
         Parameters
         ----------
         models : list of tensors

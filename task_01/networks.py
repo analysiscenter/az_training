@@ -28,14 +28,14 @@ def conv_net_layers(inp, reuse):
     net = tf.layers.max_pooling2d(net, pool_size=(4, 4), strides=(2, 2))
     net = tf.layers.batch_normalization(net, name='batch-norm1', reuse=reuse)
     net = tf.nn.relu(net)
-    net = tf.layers.conv2d(inputs=net, filters=32, kernel_size=(5, 5), strides=(1, 1), 
+    net = tf.layers.conv2d(inputs=net, filters=32, kernel_size=(5, 5), strides=(1, 1),
                            padding='SAME', name='layer2', reuse=reuse,
                            kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d())
     net = tf.layers.max_pooling2d(net, pool_size=(3, 3), strides=(2, 2))
     net = tf.layers.batch_normalization(net, name='batch-norm2', reuse=reuse)
     net = tf.nn.relu(net)
     net = tf.layers.conv2d(inputs=net, filters=64, kernel_size=(3, 3), strides=(1, 1), \
-                           padding='SAME', name = 'layer3', reuse=reuse,
+                           padding='SAME', name='layer3', reuse=reuse,
                            kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d())
     net = tf.layers.max_pooling2d(net, pool_size=(2, 2), strides=(1, 1), padding='SAME')
     net = tf.layers.batch_normalization(net, name='batch-norm3', reuse=reuse)
