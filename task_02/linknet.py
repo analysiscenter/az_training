@@ -8,13 +8,19 @@ sys.path.append('..')
 from dataset import Batch, model, action, inbatch_parallel, any_action_failed
 from layers import linknet_layers
 
-SIZE = 64
+SIZE = 128
+
 
 class LinkNetBatch(Batch):
     def __init__(self, index, *args, **kwargs):
         super().__init__(index, *args, **kwargs)
         self.images = None
         self.masks = None
+
+    @property
+    def components(self):
+        """ Define components. """
+        return 'images', 'masks'
 
     @action
     @inbatch_parallel(init='init_func', post='post_func', target='threads')
@@ -30,7 +36,7 @@ class LinkNetBatch(Batch):
         noised_mnist = np.random.random((SIZE, SIZE))*level
         noised_mnist[new_x:new_x+28, new_y:new_y+28] += pure_mnist
         noised_mnist /= 1 + level
-        return noised_mnist.reshape(-1), mask.reshape(-1)
+        return noised_mnist, mask
 
     def init_func(self):
         return [{'ind': i} for i in range(self.images.shape[0])]
@@ -52,16 +58,11 @@ class LinkNetBatch(Batch):
             self.images = pickle.load(file)[self.indices]
         return self
 
-    @action
-    def get_images(self, images, masks):
-        images.append(self.images)
-        masks.append(self.masks)
-        return self
 
     @model()
     def linknet():
-        x_ph = tf.placeholder(tf.float32, shape=[None, SIZE * SIZE], name='image')
-        mask_ph = tf.placeholder(tf.float32, shape=[None, SIZE * SIZE], name='mask')
+        x_ph = tf.placeholder(tf.float32, shape=[None, SIZE, SIZE], name='image')
+        mask_ph = tf.placeholder(tf.float32, shape=[None, SIZE, SIZE], name='mask')
 
         training = tf.placeholder(tf.bool, shape=[], name='mode')
 
@@ -70,7 +71,7 @@ class LinkNetBatch(Batch):
 
         mask_as_pics_one_hot = tf.concat([1 - mask_as_pics, mask_as_pics], axis=3)
 
-        logits = linknet_layers(mask_as_pics_one_hot, training, 2)
+        logits = linknet_layers(x_as_pics, training, 2)
 
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=mask_as_pics_one_hot, logits=logits)
         loss = tf.reduce_mean(cross_entropy)
@@ -78,49 +79,38 @@ class LinkNetBatch(Batch):
         y_pred_softmax = tf.nn.softmax(logits)
         y_pred = tf.cast(tf.argmax(y_pred_softmax, axis=3), tf.float32, name='mask_prediction')
         
-        iou = tf.metrics.mean_iou(tf.reshape(mask_as_pics, [-1, SIZE, SIZE]) , y_pred, 2)
-        
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
             step = tf.train.AdamOptimizer().minimize(loss)
-            
-        print(update_ops)
 
-        #step = tf.train.GradientDescentOptimizer(0.01).minimize(loss)
+        return x_ph, mask_ph, training, step, loss, y_pred, y_pred_softmax
 
-        return x_ph, mask_ph, training, step, loss, iou, y_pred, y_pred_softmax, mask_as_pics
+    def get_tensor_value(self, models, sess, index, training):
+        feed_dict={models[0]: self.images, models[1]: self.masks, models[2]: training}
+        return sess.run(models[index], feed_dict=feed_dict)
+
+    @action
+    def get_images(self, images, masks):
+        images.append(self.images)
+        masks.append(self.masks)
+        return self
 
     @action(model='linknet')
     def train(self, models, sess):
-        x_ph, mask_ph, training, step, _, _, _, _, _ = models
-        sess.run(step, feed_dict={x_ph: self.images, mask_ph: self.masks, training: True})
+        self.get_tensor_value(models, sess, 3, True)
         return self
     
     @action(model='linknet')
-    def get_stat(self, models, sess, log, trainable):
-        x_ph, mask_ph, training, _, loss, iou, _, _, _ = models
-        batch_loss = sess.run(loss, feed_dict={x_ph: self.images, mask_ph: self.masks, training: trainable})
-        batch_iou = sess.run(iou, feed_dict={x_ph: self.images, mask_ph: self.masks, training: trainable})
-        log.append([batch_loss, batch_iou])
+    def get_stat(self, models, sess, log, training):
+        log.append(self.get_tensor_value(models, sess, 4, training))
         return self
 
     @action(model='linknet')
     def predict(self, models, sess, pred):
-        x_ph, mask_ph, training, _, _, _, y_pred, _, _ = models
-        res = sess.run(y_pred, feed_dict={x_ph: self.images, mask_ph: self.masks, training: False})
-        pred.append([self.images, res])
+        pred.append(self.get_tensor_value(models, sess, 5, False))
         return self
 
     @action(model='linknet')
     def predict_proba(self, models, sess, pred):
-        x_ph, mask_ph, training, _, _, _, _, y_pred, _ = models
-        proba = sess.run(y_pred, feed_dict={x_ph: self.images, mask_ph: self.masks, training: False})
-        pred.append([self.images, self.masks, proba])
-        return self
-
-    @action(model='linknet')
-    def get_mask(self, models, sess, masks):
-        x_ph, mask_ph, training, _, _, _, _, _, mask_as_pics = models
-        mask = sess.run(mask_as_pics, feed_dict={x_ph: self.images, mask_ph: self.masks, training: False})
-        masks.append(mask)
+        pred.append(self.get_tensor_value(models, sess, 6, False))
         return self
