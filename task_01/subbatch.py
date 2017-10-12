@@ -1,10 +1,8 @@
 """Split into microbatches on tf level"""
 import sys
-from os import getpid
 import pickle
 from time import time
 import tensorflow as tf
-import psutil
 
 sys.path.append('../')
 from dataset import Batch, model, action
@@ -87,20 +85,16 @@ class Subbatch(Batch):
         return subbatch_static_model(sess, scope, n_subbatches, conv_net_layers)
 
     @action(model='neural_net')
-    def train(self, models, iter_time, acc, memory):
+    def train(models, iter_time, acc):
         """Train iteration on batch."""
         x, y, step, _, accuracy, sess = models
 
-        process = psutil.Process(getpid())
-        before = process.memory_percent()
         start = time()
         sess.run(step, feed_dict={x: self.x, y: self.y})
         stop = time()
-        after = process.memory_percent()
 
         acc.append(sess.run(accuracy, feed_dict={x: self.x, y: self.y}))
         iter_time.append(stop-start)
-        memory.append(after-before)
 
         return self
 

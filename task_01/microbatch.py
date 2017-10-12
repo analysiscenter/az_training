@@ -1,12 +1,10 @@
 """Spliting into microbatches on np level"""
 
 import sys
-import os
 import pickle
 from time import time
 import tensorflow as tf
 import numpy as np
-import psutil
 
 sys.path.append('../')
 from networks import conv_net_layers
@@ -35,8 +33,12 @@ def load(size):
         images = pickle.load(file)[:size]
     return images, labels
 
+def split_arrays(data, n_splits):
+    "Split list of arrays into n_splits."
+    return [np.array_split(res, n_splits) for res in data]
 
-def train_on_batch(session, x_ph, y_ph, batch_x, batch_y,
+
+def train_on_batch(session, tensors, batch,
                    micro_batch_size, set_zero, accum_op, train_op):
     """
     Perform training on batch
@@ -45,7 +47,7 @@ def train_on_batch(session, x_ph, y_ph, batch_x, batch_y,
     ----------
     session : tf.session
 
-    x_ph, y_ph : tf.Placeholder for input
+    tensors : list of tensors for input
 
     batch_x, batch_y: np.array current batch
 
@@ -53,22 +55,16 @@ def train_on_batch(session, x_ph, y_ph, batch_x, batch_y,
 
     set_zero, accum_op, train_op : model operations
     """
-    n_splits = np.ceil(len(batch_x) / micro_batch_size)
-    x_splitted = np.array_split(batch_x, n_splits)
-    y_splitted = np.array_split(batch_y, n_splits)
+    x_ph, y_ph = tensors
+    n_splits = np.ceil(len(batch[0]) / micro_batch_size)
+    splitted = split_arrays(batch, n_splits)
 
-    pid = os.getpid()
     start = time()
-    mem_before = psutil.Process(pid).memory_percent()
     session.run(set_zero)
-    for x, y in zip(x_splitted, y_splitted):
+    for x, y in zip(*splitted):
         session.run(accum_op, feed_dict={x_ph: x, y_ph: y})
     session.run(train_op)
-    stop = time()
-    mem_after = psutil.Process(pid).memory_percent()
-    time_it = stop - start
-    memory = mem_after - mem_before
-    return time_it, memory
+    return time() - start
 
 def define_model():
     """
@@ -80,7 +76,7 @@ def define_model():
 
     x_ph, y_ph : tf.Placeholder for inputs
 
-    set_zero, accum_op, train_op, loss, accuracy : : model operations
+    set_zero, accum_op, train_op, loss : : model operations
     """
     graph = tf.Graph()
     with graph.as_default():
@@ -90,13 +86,8 @@ def define_model():
         batch_size = tf.cast(tf.shape(x_ph)[0], tf.float32)
 
         logits = conv_net_layers(x_ph, False)
-        y_hat = tf.nn.softmax(logits)
         loss_sum = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_ph))
         loss = loss_sum / batch_size
-
-        labels_hat = tf.cast(tf.argmax(y_hat, axis=1), tf.float32, name='labels_hat')
-        labels = tf.cast(tf.argmax(y_ph, axis=1), tf.float32, name='labels')
-        accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
 
         opt = tf.train.AdamOptimizer()
         train_vars = tf.trainable_variables()
@@ -116,4 +107,4 @@ def define_model():
 
         session = tf.Session()
         session.run(tf.global_variables_initializer())
-    return session, x_ph, y_ph, set_zero, accum_op, train_op, loss, accuracy
+    return session, x_ph, y_ph, set_zero, accum_op, train_op, loss
