@@ -75,7 +75,7 @@ class Subbatch(Batch):
         self.y = None
 
     @model(mode='static')
-    def neural_net(pipeline):
+    def neural_net(pipeline): #pylint: disable=no-self-argument
         """Neural network model."""
         n_subbatches = pipeline.get_variable("NUM_SUBBATCHES")
         scope = "static_cn"
