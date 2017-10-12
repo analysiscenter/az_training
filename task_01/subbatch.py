@@ -77,7 +77,7 @@ class Subbatch(Batch):
         self.y = None
 
     @model(mode='static')
-    def neural_net(self, pipeline):
+    def neural_net(pipeline):
         """Neural network model."""
         n_subbatches = pipeline.get_variable("NUM_SUBBATCHES")
         scope = "static_cn"
@@ -85,7 +85,7 @@ class Subbatch(Batch):
         return subbatch_static_model(sess, scope, n_subbatches, conv_net_layers)
 
     @action(model='neural_net')
-    def train(models, iter_time, acc):
+    def train(self, models, iter_time, acc):
         """Train iteration on batch."""
         x, y, step, _, accuracy, sess = models
 
