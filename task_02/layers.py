@@ -3,7 +3,6 @@ import tensorflow as tf
 from tensorflow.contrib.layers import xavier_initializer_conv2d as Xavier
 
 sys.path.append('..')
-from dataset import Batch, action, model
 
 B_NORM = True
 MOMENTUM = 0.1
@@ -33,7 +32,8 @@ def encoder_block(inp, training, output_map_size, name):
                                     kernel_initializer=Xavier(),
                                     name='encoder_short_1')
         if B_NORM:
-            shortcut = tf.layers.batch_normalization(shortcut, training=training, name='batch-norm-short', momentum=MOMENTUM)
+            shortcut = tf.layers.batch_normalization(shortcut, 
+              training=training, name='batch-norm-short', momentum=MOMENTUM)
         shortcut = tf.nn.relu(shortcut)
 
         encoder_add = tf.add(net, shortcut, 'encoder_add_1')
@@ -73,7 +73,7 @@ def decoder_block(inp, training, input_map_size, output_map_size, name):
                                          padding='SAME',
                                          kernel_initializer=Xavier(),
                                          name='decoder_conv_2'
-                                         )
+                                        )
         if B_NORM:
             net = tf.layers.batch_normalization(net, training=training, name='batch-norm2', momentum=MOMENTUM)
         net = tf.nn.relu(net)
