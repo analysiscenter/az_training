@@ -3,25 +3,25 @@ LinkNet implementation as Batch class
 """
 
 import pickle
+import sys
 import numpy as np
 import tensorflow as tf
-import sys
 
 sys.path.append('..')
 
-from dataset import Batch, model, action, inbatch_parallel, any_action_failed
+from dataset import Batch, model, action, inbatch_parallel, any_action_failed # pylint: disable=import-error
 from layers import linknet_layers
 
 SIZE = 128
 
 
-def uniform_fragments(*args, **kwargs):
+def uniform_fragments():
     """Sampling of fragments from uniform distribution."""
     size = kwargs['size']
     n_fragments = kwargs['n_fragments']
-    xs = np.random.randint(0, 28 - size, n_fragments)
-    ys = np.random.randint(0, 28 - size, n_fragments)
-    return xs, ys
+    x_fragments = np.random.randint(0, 28 - size, n_fragments)
+    y_fragments = np.random.randint(0, 28 - size, n_fragments)
+    return x_fragments, y_fragments
 
 
 def uniform(size):
@@ -31,20 +31,18 @@ def uniform(size):
 
 def normal(size):
     """Normal distribution of fragmnents on image."""
-    return list(map(int, np.random.normal(SIZE/2, SIZE/4, 2)))
+    return list([int(x) for x in np.random.normal((SIZE-size)/2, (SIZE-size)/4, 2)])
 
 
 def crop_images(images, coordinates):
     """Crop real 28x28 MNIST from large image."""
     images_for_noise = []
-    for i in range(len(images)):
-        image = images[i]
-        coord = coordinates[i]
+    for image, coord in zip(images, coordinates):
         images_for_noise.append(image[coord[0]:coord[0] + 28, coord[1]:coord[1] + 28])
     return images_for_noise
 
 
-def create_fragments(images, size, distr):
+def create_fragments(images, size):
     """Cut fragment from each."""
     fragments = []
     for image in images:
@@ -80,7 +78,7 @@ class LinkNetBatch(Batch):
     def components(self):
         """Define components."""
         return 'images', 'masks', 'coordinates'
-    
+
     @action
     def load_images(self):
         """Load MNIST images from file."""
@@ -98,11 +96,11 @@ class LinkNetBatch(Batch):
         large_mnist[new_x:new_x+28, new_y:new_y+28] = pure_mnist
         return large_mnist, new_x, new_y
 
-    def init_func(self, *args, **kwargs):
+    def init_func(self, *args, **kwargs): # pylint: disable=unused-argument
         """Create tasks."""
         return [i for i in range(self.images.shape[0])]
 
-    def post_func_image(self, list_of_res, *args, **kwargs):
+    def post_func_image(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
         """Concat outputs from random_location.
 
         Parameters
@@ -128,7 +126,7 @@ class LinkNetBatch(Batch):
         mask[new_x:new_x+28, new_y:new_y+28] += 1
         return mask
 
-    def post_func_mask(self, list_of_res, *args, **kwargs):
+    def post_func_mask(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
         """Concat outputs from random_location.
 
         Parameters
@@ -148,7 +146,7 @@ class LinkNetBatch(Batch):
     def add_noise(self, ind, *args, **kwargs):
         """Add noise at MNIST image"""
         level, n_fragments, size, distr = args
-        
+
         ind_for_noise = np.random.choice(len(self.images), n_fragments)
         images = [self.images[i] for i in ind_for_noise]
         coordinates = [self.coordinates[i] for i in ind_for_noise]
@@ -158,7 +156,7 @@ class LinkNetBatch(Batch):
 
         return noise
 
-    def post_func_noise(self, list_of_res, *args, **kwargs):
+    def post_func_noise(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
         """Concat outputs from add_noise.
         """
 
@@ -242,7 +240,7 @@ class LinkNetBatch(Batch):
 
         sess : tf.Session
         """
-        
+
         self.get_tensor_value(models, sess, 3, True)
         return self
 
