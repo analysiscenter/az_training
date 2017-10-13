@@ -3,7 +3,7 @@
 import tensorflow as tf
 from tensorflow.contrib.layers import xavier_initializer_conv2d as Xavier
 
-B_NORM = True
+B_NORM = False
 MOMENTUM = 0.1
 
 

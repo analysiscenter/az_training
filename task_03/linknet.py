@@ -6,52 +6,63 @@ import pickle
 import numpy as np
 import tensorflow as tf
 import sys
-import itertools
 
 sys.path.append('..')
 
 from dataset import Batch, model, action, inbatch_parallel, any_action_failed
 from layers import linknet_layers
 
-SIZE = 64
+SIZE = 128
 
-def uniform_pieces(*args, **kwargs):
+
+def uniform_fragments(*args, **kwargs):
+    """Sampling of fragments from uniform distribution."""
     size = kwargs['size']
-    n_pieces = kwargs['n_pieces']
-    xs = np.random.randint(0, 28 - size, n_pieces)
-    ys = np.random.randint(0, 28 - size, n_pieces)
+    n_fragments = kwargs['n_fragments']
+    xs = np.random.randint(0, 28 - size, n_fragments)
+    ys = np.random.randint(0, 28 - size, n_fragments)
     return xs, ys
 
-def uniform_arrangement(*args, **kwargs):
-    return np.random.randint(0, SIZE, 2)
+
+def uniform(size):
+    """Uniform distribution of fragmnents on image."""
+    return np.random.randint(0, SIZE-size, 2)
+
+
+def normal(size):
+    """Normal distribution of fragmnents on image."""
+    return list(map(int, np.random.normal(SIZE/2, SIZE/4, 2)))
+
 
 def crop_images(images, coordinates):
+    """Crop real 28x28 MNIST from large image."""
     images_for_noise = []
     for i in range(len(images)):
         image = images[i]
         coord = coordinates[i]
-        images_for_noise.append(image[coord[0]:coord[1] + 28, coord[0]:coord[1] + 28])
+        images_for_noise.append(image[coord[0]:coord[0] + 28, coord[1]:coord[1] + 28])
     return images_for_noise
 
-def create_pieces(images, n_pieces, size, pieces_distr):
-    """Cut each image into pieces."""
-    pieces = []
+
+def create_fragments(images, size, distr):
+    """Cut fragment from each."""
+    fragments = []
     for image in images:
-        x_pieces, y_pieces = locals()[pieces_distr](size=size, n_pieces=n_pieces) 
-        coordinates = list(zip(x_pieces, y_pieces))
-        pieces += [image[x:x+size, y:y+size] for x, y in coordinates]
-    return pieces
+        x, y = np.random.randint(0, 28-size, 2)
+        fragment = image[x:x+size, y:y+size]
+        fragments.append(fragment)
+    return fragments
 
 
-def arrange_pieces(image, pieces, level=1):
-    for piece in pieces:
-        x_piece, y_piece = locals()[location_distr]()
-        height = piece.shape[0]
-        width = piece.shape[1]
-        image_to_change = image[x_piece:x_piece+height, y_piece:y_piece+width]
+def arrange_fragments(image, fragments, distr, level):
+    """Put fragments on image."""
+    for fragment in fragments:
+        size = fragment.shape[0]
+        x_fragment, y_fragment = globals()[distr](size)
+        image_to_change = image[x_fragment:x_fragment+size, y_fragment:y_fragment+size]
         height_to_change, width_to_change = image_to_change.shape
-        image_to_change = np.max([level*piece[:height_to_change, :width_to_change], image_to_change], axis=0)
-        image[x_piece:x_piece+height, y_piece:y_piece+width] = image_to_change
+        image_to_change = np.max([level*fragment[:height_to_change, :width_to_change], image_to_change], axis=0)
+        image[x_fragment:x_fragment+size, y_fragment:y_fragment+size] = image_to_change
     return image
 
 
@@ -89,7 +100,7 @@ class LinkNetBatch(Batch):
 
     def init_func(self, *args, **kwargs):
         """Create tasks."""
-        return [{'ind': i} for i in range(self.images.shape[0])]
+        return [i for i in range(self.images.shape[0])]
 
     def post_func_image(self, list_of_res, *args, **kwargs):
         """Concat outputs from random_location.
@@ -134,20 +145,16 @@ class LinkNetBatch(Batch):
 
     @action
     @inbatch_parallel(init='init_func', post='post_func_noise', target='threads')
-    def add_noise(self, ind, noise_params):
+    def add_noise(self, ind, *args, **kwargs):
         """Add noise at MNIST image"""
-        n_image = noise_param['n_image']
-        n_pieces = noise_param['n_pieces']
-        size = noise_param['size']
+        level, n_fragments, size, distr = args
         
-        
-        
-        ind_for_noise = np.random.choice(len(self.images), noise_param['n_image'])
+        ind_for_noise = np.random.choice(len(self.images), n_fragments)
         images = [self.images[i] for i in ind_for_noise]
         coordinates = [self.coordinates[i] for i in ind_for_noise]
         images_for_noise = crop_images(images, coordinates)
-        pieces = create_pieces(images_for_noise, **noise_param)
-        noise = arrange_pieces(self.images[ind], **noise_param)
+        fragments = create_fragments(images_for_noise, size, distr)
+        noise = arrange_fragments(self.images[ind], fragments, distr, level)
 
         return noise
 
