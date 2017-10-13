@@ -12,15 +12,6 @@ from .layers import linknet_layers
 SIZE = 128
 
 
-def uniform_fragments():
-    """Sampling of fragments from uniform distribution."""
-    size = kwargs['size']
-    n_fragments = kwargs['n_fragments']
-    x_fragments = np.random.randint(0, 28 - size, n_fragments)
-    y_fragments = np.random.randint(0, 28 - size, n_fragments)
-    return x_fragments, y_fragments
-
-
 def uniform(size):
     """Uniform distribution of fragmnents on image."""
     return np.random.randint(0, SIZE-size, 2)
@@ -140,11 +131,11 @@ class LinkNetBatch(Batch):
 
     @action
     @inbatch_parallel(init='init_func', post='post_func_noise', target='threads')
-    def add_noise(self, ind, *args, **kwargs):
+    def add_noise(self, ind, *args):
         """Add noise at MNIST image"""
-        if args[0]=='random_noise':
+        if args[0] == 'random_noise':
             noise = np.max([0.7*np.random.random((SIZE, SIZE)), self.images[ind]], axis=0)
-        elif args[0]=='mnist_noise':
+        elif args[0] == 'mnist_noise':
             level, n_fragments, size, distr = args[1:]
 
             ind_for_noise = np.random.choice(len(self.images), n_fragments)
