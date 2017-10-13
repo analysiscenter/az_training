@@ -99,8 +99,8 @@ class Subbatch(Batch):
     @action
     def load_images(self):
         """Load images and labels from files."""
-        with open('./mnist/mnist_labels.pkl', 'rb') as file:
+        with open('../mnist/mnist_labels.pkl', 'rb') as file:
             self.y = pickle.load(file)[self.indices]
-        with open('./mnist/mnist_pics.pkl', 'rb') as file:
+        with open('../mnist/mnist_pics.pkl', 'rb') as file:
             self.x = pickle.load(file)[self.indices]
         return self
