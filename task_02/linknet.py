@@ -12,6 +12,55 @@ from .layers import linknet_layers
 SIZE = 128
 
 
+def uniform_fragments():
+    """Sampling of fragments from uniform distribution."""
+    size = kwargs['size']
+    n_fragments = kwargs['n_fragments']
+    x_fragments = np.random.randint(0, 28 - size, n_fragments)
+    y_fragments = np.random.randint(0, 28 - size, n_fragments)
+    return x_fragments, y_fragments
+
+
+def uniform(size):
+    """Uniform distribution of fragmnents on image."""
+    return np.random.randint(0, SIZE-size, 2)
+
+
+def normal(size):
+    """Normal distribution of fragmnents on image."""
+    return list([int(x) for x in np.random.normal((SIZE-size)/2, (SIZE-size)/4, 2)])
+
+
+def crop_images(images, coordinates):
+    """Crop real 28x28 MNIST from large image."""
+    images_for_noise = []
+    for image, coord in zip(images, coordinates):
+        images_for_noise.append(image[coord[0]:coord[0] + 28, coord[1]:coord[1] + 28])
+    return images_for_noise
+
+
+def create_fragments(images, size):
+    """Cut fragment from each."""
+    fragments = []
+    for image in images:
+        x, y = np.random.randint(0, 28-size, 2)
+        fragment = image[x:x+size, y:y+size]
+        fragments.append(fragment)
+    return fragments
+
+
+def arrange_fragments(image, fragments, distr, level):
+    """Put fragments on image."""
+    for fragment in fragments:
+        size = fragment.shape[0]
+        x_fragment, y_fragment = globals()[distr](size)
+        image_to_change = image[x_fragment:x_fragment+size, y_fragment:y_fragment+size]
+        height_to_change, width_to_change = image_to_change.shape
+        image_to_change = np.max([level*fragment[:height_to_change, :width_to_change], image_to_change], axis=0)
+        image[x_fragment:x_fragment+size, y_fragment:y_fragment+size] = image_to_change
+    return image
+
+
 class LinkNetBatch(Batch):
     """Batch class for LinkNet."""
 
@@ -20,55 +69,12 @@ class LinkNetBatch(Batch):
         super().__init__(index, *args, **kwargs)
         self.images = None
         self.masks = None
+        self.coordinates = None
 
     @property
     def components(self):
         """Define components."""
-        return 'images', 'masks'
-
-    @action
-    @inbatch_parallel(init='init_func', post='post_func', target='threads')
-    def noise_and_mask(self, ind):
-        """Generate noised images and masks.
-
-        Parameters
-        ----------
-        ind : int or np.array
-            indices of images to processing
-        """
-        level = 0.7
-        pure_mnist = self.images[ind].reshape(28, 28)
-
-        new_x, new_y = np.random.randint(0, SIZE-28, 2)
-        mask = np.zeros((SIZE, SIZE))
-        mask[new_x:new_x+28, new_y:new_y+28] += 1
-
-        noised_mnist = np.random.random((SIZE, SIZE))*level
-        noised_mnist[new_x:new_x+28, new_y:new_y+28] += pure_mnist
-        noised_mnist /= 1 + level
-        return noised_mnist, mask
-
-    def init_func(self):
-        """Create tasks."""
-        return [{'ind': i} for i in range(self.images.shape[0])]
-
-    def post_func(self, list_of_res):
-        """Concat outputs from noise_and_mask.
-
-        Parameters
-        ----------
-        list_of_res : list of tuples of np.arrays
-            results of processing
-        """
-
-        if any_action_failed(list_of_res):
-            print(list_of_res)
-            raise Exception("Something bad happened")
-        else:
-            images, masks = list(zip(*list_of_res))
-            self.images = np.stack(images)
-            self.masks = np.stack(masks)
-            return self
+        return 'images', 'masks', 'coordinates'
 
     @action
     def load_images(self):
@@ -76,6 +82,91 @@ class LinkNetBatch(Batch):
         with open('../mnist/mnist_pics.pkl', 'rb') as file:
             self.images = pickle.load(file)[self.indices]
         return self
+
+    @action
+    @inbatch_parallel(init='init_func', post='post_func_image', target='threads')
+    def random_location(self, ind):
+        """Put MNIST image in random location"""
+        pure_mnist = self.images[ind].reshape(28, 28)
+        new_x, new_y = np.random.randint(0, SIZE-28, 2)
+        large_mnist = np.zeros((SIZE, SIZE))
+        large_mnist[new_x:new_x+28, new_y:new_y+28] = pure_mnist
+        return large_mnist, new_x, new_y
+
+    def init_func(self, *args, **kwargs): # pylint: disable=unused-argument
+        """Create tasks."""
+        return [i for i in range(self.images.shape[0])]
+
+    def post_func_image(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
+        """Concat outputs from random_location.
+
+        Parameters
+        ----------
+        list_of_res : list of tuples of np.arrays and two ints
+        """
+
+        if any_action_failed(list_of_res):
+            print(list_of_res)
+            raise Exception("Something bad happened")
+        else:
+            images, new_x, new_y = list(zip(*list_of_res))
+            self.images = np.stack(images)
+            self.coordinates = list(zip(new_x, new_y))
+            return self
+
+    @action
+    @inbatch_parallel(init='init_func', post='post_func_mask', target='threads')
+    def create_mask(self, ind):
+        """Get mask of MNIST image"""
+        new_x, new_y = self.coordinates[ind]
+        mask = np.zeros((SIZE, SIZE))
+        mask[new_x:new_x+28, new_y:new_y+28] += 1
+        return mask
+
+    def post_func_mask(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
+        """Concat outputs from random_location.
+
+        Parameters
+        ----------
+        list_of_res : list of tuples of np.arrays and two ints
+        """
+
+        if any_action_failed(list_of_res):
+            print(list_of_res)
+            raise Exception("Something bad happened")
+        else:
+            self.masks = np.stack(list_of_res)
+            return self
+
+    @action
+    @inbatch_parallel(init='init_func', post='post_func_noise', target='threads')
+    def add_noise(self, ind, *args, **kwargs):
+        """Add noise at MNIST image"""
+        if args[0]=='random_noise':
+            noise = np.max([0.7*np.random.random((SIZE, SIZE)), self.images[ind]], axis=0)
+        elif args[0]=='mnist_noise':
+            level, n_fragments, size, distr = args[1:]
+
+            ind_for_noise = np.random.choice(len(self.images), n_fragments)
+            images = [self.images[i] for i in ind_for_noise]
+            coordinates = [self.coordinates[i] for i in ind_for_noise]
+            images_for_noise = crop_images(images, coordinates)
+            fragments = create_fragments(images_for_noise, size)
+            noise = arrange_fragments(self.images[ind], fragments, distr, level)
+        else:
+            noise = self.images[ind]
+        return noise
+
+    def post_func_noise(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
+        """Concat outputs from add_noise.
+        """
+
+        if any_action_failed(list_of_res):
+            print(list_of_res)
+            raise Exception("Something bad happened")
+        else:
+            self.images = np.stack(list_of_res)
+            return self
 
 
     @model()
