@@ -1,13 +1,18 @@
 """
 LinkNet implementation as Batch class
 """
-
+import os
+import sys
 import pickle
 import numpy as np
 import tensorflow as tf
 
-from ..dataset import Batch, model, action, inbatch_parallel, any_action_failed
-from .layers import linknet_layers
+fullpath = os.path.abspath(os.path.join(os.path.realpath(__file__), os.pardir))
+parentpath = os.path.abspath(os.path.join(fullpath, os.pardir))
+sys.path.append(parentpath)
+
+from dataset import Batch, model, action, inbatch_parallel, any_action_failed
+from layers import linknet_layers
 
 SIZE = 128
 

@@ -1,11 +1,17 @@
 """Spliting into microbatches on np level"""
 
+import os
+import sys
 import pickle
 from time import time
 import tensorflow as tf
 import numpy as np
 
-from .networks import conv_net_layers
+fullpath = os.path.abspath(os.path.join(os.path.realpath(__file__), os.pardir))
+parentpath = os.path.abspath(os.path.join(fullpath, os.pardir))
+sys.path.append(parentpath)
+
+from networks import conv_net_layers
 
 def load(size):
     """
