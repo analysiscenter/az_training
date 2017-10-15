@@ -1,13 +1,12 @@
 """
 LinkNet implementation as Batch class
 """
-import os
 import sys
 import pickle
 import numpy as np
 import tensorflow as tf
 
-sys.path.append(os.path.abspath(os.path.join(os.path.realpath(__file__), os.pardir, os.pardir)))
+sys.path.append('..')
 
 from dataset import Batch, model, action, inbatch_parallel, any_action_failed
 from layers import linknet_layers

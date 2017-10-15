@@ -1,5 +1,4 @@
 """Spliting into microbatches on np level"""
-import sys
 import pickle
 from time import time
 import tensorflow as tf
