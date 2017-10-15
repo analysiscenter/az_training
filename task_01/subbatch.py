@@ -1,10 +1,13 @@
 """Split into microbatches on tf level"""
+import sys
 import pickle
 from time import time
 import tensorflow as tf
 
-from ..dataset import Batch, model, action
-from .networks import conv_net_layers
+sys.path.append('..')
+
+from dataset import Batch, model, action
+from networks import conv_net_layers
 
 def subbatch_static_model(sess, scope, n_subbatches, layers):
     """Compute gradients by subbatches
