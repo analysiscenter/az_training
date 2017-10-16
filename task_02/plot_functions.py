@@ -12,7 +12,7 @@ def plot_examples(images, masks, proba):
     images, masks, proba : list with one element which is list of np.arrays
 
     """
-    images, masks, proba = images[0], masks[0], proba[0]
+    images, masks = images[0], masks[0]
     n_examples = len(images)
     plt.figure(figsize=(15, 3.5*n_examples))
     for i in range(n_examples):
@@ -47,7 +47,7 @@ def plot_example_interactive(images, masks, proba, index):
         inex of image to plot
 
     """
-    images, masks, proba = images[0], masks[0], proba[0]
+    images, masks = images[0], masks[0]
     def interactive_f(threshold):
         """Function for interactive plot.
         """

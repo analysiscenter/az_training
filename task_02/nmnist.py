@@ -4,12 +4,10 @@ LinkNet implementation as Batch class
 import sys
 import pickle
 import numpy as np
-import tensorflow as tf
 
 sys.path.append('..')
 
 from dataset import Batch, action, inbatch_parallel, any_action_failed
-from layers import linknet_layers
 
 
 def uniform(image_size, fragment_size):
@@ -20,7 +18,7 @@ def uniform(image_size, fragment_size):
 def normal(image_size, fragment_size):
     """Normal distribution of fragmnents on image."""
     return list([int(x) for x in np.random.normal((image_size-fragment_size)/2, 
-    											  (image_size-fragment_size)/4, 2)])
+                                                  (image_size-fragment_size)/4, 2)])
 
 
 def crop_images(images, coordinates):
