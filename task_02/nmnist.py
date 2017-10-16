@@ -17,7 +17,7 @@ def uniform(image_size, fragment_size):
 
 def normal(image_size, fragment_size):
     """Normal distribution of fragmnents on image."""
-    return list([int(x) for x in np.random.normal((image_size-fragment_size)/2, 
+    return list([int(x) for x in np.random.normal((image_size-fragment_size)/2,
                                                   (image_size-fragment_size)/4, 2)])
 
 
@@ -77,10 +77,10 @@ class NoisedMnist(Batch):
     @inbatch_parallel(init='init_func', post='post_func_image', target='threads')
     def random_location(self, ind, *args):
         """Put MNIST image in random location"""
-        SIZE = args[0]
+        image_size = args[0]
         pure_mnist = self.images[ind].reshape(28, 28)
-        new_x, new_y = np.random.randint(0, SIZE-28, 2)
-        large_mnist = np.zeros((SIZE, SIZE))
+        new_x, new_y = np.random.randint(0, image_size-28, 2)
+        large_mnist = np.zeros((image_size, image_size))
         large_mnist[new_x:new_x+28, new_y:new_y+28] = pure_mnist
         return large_mnist, new_x, new_y
 
@@ -110,8 +110,8 @@ class NoisedMnist(Batch):
     def create_mask(self, ind):
         """Get mask of MNIST image"""
         new_x, new_y = self.coordinates[ind]
-        SIZE = self.images.shape[1]
-        mask = np.zeros((SIZE, SIZE))
+        image_size = self.images.shape[1]
+        mask = np.zeros((image_size, image_size))
         mask[new_x:new_x+28, new_y:new_y+28] += 1
         return mask
 
@@ -134,9 +134,10 @@ class NoisedMnist(Batch):
     @inbatch_parallel(init='init_func', post='post_func_noise', target='threads')
     def add_noise(self, ind, *args):
         """Add noise at MNIST image"""
-        SIZE = self.images.shape[1]
+        image_size = self.images.shape[1]
         if args[0] == 'random_noise':
-            noise = np.max([0.7*np.random.random((SIZE, SIZE)), self.images[ind]], axis=0)
+            noise = np.max([0.7*np.random.random((image_size, image_size)), 
+                            self.images[ind]], axis=0)
         elif args[0] == 'mnist_noise':
             level, n_fragments, size, distr = args[1:]
 
