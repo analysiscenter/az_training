@@ -8,14 +8,14 @@ class LinkNetModel(TFModel):
     "LinkNet as TFModel"
     def _build(self):
         "build for LinkNet"
-        SIZE = self.get_from_config('image_size')
-        x_ph = tf.placeholder(tf.float32, shape=[None, SIZE, SIZE], name='image')
-        mask_ph = tf.placeholder(tf.float32, shape=[None, SIZE, SIZE], name='mask')
+        image_size = self.get_from_config('image_size')
+        x_ph = tf.placeholder(tf.float32, shape=[None, image_size, image_size], name='image')
+        mask_ph = tf.placeholder(tf.float32, shape=[None, image_size, image_size], name='mask')
 
         training = tf.placeholder(tf.bool, shape=[], name='mode')
 
-        x_as_pics = tf.reshape(x_ph, [-1, SIZE, SIZE, 1])
-        mask_as_pics = tf.reshape(mask_ph, [-1, SIZE, SIZE, 1])
+        x_as_pics = tf.reshape(x_ph, [-1, image_size, image_size, 1])
+        mask_as_pics = tf.reshape(mask_ph, [-1, image_size, image_size, 1])
 
         targets = tf.concat([1 - mask_as_pics, mask_as_pics], axis=3, name='targets') # pylint: disable=unused-variable
 
