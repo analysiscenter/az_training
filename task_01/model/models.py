@@ -2,14 +2,15 @@
 import sys
 
 import tensorflow as tf
-import numpy as np
 
+sys.path.append('../..')
 sys.path.append('..')
 from dataset.dataset.models.tf import TFModel
-from dataset import Batch, action, model
+from dataset import Batch, action
 
-NUM_DIM_LIN=13
+NUM_DIM_LIN = 13
 class InitBatch(Batch):
+    """ Simple batch class with load function and some components """
     def __init__(self, index, *args, **kwargs):
         """ INIT """
         super().__init__(index, *args, **kwargs)
