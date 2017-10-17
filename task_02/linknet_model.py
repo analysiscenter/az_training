@@ -6,7 +6,7 @@ from layers import linknet_layers
 
 class LinkNetModel(TFModel):
     "LinkNet as TFModel"
-    def _build(self):
+    def _build(self, *args, **kwargs):
         "build for LinkNet"
         image_size = self.get_from_config('image_size')
         x_ph = tf.placeholder(tf.float32, shape=[None, image_size, image_size], name='image')
