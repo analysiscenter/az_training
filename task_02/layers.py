@@ -2,7 +2,7 @@
 import tensorflow as tf
 
 def conv_mpool_activation(scope, input_layer, n_channels=2, mpool=False, kernel_conv=(5, 5),
-                          stride_conv=(1, 1), kernel_pool=(2, 2), stride_pool=(2, 2), activation=tf.nn.relu):
+                          stride_conv=(1, 1), kernel_pool=(2, 2), stride_pool=(2, 2), activation=tf.nn.relu):# pylint: disable=too-many-arguments
     """ Conv -> mpooling (optional) -> activation layer
     """
     with tf.variable_scope(scope):
