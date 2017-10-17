@@ -5,8 +5,9 @@ import os
 
 import blosc
 import numpy as np
-from layers import conv_mpool_activation, fc_layer
 import tensorflow as tf
+
+from layers import conv_mpool_activation, fc_layer
 
 sys.path.append('..')
 from dataset import Batch, action, model, inbatch_parallel, any_action_failed
@@ -20,6 +21,7 @@ class MnistBatch(Batch):
         super().__init__(index, *args, **kwargs)
         self.images = None
         self.labels = None
+        _, _ = args, kwargs
 
     @property
     def components(self):
@@ -28,7 +30,7 @@ class MnistBatch(Batch):
         return 'images', 'labels'
 
     @action
-    def load(self, src, fmt='blosc'):
+    def load(self, src, fmt='blosc', components=None, *args, **kwargs):
         """ Load mnist pics with specified indices
 
         Args:
@@ -40,6 +42,7 @@ class MnistBatch(Batch):
         Return:
             self
         """
+        _, _, _ = args, kwargs, components
         if fmt == 'blosc':
             # read blosc images, labels
             with open(os.path.join(src, 'mnist_pics.blk'), 'rb') as file:
