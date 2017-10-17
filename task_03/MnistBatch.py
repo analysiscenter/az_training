@@ -26,7 +26,7 @@ class MnistBatch(ImagesBatch):
         return 'images', 'labels'
 
     @action
-    def load(self, src, fmt='blosc'):
+    def load(self, src, fmt='blosc', components=None, *args, **kwargs):
         """ Load mnist pics with specifed indices
 
         Args:
@@ -38,6 +38,7 @@ class MnistBatch(ImagesBatch):
         Return:
             self
         """
+        _, _, _ = args, kwargs, components
         if fmt == 'blosc':
             # read blosc images, labels
             with open(os.path.join(src, 'mnist_pics.blk'), 'rb') as file:
