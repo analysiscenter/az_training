@@ -101,7 +101,7 @@ def create_train(opt, src, global_step, loss, it, global_it, learn, scaled):
 
     b, val, var = learning_rate(it, src, global_it, learn, scaled)
     learning_rate = tf.train.piecewise_constant(global_step, b, val)
-    
+
     return opt(learning_rate, 0.9, use_nesterov=True).minimize(loss, global_step, var)
 
 class ResBatch(Batch):
@@ -116,9 +116,8 @@ class ResBatch(Batch):
         """ Define componentis. """
         return 'images', 'lables'
 
-
     @model(mode='dynamic')
-    def freeznet(self, config=None):
+    def freeznet(self, config):
         """ Simple implementation of ResNet with FreezeOut method.
         Args:
             config: dict with params:
@@ -137,7 +136,6 @@ class ResBatch(Batch):
             [1][0]: accuracy - Current accuracy
             [1][1]: session - tf session """
         iteration = config['iteration']
-        degree = config['degree']
         learning_rate = config['learning_rate']
         scaled = config['scaled']
 
@@ -145,10 +143,10 @@ class ResBatch(Batch):
 
             indices = tf.placeholder(tf.int32, shape=[None, 1], name='indices')
             all_data = tf.placeholder(tf.float32, shape=[50000, 28, 28], name='all_data')
-            x_a = tf.gather_nd(all_data, indices, name='x_a')
-            x_f_to_tens = tf.reshape(x_a, shape=[-1, 28, 28, 1], name='x_to_tens')
+            input_batch = tf.gather_nd(all_data, indices, name='input_batch')
+            input_batch = tf.reshape(input_batch, shape=[-1, 28, 28, 1], name='x_to_tens')
 
-            net = tf.layers.conv2d(x_f_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
+            net = tf.layers.conv2d(input_batch, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
                                    kernel_initializer=xavier(), name='1')
             net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='max_pool')
 
@@ -158,15 +156,15 @@ class ResBatch(Batch):
             net = conv_block(net, 3, [64, 64, 256], name='4', strides=(1, 1))
             net = identity_block(net, 3, [64, 64, 256], name='5')
 
-            net = tf.layers.average_pooling2d(net, (7, 7), strides=(1,1))
+            net = tf.layers.average_pooling2d(net, (7, 7), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
-
 
             with tf.variable_scope('dense'):
                 net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer(), name='dense')
+
             prob = tf.nn.softmax(net, name='soft')
-            all_lables = tf.placeholder(tf.float32, [None, 10], name='all_lables')
-            y = tf.gather_nd(all_lables, indices, name='y')
+            all_labels = tf.placeholder(tf.float32, [None, 10], name='all_labels')
+            y = tf.gather_nd(all_labels, indices, name='y')
 
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y), name='loss')
             global_steps = []
@@ -175,7 +173,7 @@ class ResBatch(Batch):
             for i in range(1, 6):
                 global_steps.append(tf.Variable(0, trainable=False, name='var_{}'.format(i)))
                 train.append(create_train(tf.train.MomentumOptimizer, str(i), \
-                                          global_steps[-1], loss, iteration * (i / 10 + 0.5) ** degree, \
+                                          global_steps[-1], loss, iteration * (i / 10 + 0.5) ** config['degree'], \
                                            iteration, learning_rate, scaled))
 
             lables_hat = tf.cast(tf.argmax(net, axis=1), tf.float32, name='lables_hat')
@@ -185,7 +183,7 @@ class ResBatch(Batch):
             session = tf.Session()
             session.run(tf.global_variables_initializer())
 
-        return [[indices, all_data, all_lables, loss, train, prob], [accuracy, session]]
+        return [[indices, all_data, all_labels, loss, train, prob], [accuracy, session]]
 
     @action(model='freeznet')
     def train_freez(self, models, train_loss, data, lables):
@@ -208,7 +206,7 @@ class ResBatch(Batch):
         return self
 
     @model(mode='dynamic')
-    def resnet(self, config=None):
+    def resnet(self):
         """ Simple implementation of Resnet.
         Args:
             self
@@ -227,8 +225,8 @@ class ResBatch(Batch):
         with tf.Graph().as_default():
             indices = tf.placeholder(tf.int32, shape=[None, 1])
             all_data = tf.placeholder(tf.float32, shape=[50000, 28, 28])
-            x_a = tf.gather_nd(all_data, indices)
-            x1_to_tens = tf.reshape(x_a, shape=[-1, 28, 28, 1])
+            input_batch = tf.gather_nd(all_data, indices)
+            x1_to_tens = tf.reshape(input_batch, shape=[-1, 28, 28, 1])
 
             net1 = tf.layers.conv2d(x1_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
                 kernel_initializer=xavier(), name='11')
