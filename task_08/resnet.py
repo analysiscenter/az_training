@@ -23,7 +23,7 @@ def bottle_conv_block(input_tensor, kernel, filters, trainable=None, name=None, 
 
     Output:
         X: Block output layer """
-    if name == None:
+    if name is None:
         name = str(sum(np.random.random(100)))
     filters1, filters2, filters3 = filters
     X = tf.layers.conv2d(input_tensor, filters1, (1, 1), strides, name='first_conv_1X1_of_' + name, \
@@ -39,10 +39,10 @@ def bottle_conv_block(input_tensor, kernel, filters, trainable=None, name=None, 
                name='shortcut_conv_1X1_of_' + name, kernel_initializer=Xavier(uniform=True))
 
     off = tf.cond(trainable, \
-          lambda: tf.where(tf.random_uniform([1, ], 0, 1)> (1 - prob_on), tf.ones([1, ]), \
+          lambda: tf.where(tf.random_uniform([1, ], 0, 1) > (1 - prob_on), tf.ones([1, ]), \
           tf.zeros([1, ])), lambda: tf.ones([1, ]) * prob_on)[0]
     X = X * off
- 
+
     X = tf.add(X, shortcut)
     X = tf.nn.relu(X)
     return X
@@ -58,7 +58,7 @@ def bottle_identity_block(input_tensor, kernel, filters, trainable=None, name=No
 
     Output:
         X: Block output layer """
-    if name == None:
+    if name is None:
         name = str(sum(np.random.random(100)))
     filters1, filters2, filters3 = filters
     X = tf.layers.conv2d(input_tensor, filters1, (1, 1), name='first_conv_1X1_of_' + name, \
@@ -71,7 +71,7 @@ def bottle_identity_block(input_tensor, kernel, filters, trainable=None, name=No
                          kernel_initializer=Xavier(uniform=True))
 
     off = tf.cond(trainable, \
-          lambda: tf.where(tf.random_uniform([1, ], 0, 1)> (1 - prob_on), tf.ones([1, ]), \
+          lambda: tf.where(tf.random_uniform([1, ], 0, 1) > (1 - prob_on), tf.ones([1, ]), \
           tf.zeros([1, ])), lambda: tf.ones([1, ]) * prob_on)[0]
     X = X * off
 
@@ -93,7 +93,7 @@ def conv_block(input_tensor, kernel, filters, name, strides=(2, 2)):
     Output:
         X: Block output layer """
     X = tf.layers.conv2d(input_tensor, filters, kernel, strides, name='first_conv_3X3_of_' + name, \
-        activation=tf.nn.relu, padding='SAME',kernel_initializer=Xavier(uniform=True))
+        activation=tf.nn.relu, padding='SAME', kernel_initializer=Xavier(uniform=True))
     X = tf.layers.conv2d(input_tensor, filters, kernel, name='second_conv_3X3_of_' + name, \
         activation=tf.nn.relu, padding='SAME', kernel_initializer=Xavier(uniform=True))
     return X
@@ -115,12 +115,12 @@ def identity_block(input_tensor, kernel, filters, name):
         activation=tf.nn.relu, padding='SAME', kernel_initializer=Xavier(uniform=True))
     X = tf.layers.conv2d(input_tensor, filters, kernel, name='second_conv_3X3_of_' + name, \
         padding='SAME', kernel_initializer=Xavier(uniform=True))
-    
+
     X = tf.add(X, input_tensor)
     X = tf.nn.relu(X)
     return X
 
-def accuracy(ind, model, data):
+def accum_accuracy(ind, models, data):
     """ Function to calculate accuracy.
     Args:
         ind: indices elements of this batch.
@@ -129,13 +129,13 @@ def accuracy(ind, model, data):
     Output:
         acc: accuracy after one iteration.
         loss: loss after one iteration. """
-    indices, all_images, all_labels, trainable, loss, _ = model[0]
-    acc, sess = model[1]
+    indices, all_images, all_labels, trainable, loss, _ = models[0]
+    acc, sess, _ = models[1]
     loss, acc = sess.run([loss, acc], feed_dict={indices:ind.reshape(-1, 1), all_images:data[0], \
                                                  all_labels:data[1], trainable: False})
     return acc, loss
 
-def train(ind, model, data, all_time):
+def train(ind, models, data, all_time):
     """ Function to calculate accuracy.
     Args:
         ind: indices elements of this batch.
@@ -144,19 +144,19 @@ def train(ind, model, data, all_time):
         all_time: list with len=1, calculate time for training model.
     Output:
         loss: loss after one iteration. """
-    indices, all_images, all_labels, trainable, loss, train = model[0]
-    sess = model[1][1]
-    t = time.time()
-    _, loss = sess.run([train, loss], feed_dict={indices:ind.reshape(-1, 1), all_images:data[0], \
+    indices, all_images, all_labels, trainable, loss, training = models[0]
+    sess = models[1][1]
+    timer = time.time()
+    _, loss = sess.run([training, loss], feed_dict={indices:ind.reshape(-1, 1), all_images:data[0], \
                                                  all_labels:data[1], trainable: True})
-    all_time.append(time.time() - t)
+    all_time.append(time.time() - timer)
     return loss
 
 class ResBottleBatch(Batch):
     """ Class to compare results of training ResNet with bottleneck and without bottleneck """
-    def __init__(self, indeX, *args, **kwargs):
+    def __init__(self, index, *args, **kwargs):
         """ Init function """
-        super().__init__(indeX, *args, **kwargs)
+        super().__init__(index, *args, **kwargs)
 
     @model(mode='dynamic')
     def bottlenet(self):
@@ -166,18 +166,18 @@ class ResBottleBatch(Batch):
             all_images = tf.placeholder(tf.float32, shape=[65000, 28, 28], name='all_data')
             trainable = tf.placeholder(tf.bool, shape=[])
 
-            X_a = tf.gather_nd(all_images, indices, name='X_a')
+            input_batch = tf.gather_nd(all_images, indices, name='input_batch')
 
-            X_f_to_tens = tf.reshape(X_a, shape=[-1, 28, 28, 1], name='X_to_tens')
+            tensor_batch = tf.reshape(input_batch, shape=[-1, 28, 28, 1], name='X_to_tens')
 
-            net = tf.layers.conv2d(X_f_to_tens, 64, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
+            net = tf.layers.conv2d(tensor_batch, 64, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
                                    kernel_initializer=Xavier(), name='first_convolution')
 
             filters = np.array([32, 32, 128])
             net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='max_pool')
 
             net = bottle_identity_block(net, 3, [16, 16, 64], trainable, name='first_identity_block')
-           
+
             net = bottle_conv_block(net, 3, filters, trainable, name='first_conv_block', strides=(2, 2))
             net = bottle_identity_block(net, 3, filters, trainable, name='second_identity_block')
 
@@ -205,10 +205,10 @@ class ResBottleBatch(Batch):
             session = tf.Session()
             session.run(tf.global_variables_initializer())
 
-        return [[indices, all_images, all_labels, trainable, loss, train_step], [accuracy, session], [labels_predict]]
+        return [[indices, all_images, all_labels, trainable, loss, train_step], [accuracy, session, prob]]
 
     @action(model='bottlenet')
-    def train_bottle(self, model, data, train_loss, all_time):
+    def train_bottle(self, models, data, train_loss, all_time):
         """Function to train bottlenet model.
         Args:
             data: all dataset.
@@ -217,12 +217,12 @@ class ResBottleBatch(Batch):
 
         Output:
             self"""
-        train_loss.append(train(self.indices, model, data, all_time))
+        train_loss.append(train(self.indices, models, data, all_time))
         return self
 
 
     @action(model='bottlenet')
-    def accuracy_bottle(self, model, data, bottle_acc):
+    def accuracy_bottle(self, models, data, bottle_acc):
         """ Function to calculate accuracy.
         Args:
             data: all dataset.
@@ -230,7 +230,7 @@ class ResBottleBatch(Batch):
 
         Output:
             self """
-        bottle_acc.append(accuracy(self.indices, model, data))
+        bottle_acc.append(accum_accuracy(self.indices, models, data))
         return self
 
     @model(mode='dynamic')
@@ -239,23 +239,23 @@ class ResBottleBatch(Batch):
         with tf.Graph().as_default():
             indices = tf.placeholder(tf.int32, shape=[None, 1], name='indices')
             all_images = tf.placeholder(tf.float32, shape=[65000, 28, 28], name='all_data')
-            X_a = tf.gather_nd(all_images, indices, name='X_a')
+            input_batch = tf.gather_nd(all_images, indices, name='input_batch')
             trainable = tf.placeholder(tf.bool, shape=[])
 
-            X_f_to_tens = tf.reshape(X_a, shape=[-1, 28, 28, 1], name='X_to_tens')
+            tensor_batch = tf.reshape(input_batch, shape=[-1, 28, 28, 1], name='X_to_tens')
 
-            net = tf.layers.conv2d(X_f_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
+            net = tf.layers.conv2d(tensor_batch, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
                                    kernel_initializer=Xavier(), name='first_convolution')
 
             net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='max_pool')
 
-            net = identity_block(net, 3, 32, trainable, name='first_identity_block')
-            
-            net = conv_block(net, 3, 64, trainable, name='first_conv_block', strides= (2, 2))
-            net = identity_block(net, 3, 64, trainable, name='second_identity_block')
-            
-            net = conv_block(net, 3, 128, trainable, name='second_conv_block', strides= (2, 2))
-            net = identity_block(net, 3, 128, trainable, name='third_identity_block')
+            net = identity_block(net, 3, 32, name='first_identity_block')
+
+            net = conv_block(net, 3, 64, name='first_conv_block', strides=(2, 2))
+            net = identity_block(net, 3, 64, name='second_identity_block')
+
+            net = conv_block(net, 3, 128, name='second_conv_block', strides=(2, 2))
+            net = identity_block(net, 3, 128, name='third_identity_block')
 
             net = tf.layers.average_pooling2d(net, (2, 2), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
@@ -278,10 +278,10 @@ class ResBottleBatch(Batch):
             session = tf.Session()
             session.run(tf.global_variables_initializer())
 
-        return [[indices, all_images, all_labels, trainable, loss, train_step], [accuracy, session]]
+        return [[indices, all_images, all_labels, trainable, loss, train_step], [accuracy, session, prob]]
 
     @action(model='resnet')
-    def train_resnet(self, model, data, train_loss, all_time):
+    def train_resnet(self, models, data, train_loss, all_time):
         """Function to train bottlenet model.
         Args:
             data: training dataset.
@@ -290,11 +290,11 @@ class ResBottleBatch(Batch):
 
         Output:
             self"""
-        train_loss.append(train(self.indices, model, data, all_time))
+        train_loss.append(train(self.indices, models, data, all_time))
         return self
 
     @action(model='resnet')
-    def accuracy_res(self, model, data, resnet_acc):
+    def accuracy_res(self, models, data, resnet_acc):
         """ Function to calculate accuracy.
         Args:
             data: all dataset.
@@ -303,7 +303,7 @@ class ResBottleBatch(Batch):
         Output:
             self """
 
-        resnet_acc.append(accuracy(self.indices, model, data))
+        resnet_acc.append(accum_accuracy(self.indices, models, data))
         return self
 
     @model(mode='dynamic')
@@ -314,14 +314,14 @@ class ResBottleBatch(Batch):
             all_images = tf.placeholder(tf.float32, shape=[65000, 28, 28], name='all_data')
             trainable = tf.placeholder(tf.bool, shape=[], name='trainable')
 
-            X_a = tf.gather_nd(all_images, indices, name='X_a')
+            input_batch = tf.gather_nd(all_images, indices, name='input_batch')
 
-            X_f_to_tens = tf.reshape(X_a, shape=[-1, 28, 28, 1], name='X_to_tens')
+            tensor_batch = tf.reshape(input_batch, shape=[-1, 28, 28, 1], name='X_to_tens')
 
             threshold = np.linspace(1, 0.5, 17)
-            
 
-            net = tf.layers.conv2d(X_f_to_tens, 64, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
+
+            net = tf.layers.conv2d(tensor_batch, 64, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
                                    kernel_initializer=Xavier(), name='first_convolution')
             net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='maX_pool')
 
@@ -369,10 +369,10 @@ class ResBottleBatch(Batch):
             session = tf.Session()
             session.run(tf.global_variables_initializer())
 
-        return [[indices, all_images, all_labels, trainable, loss, train_step], [accuracy, session]]
+        return [[indices, all_images, all_labels, trainable, loss, train_step], [accuracy, session, prob]]
 
     @action(model='stochasticnet')
-    def train_stochastic(self, model, data, train_loss, all_time):
+    def train_stochastic(self, models, data, train_loss, all_time):
         """Function to train bottlenet model.
         Args:
             data: training dataset.
@@ -381,11 +381,11 @@ class ResBottleBatch(Batch):
 
         Output:
             self"""
-        train_loss.append(train(self.indices, model, data, all_time))
+        train_loss.append(train(self.indices, models, data, all_time))
         return self
 
     @action(model='stochasticnet')
-    def accuracy_stochastic(self, model, data, stochastic_acc):
+    def accuracy_stochastic(self, models, data, stochastic_acc):
         """ Function to calculate accuracy.
         Args:
             data: all dataset.
@@ -393,7 +393,7 @@ class ResBottleBatch(Batch):
 
         Output:
             self """
-        stochastic_acc.append(accuracy(self.indices, model, data))
+        stochastic_acc.append(accum_accuracy(self.indices, models, data))
         return self
 
     @model(mode='dynamic')
@@ -404,16 +404,16 @@ class ResBottleBatch(Batch):
             all_images = tf.placeholder(tf.float32, shape=[65000, 28, 28], name='all_data')
             trainable = tf.placeholder(tf.bool, shape=[])
 
-            X_a = tf.gather_nd(all_images, indices, name='X_a')
+            input_batch = tf.gather_nd(all_images, indices, name='input_batch')
 
-            X_f_to_tens = tf.reshape(X_a, shape=[-1, 28, 28, 1], name='X_to_tens')
+            tensor_batch = tf.reshape(input_batch, shape=[-1, 28, 28, 1], name='X_to_tens')
 
-            net = tf.layers.conv2d(X_f_to_tens, 64, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
+            net = tf.layers.conv2d(tensor_batch, 64, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
                                    kernel_initializer=Xavier(), name='first_convolution')
 
             net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='maX_pool')
 
-           
+
             filters = np.array([32, 32, 128]) * 2
             net = bottle_conv_block(net, 3, filters, trainable, strides=(1, 1))
             net = bottle_identity_block(net, 3, filters, trainable)
@@ -458,10 +458,10 @@ class ResBottleBatch(Batch):
             session = tf.Session()
             session.run(tf.global_variables_initializer())
 
-        return [[indices, all_images, all_labels, trainable, loss, train_step], [accuracy, session], [labels_predict]]
+        return [[indices, all_images, all_labels, trainable, loss, train_step], [accuracy, session, prob]]
 
     @action(model='bigbottlenet')
-    def train_bigbottle(self, model, data, train_loss, all_time):
+    def train_bigbottle(self, models, data, train_loss, all_time):
         """Function to train bottlenet model.
         Args:
             data: training dataset.
@@ -470,12 +470,12 @@ class ResBottleBatch(Batch):
 
         Output:
             self"""
-        train_loss.append(train(self.indices, model, data, all_time))
+        train_loss.append(train(self.indices, models, data, all_time))
         return self
 
 
     @action(model='bigbottlenet')
-    def accuracy_bigbottle(self, model, data, bottle_acc):
+    def accuracy_bigbottle(self, models, data, bottle_acc):
         """ Function to calculate accuracy.
         Args:
             data: all dataset.
@@ -483,5 +483,5 @@ class ResBottleBatch(Batch):
 
         Output:
             self """
-        bottle_acc.append(accuracy(self.indices, model, data))
+        bottle_acc.append(accum_accuracy(self.indices, models, data))
         return self
