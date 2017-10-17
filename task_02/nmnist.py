@@ -39,11 +39,12 @@ def create_fragments(images, size):
     return fragments
 
 
-def arrange_fragments(image, fragments, distr, level):
+def arrange_fragments(image_size, fragments, distr, level):
     """Put fragments on image."""
+    image = np.zeros((image_size, image_size))
     for fragment in fragments:
         size = fragment.shape[0]
-        x_fragment, y_fragment = globals()[distr](image.shape[0], size)
+        x_fragment, y_fragment = globals()[distr](image_size, size)
         image_to_change = image[x_fragment:x_fragment+size, y_fragment:y_fragment+size]
         height_to_change, width_to_change = image_to_change.shape
         image_to_change = np.max([level*fragment[:height_to_change, :width_to_change], image_to_change], axis=0)
@@ -130,7 +131,7 @@ class NoisedMnist(Batch):
         else:
             self.masks = np.stack(list_of_res)
             return self
-        
+
     @action
     @inbatch_parallel(init='init_func', post='post_func_created_noise', target='threads')
     def create_noise(self, ind, *args):
@@ -146,7 +147,7 @@ class NoisedMnist(Batch):
             coordinates = [self.coordinates[i] for i in ind_for_noise]
             images_for_noise = crop_images(images, coordinates)
             fragments = create_fragments(images_for_noise, size)
-            noise = arrange_fragments(np.zeros_like(self.images[ind]), fragments, distr, level)
+            noise = arrange_fragments(image_size, fragments, distr, level)
         else:
             noise = np.zeros_like(self.images[ind])
         return noise
@@ -154,7 +155,6 @@ class NoisedMnist(Batch):
     def post_func_created_noise(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
         """Concat outputs from add_noise.
         """
-
         if any_action_failed(list_of_res):
             print(list_of_res)
             raise Exception("Something bad happened")
@@ -164,14 +164,14 @@ class NoisedMnist(Batch):
 
     @action
     @inbatch_parallel(init='init_func', post='post_func_noise', target='threads')
-    def add_noise(self, ind, *args):
-        """Add noise at MNIST image"""
+    def add_noise(self, ind):
+        """Add noise at MNIST image.
+        """
         return np.max([self.images[ind], self.noise[ind]], axis=0)
 
     def post_func_noise(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
         """Concat outputs from add_noise.
         """
-
         if any_action_failed(list_of_res):
             print(list_of_res)
             raise Exception("Something bad happened")
@@ -202,7 +202,7 @@ class NoisedMnist(Batch):
 
         masks.append(self.masks)
         return self
-    
+
     @action
     def get_noise(self, noise):
         """Get noise from batch.
