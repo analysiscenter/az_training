@@ -1,10 +1,13 @@
 """File contains classes with main regression alghoritms"""
+# pylint: disable=too-few-public-methods
+# pylint: disable=unused-variable
+# pylint: disable=unused-argument
 import sys
 
 import tensorflow as tf
 
 sys.path.append('../..')
-sys.path.append('..')
+sys.path.append('')
 from dataset.dataset.models.tf import TFModel
 from dataset import Batch, action
 
@@ -38,20 +41,18 @@ class LinearRegression(TFModel):
     """ Class with logistic regression model """
     def _build(self, *args, **kwargs):
         """function to build logistic regression """
-
         data_shape = [None] + [13]
         input_data = tf.placeholder(name='input_data', dtype=tf.float32, shape=data_shape)
         targets = tf.placeholder(name='targets', dtype=tf.float32, shape=[None, 1])
 
         dense = tf.layers.dense(input_data, 1, name='dense')
-        predictionsgit = tf.identity(dense, name='predictions')
+        predictions = tf.identity(dense, name='predictions')
 
 
 class LogisticRegression(TFModel):
     """ Class with Linear regression model """
     def _build(self, *args, **kwargs):
         """function to build Linear regression """
-
         data_shape = [None] + [2]
         input_data = tf.placeholder(name='input_data', dtype=tf.float32, shape=data_shape)
         targets = tf.placeholder(name='targets', dtype=tf.float32, shape=[None, 1])
@@ -65,7 +66,6 @@ class PoissonRegression(TFModel):
     """ Class with Poisson regression model """
     def _build(self, *args, **kwargs):
         """function to build Poisson regression """
-
         data_shape = [None] + [13]
         input_data = tf.placeholder(name='input_data', dtype=tf.float32, shape=data_shape)
         targets = tf.placeholder(name='targets', dtype=tf.float32, shape=[None, 1])
