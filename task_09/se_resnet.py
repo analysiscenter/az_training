@@ -171,7 +171,7 @@ def training(ind, models, data, all_time):
     Output:
         loss: loss after one iteration. """
     indices, all_images, all_labels, loss, train = models[0]
-    sess = model[1][1]
+    sess = models[1][1]
     timer = time.time()
     _, loss = sess.run([train, loss], feed_dict={indices:ind.reshape(-1, 1), all_images:data[0], \
                                                  all_labels:data[1]})
