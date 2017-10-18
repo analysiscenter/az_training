@@ -118,6 +118,7 @@ def decoder_block(inp, training, input_map_size, output_map_size, name):
 def linknet_layers(inp, training, n_classes):
     """LinkNet tf.layers.
     """
+    tf.GPUOptions(per_process_gpu_memory_fraction=0.333, allow_growth=True)
     with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
         net = tf.layers.conv2d(inp, 64, (7, 7),
                                strides=(2, 2),
