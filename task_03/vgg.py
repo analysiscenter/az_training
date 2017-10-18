@@ -1,40 +1,11 @@
 """VGG"""
 import sys
 import tensorflow as tf
-from tensorflow.contrib.layers import xavier_initializer_conv2d as Xavier
 
 sys.path.append('..')
 
 from dataset.dataset.models.tf import TFModel
-
-
-def vgg_conv_layer(inp, index, filters, kernel, b_norm, training, momentum):
-    """VGG convolution layer and batch normalization"""
-    net = tf.layers.conv2d(inp, filters, (kernel, kernel),
-                           strides=(1, 1),
-                           padding='SAME',
-                           kernel_initializer=Xavier(),
-                           name='conv'+str(index))
-    if b_norm:
-        net = tf.layers.batch_normalization(net,
-                                            training=training,
-                                            name='batch-norm'+str(index),
-                                            momentum=momentum)
-    return net
-
-
-def vgg_conv_block(inp, name, depth, filters, last_layer, b_norm, training, momentum):
-    """VGG convolution block"""
-    with tf.variable_scope(name):  # pylint: disable=not-context-manager
-        net = inp
-        for i in range(depth-int(last_layer)):
-            vgg_conv_layer(net, i+1, filters, 3, b_norm, training, momentum)
-            net = tf.nn.relu(net)
-        if last_layer:
-            vgg_conv_layer(net, depth, filters, 1, b_norm, training, momentum)
-            net = tf.nn.relu(net)
-        net = tf.layers.max_pooling2d(net, (2, 2), strides=(2, 2), padding='SAME')
-        return net
+from dataset.dataset.models.tf.layers import conv2d_block
 
 
 def vgg_fc_block(inp, output_dim, b_norm, training, momentum):
@@ -64,7 +35,15 @@ def vgg(inp, output_dim, vgg_arch, b_norm, training, momentum):
     net = inp
     with tf.variable_scope('VGG'):  # pylint: disable=not-context-manager
         for i, block in enumerate(vgg_arch):
-            net = vgg_conv_block(inp, 'conv-block-'+str(i), *block, b_norm, training, momentum)
+            depth, filters, last_layer = block
+            if last_layer:
+                layout = 'cna' * (depth - 1)
+                net = conv2d_block(net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
+                layout = 'cnap'
+                net = conv2d_block(net, filters, 1, layout, 'conv-block-last-' + str(i), is_training=training)
+            else:
+                layout = 'cna' * depth + 'p'
+                net = conv2d_block(net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
         net = tf.contrib.layers.flatten(net)
         net = vgg_fc_block(net, output_dim, b_norm, training, momentum)
     return net
@@ -114,7 +93,7 @@ class VGGModel(TFModel):
         """build function for VGG."""
         images_shape = [None] + list(self.get_from_config('images_shape'))
 
-        vgg_arch = self.get_from_config('vgg_arch')
+        vgg_arch = self.get_from_config('vgg_arch', 'VGG16')
 
         if isinstance(vgg_arch, str):
             if vgg_arch == 'VGG16':
@@ -125,19 +104,13 @@ class VGGModel(TFModel):
                 raise NameError("{} is unknown NN.".format(vgg_arch))
         elif isinstance(vgg_arch, list):
             pass
-        elif vgg_arch is None:
-            vgg_arch = VGG16
         else:
             raise TypeError("vgg_arch must be list or str.")
 
         n_classes = self.get_from_config('n_classes')
 
-        b_norm = self.get_from_config('b_norm')
-        if b_norm is None:
-            b_norm = True
-        momentum = self.get_from_config('momentum')
-        if momentum is None:
-            momentum = 0.9
+        b_norm = self.get_from_config('b_norm', True)
+        momentum = self.get_from_config('momentum', 0.9)
 
         x_ph = tf.placeholder(tf.float32, shape=images_shape, name='images')
         labels_ph = tf.placeholder(tf.uint8, shape=[None], name='labels')
