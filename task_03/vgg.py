@@ -8,7 +8,7 @@ sys.path.append('..')
 from dataset.dataset.models.tf import TFModel
 
 
-def VGG_conv_layer(inp, index, filters, kernel, b_norm, training, momentum):
+def vgg_conv_layer(inp, index, filters, kernel, b_norm, training, momentum):
     """VGG convolution layer and batch normalization"""
     net = tf.layers.conv2d(inp, filters, (kernel, kernel),
                            strides=(1, 1),
@@ -23,50 +23,50 @@ def VGG_conv_layer(inp, index, filters, kernel, b_norm, training, momentum):
     return net
 
 
-def VGG_conv_block(inp, name, depth, filters, last_layer, b_norm, training, momentum):
+def vgg_conv_block(inp, name, depth, filters, last_layer, b_norm, training, momentum):
     """VGG convolution block"""
-    with tf.variable_scope(name): # pylint: disable=not-context-manager
+    with tf.variable_scope(name):  # pylint: disable=not-context-manager
         net = inp
         for i in range(depth-int(last_layer)):
-            VGG_conv_layer(net, i+1, filters, 3, b_norm, training, momentum)
+            vgg_conv_layer(net, i+1, filters, 3, b_norm, training, momentum)
             net = tf.nn.relu(net)
         if last_layer:
-            VGG_conv_layer(net, depth, filters, 1, b_norm, training, momentum)
+            vgg_conv_layer(net, depth, filters, 1, b_norm, training, momentum)
             net = tf.nn.relu(net)
         net = tf.layers.max_pooling2d(net, (2, 2), strides=(2, 2), padding='SAME')
         return net
 
 
-def VGG_fc_block(inp, output_dim, b_norm, training, momentum):
+def vgg_fc_block(inp, output_dim, b_norm, training, momentum):
     """VGG fully connected block"""
-    with tf.variable_scope('fc-block'): # pylint: disable=not-context-manager
+    with tf.variable_scope('fc-block'):  # pylint: disable=not-context-manager
         net = tf.layers.dense(inp, 4096, name='fc1')
         if b_norm:
             net = tf.layers.batch_normalization(net,
                                                 training=training,
                                                 name='batch-norm1',
-                                                momentum=momentum)   
-            net = tf.nn.relu(net)     
+                                                momentum=momentum)
+            net = tf.nn.relu(net)
         net = tf.layers.dense(net, 4096, name='fc2')
         if b_norm:
             net = tf.layers.batch_normalization(net,
                                                 training=training,
                                                 name='batch-norm2',
-                                                momentum=momentum)   
-            net = tf.nn.relu(net)     
+                                                momentum=momentum)
+            net = tf.nn.relu(net)
         net = tf.layers.dense(net, output_dim, name='fc3')
     return net
 
 
-def VGG(inp, output_dim, vgg_arch, b_norm=True, training=True, momentum=0.1):
+def vgg(inp, output_dim, vgg_arch, b_norm, training, momentum):
     """VGG16 tf.layers.
     """
     net = inp
-    with tf.variable_scope('VGG'): # pylint: disable=not-context-manager
+    with tf.variable_scope('VGG'):  # pylint: disable=not-context-manager
         for i, block in enumerate(vgg_arch):
-            net = VGG_conv_block(inp, 'conv-block-'+str(i), *block, b_norm, training, momentum)
+            net = vgg_conv_block(inp, 'conv-block-'+str(i), *block, b_norm, training, momentum)
         net = tf.contrib.layers.flatten(net)
-        net = VGG_fc_block(net, output_dim, b_norm, training, momentum)
+        net = vgg_fc_block(net, output_dim, b_norm, training, momentum)
     return net
 
 
@@ -143,13 +143,10 @@ class VGGModel(TFModel):
         labels_ph = tf.placeholder(tf.uint8, shape=[None], name='labels')
         training_ph = tf.placeholder(tf.bool, shape=[], name='training')
 
-        targets = tf.one_hot(labels_ph, depth=n_classes, name='targets')
+        tf.one_hot(labels_ph, depth=n_classes, name='targets')
 
-        model_output = VGG(x_ph, n_classes, vgg_arch, b_norm, training_ph)
+        model_output = vgg(x_ph, n_classes, vgg_arch, b_norm, training_ph, momentum)
         predictions = tf.identity(model_output, name='predictions')
 
         y_pred_softmax = tf.nn.softmax(predictions, name='predicted_prob')
         tf.argmax(y_pred_softmax, axis=1, name='predicted_labels')
-
-
-
