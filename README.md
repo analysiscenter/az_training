@@ -3,6 +3,7 @@
 * task_01 Logistic, linear and poisson regression implementation using dataset and tensorflow libraries 
 * task_02 CNN for MNIST classification with experiments on shifted data
 * task_03 CNN for MNIST classification with data augmentation and early stopping (a model with batch_norm, dropout, changing learning rate)
+	implemented in class Model
 * task_04 Git-notebooks including:
 	* git init, git add, git rm, git commit, git status, git diff
 	* git config, git remote, git fetch, git pull, git push, gitattributes, gitignore
