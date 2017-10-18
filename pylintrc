@@ -11,7 +11,7 @@ max-locals=20
 good-names=_,x,y,z,i,j,k,l,m,n,p,r,u,b,w,y_,it,X,C
 
 [MESSAGE CONTROL]
-disable=no-self-use, no-method-argument
+disable=no-self-use, no-method-argument, not-context-manager, too-few-public-methods
 [TYPECHECK]
 ignored-modules=numpy
 
