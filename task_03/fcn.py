@@ -16,8 +16,8 @@ def fcn(input_ph, n_classes, fcn_arch, b_norm, training_ph):
     with tf.variable_scope(fcn_arch):  # pylint: disable=not-context-manager
         net = vgg_convolution(input_ph, vgg_arch, b_norm, training_ph)
 
-        net = conv2d_block(net, 4096, 1, 'ca', 'conv-out-1',
-                           padding='VALID',
+        net = conv2d_block(net, 4096, 7, 'ca', 'conv-out-1',
+                           padding='SAME',
                            is_training=training_ph)
         net = conv2d_block(net, 4096, 1, 'ca', 'conv-out-2',
                            padding='VALID',
@@ -25,8 +25,24 @@ def fcn(input_ph, n_classes, fcn_arch, b_norm, training_ph):
         net = conv2d_block(net, n_classes, 1, 'ca', 'conv-out-3',
                            padding='VALID',
                            is_training=training_ph)
-
-        net = tf.layers.conv2d_transpose(net, n_classes, kernel_size=64, strides=32, padding='SAME')
+        conv7 = net
+        pool4 = tf.get_default_graph().get_tensor_by_name(fcn_arch+"/VGG-conv/conv-block-3-output:0")
+        pool3 = tf.get_default_graph().get_tensor_by_name(fcn_arch+"/VGG-conv/conv-block-2-output:0")
+        if fcn_arch == 'FCN32':
+            net = tf.layers.conv2d_transpose(conv7, n_classes, kernel_size=64, strides=32, padding='SAME')
+        else:
+            conv7 = tf.layers.conv2d_transpose(conv7, n_classes, kernel_size=1, strides=2, padding='SAME')
+            pool4 = tf.layers.conv2d(pool4, n_classes, kernel_size=1, strides=1, padding='SAME')
+            fcn16_sum = tf.add(conv7, pool4)
+            if fcn_arch == 'FCN16':
+                net = tf.layers.conv2d_transpose(fcn16_sum, n_classes, kernel_size=32, strides=16, padding='SAME')
+            elif fcn_arch == 'FCN8':
+                pool3 = tf.layers.conv2d(pool3, n_classes, kernel_size=1, strides=1, padding='SAME')
+                fcn16_sum = tf.layers.conv2d_transpose(fcn16_sum, n_classes, kernel_size=1, strides=2, padding='SAME')
+                fcn8_sum = tf.add(pool3, fcn16_sum)
+                net = tf.layers.conv2d_transpose(fcn8_sum, n_classes, kernel_size=16, strides=8, padding='SAME')
+            else:
+                raise ValueError('Wrong value of fcn_arch')
     return net
 
 

@@ -10,7 +10,6 @@ class LinkNetModel(TFModel):
         images_shape = list(self.get_from_config('images_shape'))
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('b_norm', True)
-        momentum = self.get_from_config('momentum', 0.9)
 
         input_ph = tf.placeholder(tf.float32, shape=[None] + images_shape, name='input_image')
 
@@ -23,14 +22,14 @@ class LinkNetModel(TFModel):
             raise ValueError('len(images_shape) must be 2 or 3')
 
         training_ph = tf.placeholder(tf.bool, shape=[], name='bn_mode')
-        model_output = linknet_layers(input_ph, training_ph, n_classes, b_norm, momentum)
+        model_output = linknet_layers(input_ph, training_ph, n_classes, b_norm)
         predictions = tf.identity(model_output, name='predictions')
         y_pred_softmax = tf.nn.softmax(predictions, name='predicted_prob')
         tf.cast(tf.argmax(y_pred_softmax, axis=3), tf.float32, name='mask_prediction')
 
 
 
-def encoder_block(inp, training, output_map_size, name, b_norm, momentum):
+def encoder_block(inp, training, output_map_size, name, b_norm):
     """LinkNet encoder block.
     """
     with tf.variable_scope(name): # pylint: disable=not-context-manager
@@ -45,7 +44,7 @@ def encoder_block(inp, training, output_map_size, name, b_norm, momentum):
     return outp
 
 
-def decoder_block(inp, training, input_map_size, output_map_size, name, b_norm, momentum):
+def decoder_block(inp, training, input_map_size, output_map_size, name, b_norm):
     """LinkNet decoder block.
     """
     with tf.variable_scope(name): # pylint: disable=not-context-manager
@@ -53,33 +52,33 @@ def decoder_block(inp, training, input_map_size, output_map_size, name, b_norm, 
         layout_transpose = 't' + 'n' * b_norm + 'a'
 
         n_chan = input_map_size // 4
-        
-        net = conv2d_block(inp, n_chan, 1, layout, 'decoder_conv_1',  is_training=training)
+
+        net = conv2d_block(inp, n_chan, 1, layout, 'decoder_conv_1', is_training=training)
         net = conv2d_block(net, n_chan, 3, layout_transpose, 'decoder_conv_2', 2, is_training=training)
         outp = conv2d_block(net, output_map_size, 1, layout, 'decoder_conv_3', is_training=training)
         return outp
 
 
-def linknet_layers(inp, training, n_classes, b_norm, momentum):
+def linknet_layers(inp, training, n_classes, b_norm):
     """LinkNet tf.layers.
     """
     with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
         layout = 'cp' + 'n' * b_norm + 'a'
-        
+
         net = conv2d_block(inp, 64, 7, layout, 'decoder_conv_3', 2, is_training=training, pool_size=3)
 
-        enc1 = encoder_block(net, training, 64, '1st_encoder', b_norm, momentum)
-        enc2 = encoder_block(enc1, training, 128, '2nd_encoder', b_norm, momentum)
-        enc3 = encoder_block(enc2, training, 256, '3rd_encoder', b_norm, momentum)
-        enc4 = encoder_block(enc3, training, 512, '4th_encoder', b_norm, momentum)
+        enc1 = encoder_block(net, training, 64, '1st_encoder', b_norm)
+        enc2 = encoder_block(enc1, training, 128, '2nd_encoder', b_norm)
+        enc3 = encoder_block(enc2, training, 256, '3rd_encoder', b_norm)
+        enc4 = encoder_block(enc3, training, 512, '4th_encoder', b_norm)
 
-        dec4 = decoder_block(enc4, training, 512, 256, '4th_decoder', b_norm, momentum)
+        dec4 = decoder_block(enc4, training, 512, 256, '4th_decoder', b_norm)
         net = tf.add(enc3, dec4)
-        dec3 = decoder_block(net, training, 256, 128, '3rd_decoder', b_norm, momentum)
+        dec3 = decoder_block(net, training, 256, 128, '3rd_decoder', b_norm)
         net = tf.add(enc2, dec3)
-        dec2 = decoder_block(net, training, 128, 64, '2nd_decoder', b_norm, momentum)
+        dec2 = decoder_block(net, training, 128, 64, '2nd_decoder', b_norm)
         net = tf.add(enc1, dec2)
-        dec1 = decoder_block(net, training, 64, 64, '1st_decoder', b_norm, momentum)
+        dec1 = decoder_block(net, training, 64, 64, '1st_decoder', b_norm)
 
         layout = 'c' + 'n' * b_norm + 'a'
         layout_transpose = 't' + 'n' * b_norm + 'a'

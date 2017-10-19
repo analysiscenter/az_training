@@ -10,7 +10,7 @@ from dataset.dataset.models.tf.layers import conv2d_block
 
 def vgg_fc_block(inp, output_dim, b_norm, training, momentum):
     """VGG fully connected block"""
-    with tf.variable_scope('fc-block'):  # pylint: disable=not-context-manager
+    with tf.variable_scope('VGG-fc'):  # pylint: disable=not-context-manager
         net = tf.layers.dense(inp, 4096, name='fc1')
         if b_norm:
             net = tf.layers.batch_normalization(net,
@@ -53,10 +53,11 @@ def vgg_convolution(inp, vgg_arch, b_norm, training):
                 layout = ('c' + 'n' * b_norm + 'a') * (depth - 1)
                 net = conv2d_block(net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
                 layout = 'c' + 'n' * b_norm + 'ap'
-                net = conv2d_block(net, filters, 1, layout, 'conv-block-last-' + str(i), is_training=training)
+                net = conv2d_block(net, filters, 1, layout, 'conv-block-1x1-' + str(i), is_training=training)
             else:
                 layout = ('c' + 'n' * b_norm + 'a') * depth + 'p'
                 net = conv2d_block(net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
+            net = tf.identity(net, name='conv-block-{}-output'.format(i))
     return net
 
 
