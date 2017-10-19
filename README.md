@@ -1,6 +1,7 @@
 # az_training
 
 * task_01 Logistic, linear and poisson regression implementation using dataset and tensorflow libraries 
+	in class RegressionModel
 * task_02 CNN for MNIST classification with experiments on shifted data
 * task_03 CNN for MNIST classification with data augmentation and early stopping (a model with batch_norm, dropout, changing learning rate)
 	implemented in class Model
