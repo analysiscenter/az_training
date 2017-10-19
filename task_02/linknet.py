@@ -15,9 +15,9 @@ class LinkNetModel(TFModel):
 
         if len(images_shape) == 2:
             input_ph = tf.reshape(input_ph, [-1] + images_shape + [1])
-            mask_ph = tf.placeholder(tf.float32, shape=[None] + images_shape + [n_classes], name='targets')
+            tf.placeholder(tf.float32, shape=[None] + images_shape + [n_classes], name='targets')
         elif len(images_shape) == 3:
-            mask_ph = tf.placeholder(tf.float32, shape=[None] + images_shape[:-1] + [n_classes], name='targets')           
+            tf.placeholder(tf.float32, shape=[None] + images_shape[:-1] + [n_classes], name='targets')
         else:
             raise ValueError('len(images_shape) must be 2 or 3')
 
