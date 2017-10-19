@@ -29,21 +29,42 @@ def vgg_fc_block(inp, output_dim, b_norm, training, momentum):
     return net
 
 
-def vgg(inp, output_dim, vgg_arch, b_norm, training, momentum):
-    """VGG16 tf.layers.
+def vgg_convolution(inp, vgg_arch, b_norm, training):
+    """VGG convolution part.
     """
+
+    if isinstance(vgg_arch, str):
+        if vgg_arch[-2:] == '16':
+            vgg_arch = VGG16
+        elif vgg_arch[-2:] == '19':
+            vgg_arch = VGG19
+        else:
+            raise NameError("{} is unknown NN.".format(vgg_arch))
+    elif isinstance(vgg_arch, list):
+        pass
+    else:
+        raise TypeError("vgg_arch must be list or str.")
+
     net = inp
-    with tf.variable_scope('VGG'):  # pylint: disable=not-context-manager
+    with tf.variable_scope('VGG-conv'):  # pylint: disable=not-context-manager
         for i, block in enumerate(vgg_arch):
             depth, filters, last_layer = block
             if last_layer:
-                layout = 'cna' * (depth - 1)
+                layout = ('c' + 'n' * b_norm + 'a') * (depth - 1)
                 net = conv2d_block(net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
-                layout = 'cnap'
+                layout = 'c' + 'n' * b_norm + 'ap'
                 net = conv2d_block(net, filters, 1, layout, 'conv-block-last-' + str(i), is_training=training)
             else:
-                layout = 'cna' * depth + 'p'
+                layout = ('c' + 'n' * b_norm + 'a') * depth + 'p'
                 net = conv2d_block(net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
+    return net
+
+
+def vgg(inp, output_dim, vgg_arch, b_norm, training, momentum):
+    """VGG tf.layers.
+    """
+    with tf.variable_scope('VGG'):  # pylint: disable=not-context-manager
+        net = vgg_convolution(inp, vgg_arch, b_norm, training)
         net = tf.contrib.layers.flatten(net)
         net = vgg_fc_block(net, output_dim, b_norm, training, momentum)
     return net
@@ -94,18 +115,6 @@ class VGGModel(TFModel):
         images_shape = [None] + list(self.get_from_config('images_shape'))
 
         vgg_arch = self.get_from_config('vgg_arch', 'VGG16')
-
-        if isinstance(vgg_arch, str):
-            if vgg_arch == 'VGG16':
-                vgg_arch = VGG16
-            elif vgg_arch == 'VGG19':
-                vgg_arch = VGG19
-            else:
-                raise NameError("{} is unknown NN.".format(vgg_arch))
-        elif isinstance(vgg_arch, list):
-            pass
-        else:
-            raise TypeError("vgg_arch must be list or str.")
 
         n_classes = self.get_from_config('n_classes')
 

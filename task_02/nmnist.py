@@ -72,7 +72,7 @@ class NoisedMnist(Batch):
     def load_images(self):
         """Load MNIST images from file."""
         with open('../mnist/mnist_pics.pkl', 'rb') as file:
-            self.images = pickle.load(file)[self.indices]
+            self.images = pickle.load(file)[self.indices].reshape(-1, 28, 28)
         return self
 
     def init_func(self, *args, **kwargs): # pylint: disable=unused-argument
@@ -84,7 +84,7 @@ class NoisedMnist(Batch):
     def random_location(self, ind, *args):
         """Put MNIST image in random location"""
         image_size = args[0]
-        pure_mnist = self.images[ind].reshape(28, 28)
+        pure_mnist = self.images[ind]
         new_x, new_y = np.random.randint(0, image_size-28, 2)
         large_mnist = np.zeros((image_size, image_size))
         large_mnist[new_x:new_x+28, new_y:new_y+28] = pure_mnist
@@ -115,6 +115,7 @@ class NoisedMnist(Batch):
         image_size = self.images.shape[1]
         mask = np.zeros((image_size, image_size))
         mask[new_x:new_x+28, new_y:new_y+28] += 1
+        mask = np.stack([1-mask, mask], axis=2)
         return mask
 
     def post_func_mask(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
