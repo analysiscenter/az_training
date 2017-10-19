@@ -10,25 +10,21 @@ from vgg import vgg_convolution
 
 def fcn(input_ph, n_classes, fcn_arch, b_norm, training_ph):
     """FCN network.
-    TODO: 
+    TODO: check post-VGG part 
     """
     vgg_arch = 'VGG16'
     with tf.variable_scope('FCN-conv'):  # pylint: disable=not-context-manager
         net = vgg_convolution(input_ph, vgg_arch, b_norm, training_ph)
 
-        print(net)
-
-        net = conv2d_block(net, 1000, 1, 'ca', 'conv-out-1', 
+        net = conv2d_block(net, 4096, 1, 'ca', 'conv-out-1', 
                            padding='VALID', 
                            is_training=training_ph)
-        net = conv2d_block(net, 1000, 1, 'ca', 'conv-out-2', 
+        net = conv2d_block(net, 4096, 1, 'ca', 'conv-out-2', 
                            padding='VALID', 
                            is_training=training_ph)
         net = conv2d_block(net, n_classes, 1, 'ca', 'conv-out-3', 
                            padding='VALID', 
                            is_training=training_ph)
-
-        print(net)
 
         net = tf.layers.conv2d_transpose(net, n_classes, kernel_size=64, strides=32, padding='SAME')
     return net
@@ -59,8 +55,6 @@ class FCNModel(TFModel):
 
         training_ph = tf.placeholder(tf.bool, shape=[], name='bn_mode')
         model_output = fcn(input_ph, n_classes, fcn_arch, b_norm, training_ph)
-
-        print(model_output)
 
         predictions = tf.identity(model_output, name='predictions')
         y_pred_softmax = tf.nn.softmax(predictions, name='predicted_prob')
