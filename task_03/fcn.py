@@ -45,10 +45,8 @@ def fcn(input_ph, n_classes, fcn_arch, b_norm, training_ph):
                 raise ValueError('Wrong value of fcn_arch')
     return net
 
-
 class FCNModel(TFModel):
-    """FCN as TFModel
-    """
+
 
     def _build(self, *args, **kwargs):
         """build function for VGG."""
