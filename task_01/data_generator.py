@@ -2,14 +2,24 @@
 import numpy as np
 
 NUM_DIM_LIN = 13
-def generate_linear_data(size=10, dist='unif'):
+def generate_linear_data(size, dist='unif'):
     """ Generation of data for fit linear regression.
-    Args:
-        size: length of data.
-        dist: sample distribution 'unif' or 'norm'.
-    Output:
-        x: uniformly or normally distributed array with shape (size, 2)
-        y: array [0..size] with some random noize. """
+
+    Parameters
+    ----------
+    size: int
+    Length of data
+    
+    dist: {'unif', 'norm'}
+    Sample distribution 'unif' or 'norm'. Default 'unif'
+    
+    Returns:
+    ----------
+    x: numpy array
+    Uniformly or normally distributed array
+    
+    y: numpy array
+    array with some random noize """
     if dist == 'unif':
         x = np.random.uniform(0, 2, size * NUM_DIM_LIN).reshape(-1, NUM_DIM_LIN)
 
@@ -25,13 +35,25 @@ def generate_linear_data(size=10, dist='unif'):
     return x, y_obs.reshape(-1, 1)
 
 def generate_logistic_data(size, first_params, second_params):
-    """ Generation of data for fit linear regression.
-    Args:
-        size: length of data.
+    """ Generation of data for fit logistic regression.
+    Parameters
+    ----------
+    size: int
+    Length of data
 
-    Output:
-        x: Coordinates of points in two-dimensional space with shape (size, 2)
-        y: labels of dots """
+    first_params: list
+    List of lists with params of distribution to create first cloud of points
+    
+    second_params: list
+    List of lists with params of distribution to create second cloud of points
+
+    Returns:
+    ----------
+    x: numpy array
+    Coordinates of points in two-dimensional space
+    
+    y: numpy array
+    Labels of dots """
     first = np.random.multivariate_normal(first_params[0], first_params[1], size)
     second = np.random.multivariate_normal(second_params[0], second_params[1], size)
 
@@ -45,14 +67,21 @@ def generate_logistic_data(size, first_params, second_params):
     return x, y
 
 def generate_poisson_data(lam, size=10):
-    """ Generation of data for fit poisson regression.
-    size: size of data.
+    """ Generation of data for fit poisson regression
+    Parameters
+    ----------
+    size: int
+    Length of data
 
-    lam: Poisson distribution parameter.
+    lam:
+    Poisson distribution parameter
 
-    Output:
-        y: array of poisson distribution numbers.
-        x: matrix with shape(size,2) with random numbers of uniform distribution. """
+        Returns:
+    ----------
+    x: numpy array
+    Matrix with random numbers of uniform distribution
+    y: 
+    Array of poisson distribution numbers """
     x = np.random.random(size * NUM_DIM_LIN).reshape(-1, NUM_DIM_LIN)
     b = np.random.random(1)
 
