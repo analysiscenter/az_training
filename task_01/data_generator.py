@@ -9,15 +9,15 @@ def generate_linear_data(size, dist='unif'):
     ----------
     size: int
     Length of data
-    
+
     dist: {'unif', 'norm'}
     Sample distribution 'unif' or 'norm'. Default 'unif'
-    
+
     Returns:
     ----------
     x: numpy array
     Uniformly or normally distributed array
-    
+
     y: numpy array
     array with some random noize """
     if dist == 'unif':
@@ -43,7 +43,7 @@ def generate_logistic_data(size, first_params, second_params):
 
     first_params: list
     List of lists with params of distribution to create first cloud of points
-    
+
     second_params: list
     List of lists with params of distribution to create second cloud of points
 
@@ -51,7 +51,7 @@ def generate_logistic_data(size, first_params, second_params):
     ----------
     x: numpy array
     Coordinates of points in two-dimensional space
-    
+
     y: numpy array
     Labels of dots """
     first = np.random.multivariate_normal(first_params[0], first_params[1], size)
@@ -80,7 +80,7 @@ def generate_poisson_data(lam, size=10):
     ----------
     x: numpy array
     Matrix with random numbers of uniform distribution
-    y: 
+    y:
     Array of poisson distribution numbers """
     x = np.random.random(size * NUM_DIM_LIN).reshape(-1, NUM_DIM_LIN)
     b = np.random.random(1)

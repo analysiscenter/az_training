@@ -6,12 +6,12 @@ from dataset import action, Batch
 
 class MyBatch(Batch):
     """ Class for load data into regression models
-    
+
     Attributes:
     ----------
     input_data: numpy array
     Data for training model
-    
+
     labels: numpy array
     Answers
     """
@@ -38,7 +38,7 @@ class MyBatch(Batch):
 
         fmt: str, optional
         Default parameter. Not used
-        
+
         compontnts: dict, optional
         Default parameter. Not used
 

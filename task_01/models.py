@@ -1,6 +1,9 @@
 """File contains classes with main regression alghoritms"""
+import sys
+
 import tensorflow as tf
 
+sys.path.append('../dataset')
 from dataset.models.tf import TFModel
 
 class LinearRegression(TFModel):
