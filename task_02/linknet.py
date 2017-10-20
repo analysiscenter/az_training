@@ -1,6 +1,5 @@
 """ LinkNet as TFModel """
 import tensorflow as tf
-from dataset.dataset.models.tf import TFModel
 from dataset.dataset.models.tf.layers import conv_block
 from segmentation import SegmentationModel
 
@@ -16,7 +15,7 @@ def encoder_block(dim, inp, out_filters, name, b_norm, training):
 
     Parameters
     ----------
-    dim : int 
+    dim : int
         spacial dimension of input without the number of channels
 
     inp : tf.Tensor
@@ -54,7 +53,7 @@ def decoder_block(dim, inp, out_filters, name, b_norm, training):
 
     Parameters
     ----------
-    dim : int 
+    dim : int
         spacial dimension of input without the number of channels
 
     inp : tf.Tensor
@@ -93,12 +92,12 @@ def linknet_layers(dim, inp, n_classes, b_norm, training):
 
     Parameters
     ----------
-    dim : int 
+    dim : int
         spacial dimension of input without the number of channels
 
     inp : tf.Tensor
 
-    n_classes : int 
+    n_classes : int
         number of classes to segmentate.
 
     b_norm : bool

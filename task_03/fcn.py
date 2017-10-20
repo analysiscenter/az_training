@@ -46,7 +46,8 @@ def fcn(input_ph, n_classes, fcn_arch, b_norm, training_ph):
     return net
 
 class FCNModel(TFModel):
-
+    """FCN as TFModel
+    """
 
     def _build(self, *args, **kwargs):
         """build function for VGG."""
