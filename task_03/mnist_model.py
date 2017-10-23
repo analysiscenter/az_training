@@ -55,10 +55,18 @@ class MyMnistModel(TFModel):
 
         y_ = tf.placeholder(tf.float32, [None, 10], name='input_labels')
 
-        loss = tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y_, name='loss')
+        loss = tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y_, name='loss')	
         
         global_step = tf.Variable(0, trainable=False)
         targets = tf.identity(y_, name='targets')
-        labels_hat = tf.cast(tf.argmax(net, axis=1), tf.float32, name='predicted_labels')
-        labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, name='true_labels')
+        
+        labels_hat = tf.cast(tf.argmax(net, axis=1), tf.float32)
+        predicted_labels = tf.identity(labels_hat, name='predicted_labels')
+
+        labels = tf.cast(tf.argmax(y_, axis=1), tf.float32)
+        true_labels = tf.identity(labels, name='true_labels')
         accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
+
+
+
+        # print('VARS ', tf.get_collection(tf.GraphKeys.VARIABLES))
