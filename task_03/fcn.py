@@ -6,7 +6,7 @@ sys.path.append('..')
 
 from dataset.dataset.models.tf.layers import conv_block
 from vgg import vgg_convolution
-from task_02.basemodels import NetworkModel
+from basemodels import NetworkModel
 
 
 class FCNModel(NetworkModel):
