@@ -125,13 +125,13 @@ def vgg_fc_block(inp, n_classes, b_norm, training):
     """
 
     with tf.variable_scope('VGG-fc'):  # pylint: disable=not-context-manager
-        net = tf.layers.dense(inp, 100, name='fc1')
+        net = tf.layers.dense(inp, 4096, name='fc1')
         if b_norm:
             net = tf.layers.batch_normalization(net,
                                                 training=training,
                                                 name='batch-norm1')
             net = tf.nn.relu(net)
-        net = tf.layers.dense(net, 100, name='fc2')
+        net = tf.layers.dense(net, 4096, name='fc2')
         if b_norm:
             net = tf.layers.batch_normalization(net,
                                                 training=training,
