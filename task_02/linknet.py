@@ -12,7 +12,7 @@ class LinkNetModel(NetworkModel):
         b_norm = self.get_from_config('b_norm')
 
         inp = self.create_input()
-        outp = linknet(dim, inp, n_classes, b_norm, 'predictions', self.is_training)
+        linknet(dim, inp, n_classes, b_norm, 'predictions', self.is_training)
         self.create_target('segmentation')
 
 def encoder_block(dim, inp, out_filters, name, b_norm, training):

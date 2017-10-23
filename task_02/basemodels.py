@@ -24,17 +24,17 @@ class NetworkModel(TFModel):
         reshaped_inp : tf.Tensor
 
 
-        dim is a spatial dimension of input and ignores channels. 
+        dim is a spatial dimension of input and ignores channels.
         images_shape is a shape of the input array.
-        create_input reshapes input placeholder into (dim+1)-tensor. 
+        create_input reshapes input placeholder into (dim+1)-tensor.
 
-        For example, 
-        1) input array of greyscale images with shape (n, 28, 28). Then images_shape is (28, 28), dim = 2. 
+        For example,
+        1) input array of greyscale images with shape (n, 28, 28). Then images_shape is (28, 28), dim = 2.
         The output is tensor of shape (n, 28, 28, 1).
         2) input array of RGB images with shape (n, 640, 480, 3). Then images_shape is (640, 480, 3), dim = 2;
         The output is tensor of shape (n, 640, 480, 3).
         3) input array of flatten greyscale images with shape (n, 784). Then images_shape is (784, ), dim = 2;
-        The output is tensor of shape (n, 28, 28, 1).     
+        The output is tensor of shape (n, 28, 28, 1).
         """
 
         images_shape = list(self.get_from_config('images_shape'))
@@ -74,7 +74,6 @@ class NetworkModel(TFModel):
             'regression' : [None]
             'segmentation' : [None] + reshaped_images_shape + [n_classes]
         """
-        dim = self.get_from_config('dim', 2)
         n_classes = self.get_from_config('n_classes', 2)
         images_shape = self.input_shape
 

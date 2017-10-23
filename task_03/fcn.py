@@ -37,7 +37,7 @@ class FCNModel(NetworkModel):
         fcn_arch = self.get_from_config('fcn_arch', 'FCN32')
 
         inp = self.create_input()
-        outp = fcn(inp, n_classes, b_norm, 'predictions', self.is_training, fcn_arch)
+        outp = fcn(dim, inp, n_classes, b_norm, 'predictions', self.is_training, fcn_arch)
         self.create_target('segmentation')
         self.create_output(outp)
 
@@ -95,4 +95,4 @@ def fcn(dim, inp, n_classes, b_norm, output_name, training, fcn_arch):
                 net = conv_block(dim, fcn8_sum, n_classes, 16, 't', 8)
             else:
                 raise ValueError('Wrong value of fcn_arch')
-    return net
+    return tf.identity(net, output_name)

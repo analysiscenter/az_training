@@ -55,8 +55,8 @@ VGG19 = [(2, 64, False),
 
 
 VGG7 = [(2, 64, False),
-         (2, 128, False),
-         (3, 256, True)]
+        (2, 128, False),
+        (3, 256, True)]
 
 
 def vgg(dim, inp, n_classes, b_norm, output_name, training, vgg_arch):
