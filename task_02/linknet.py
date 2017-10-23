@@ -1,14 +1,19 @@
 """ LinkNet as TFModel """
 import tensorflow as tf
 from dataset.dataset.models.tf.layers import conv_block
-from segmentation import SegmentationModel
+from basemodels import NetworkModel
 
-class LinkNetModel(SegmentationModel):
+class LinkNetModel(NetworkModel):
     """LinkNet as TFModel"""
-    def build_model(self, dim, input_ph, n_classes, b_norm):
+    def _build(self, *args, **kwargs):
         """ build function for LinkNet """
-        return linknet_layers(dim, input_ph, n_classes, b_norm, self.is_training)
+        dim = self.get_from_config('dim', 2)
+        n_classes = self.get_from_config('n_classes', 2)
+        b_norm = self.get_from_config('b_norm')
 
+        inp = self.create_input()
+        outp = linknet(dim, inp, n_classes, b_norm, 'predictions', self.is_training)
+        self.create_target('segmentation')
 
 def encoder_block(dim, inp, out_filters, name, b_norm, training):
     """LinkNet encoder block.
@@ -58,7 +63,7 @@ def decoder_block(dim, inp, out_filters, name, b_norm, training):
 
     inp : tf.Tensor
 
-    out_filters : int
+    n_classes : int
         number of output filters
 
     name : str
@@ -87,7 +92,7 @@ def decoder_block(dim, inp, out_filters, name, b_norm, training):
         return outp
 
 
-def linknet_layers(dim, inp, n_classes, b_norm, training):
+def linknet(dim, inp, n_classes, b_norm, output_name, training):
     """LinkNet tf.layers.
 
     Parameters
@@ -102,6 +107,9 @@ def linknet_layers(dim, inp, n_classes, b_norm, training):
 
     b_norm : bool
         if True enable batch normalization
+
+    output_name : string
+        name of the output tensor
 
     training : tf.Tensor
         batch normalization training parameter
@@ -135,4 +143,4 @@ def linknet_layers(dim, inp, n_classes, b_norm, training):
         net = conv_block(dim, net, 32, 3, layout, 'output_conv_2', is_training=training)
         net = conv_block(dim, net, n_classes, 2, 't', 'output_conv_3', 2, is_training=training)
 
-        return net
+    return tf.identity(net, output_name)

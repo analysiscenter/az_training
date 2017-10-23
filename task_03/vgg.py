@@ -4,71 +4,40 @@ import tensorflow as tf
 
 sys.path.append('..')
 
-from dataset.dataset.models.tf import TFModel
-from dataset.dataset.models.tf.layers import conv2d_block
+from dataset.dataset.models.tf.layers import conv_block
+from task_02.basemodels import NetworkModel
 
 
-def vgg_fc_block(inp, output_dim, b_norm, training, momentum):
-    """VGG fully connected block"""
-    with tf.variable_scope('VGG-fc'):  # pylint: disable=not-context-manager
-        net = tf.layers.dense(inp, 4096, name='fc1')
-        if b_norm:
-            net = tf.layers.batch_normalization(net,
-                                                training=training,
-                                                name='batch-norm1',
-                                                momentum=momentum)
-            net = tf.nn.relu(net)
-        net = tf.layers.dense(net, 4096, name='fc2')
-        if b_norm:
-            net = tf.layers.batch_normalization(net,
-                                                training=training,
-                                                name='batch-norm2',
-                                                momentum=momentum)
-            net = tf.nn.relu(net)
-        net = tf.layers.dense(net, output_dim, name='fc3')
-    return net
+class VGGModel(NetworkModel):
+    """VGG as TFModel
 
+    Parameters
+    ----------
+    dim : int
+        spacial dimension of input without the number of channels
 
-def vgg_convolution(inp, vgg_arch, b_norm, training):
-    """VGG convolution part.
+    images_shape : tuple of ints
+
+    vgg_arch : str or list of tuples
+        see vgg()
+
+    b_norm : bool
+        Use batch normalization. By default is True.
+
+    n_classes : int.
     """
 
-    if isinstance(vgg_arch, str):
-        if vgg_arch[-2:] == '16':
-            vgg_arch = VGG16
-        elif vgg_arch[-2:] == '19':
-            vgg_arch = VGG19
-        else:
-            raise NameError("{} is unknown NN.".format(vgg_arch))
-    elif isinstance(vgg_arch, list):
-        pass
-    else:
-        raise TypeError("vgg_arch must be list or str.")
+    def _build(self, *args, **kwargs):
+        """build function for VGG."""
+        dim = self.get_from_config('dim', 2)
+        n_classes = self.get_from_config('n_classes', 2)
+        b_norm = self.get_from_config('b_norm')
+        vgg_arch = self.get_from_config('vgg_arch', 'VGG16')
 
-    net = inp
-    with tf.variable_scope('VGG-conv'):  # pylint: disable=not-context-manager
-        for i, block in enumerate(vgg_arch):
-            depth, filters, last_layer = block
-            if last_layer:
-                layout = ('c' + 'n' * b_norm + 'a') * (depth - 1)
-                net = conv2d_block(net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
-                layout = 'c' + 'n' * b_norm + 'ap'
-                net = conv2d_block(net, filters, 1, layout, 'conv-block-1x1-' + str(i), is_training=training)
-            else:
-                layout = ('c' + 'n' * b_norm + 'a') * depth + 'p'
-                net = conv2d_block(net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
-            net = tf.identity(net, name='conv-block-{}-output'.format(i))
-    return net
-
-
-def vgg(inp, output_dim, vgg_arch, b_norm, training, momentum):
-    """VGG tf.layers.
-    """
-    with tf.variable_scope('VGG'):  # pylint: disable=not-context-manager
-        net = vgg_convolution(inp, vgg_arch, b_norm, training)
-        net = tf.contrib.layers.flatten(net)
-        net = vgg_fc_block(net, output_dim, b_norm, training, momentum)
-    return net
+        inp = self.create_input()
+        outp = vgg(dim, inp, n_classes, b_norm, 'predictions', self.is_training, vgg_arch)
+        self.create_target('classification')
+        self.create_output(outp)
 
 
 VGG16 = [(2, 64, False),
@@ -85,12 +54,32 @@ VGG19 = [(2, 64, False),
          (4, 512, False)]
 
 
-class VGGModel(TFModel):
-    """VGG as TFModel
+VGG7 = [(2, 64, False),
+         (2, 128, False),
+         (3, 256, True)]
+
+
+def vgg(dim, inp, n_classes, b_norm, output_name, training, vgg_arch):
+    """VGG tf.layers.
 
     Parameters
     ----------
-    images_shape : tuple of ints
+    dim : int
+        spacial dimension of input without the number of channels
+
+    inp : tf.Tensor
+
+    n_classes : int
+        number of classes to segmentate
+
+    b_norm : bool
+        if True enable batch normalization
+
+    output_name : string
+        name of the output tensor
+
+    training : tf.Tensor
+        batch normalization training parameter
 
     vgg_arch : str or list of tuples
         Describes VGG architecture. If str, it should be 'VGG16' or 'VGG19'. If list of tuple,
@@ -102,34 +91,105 @@ class VGGModel(TFModel):
             tuple[2] : bool:
                 True if the last kernel is 1x1, False if 3x3.
 
+    Return
+    ------
+    outp : tf.Tensor
+
+    """
+    with tf.variable_scope('VGG'):  # pylint: disable=not-context-manager
+        net = vgg_convolution(dim, inp, b_norm, training, vgg_arch)
+        net = tf.contrib.layers.flatten(net)
+        net = vgg_fc_block(net, n_classes, b_norm, training)
+    return tf.identity(net, output_name)
+
+
+def vgg_fc_block(inp, n_classes, b_norm, training):
+    """VGG fully connected block
+
+    Parameters
+    ----------
+    inp : tf.Tensor
+
+    n_classes : int
+        number of output filters
+
     b_norm : bool
-        Use batch normalization. By default is True.
+        if True enable batch normalization
 
-    momentum : float
-        Batch normalization momentum. By default is 0.9.
+    training : tf.Tensor
+        batch normalization training parameter
 
-    n_classes : int.
+    Return
+    ------
+    outp : tf.Tensor
     """
 
-    def _build(self, *args, **kwargs):
-        """build function for VGG."""
-        images_shape = [None] + list(self.get_from_config('images_shape'))
+    with tf.variable_scope('VGG-fc'):  # pylint: disable=not-context-manager
+        net = tf.layers.dense(inp, 100, name='fc1')
+        if b_norm:
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm1')
+            net = tf.nn.relu(net)
+        net = tf.layers.dense(net, 100, name='fc2')
+        if b_norm:
+            net = tf.layers.batch_normalization(net,
+                                                training=training,
+                                                name='batch-norm2')
+            net = tf.nn.relu(net)
+        outp = tf.layers.dense(net, n_classes, name='fc3')
+    return outp
 
-        vgg_arch = self.get_from_config('vgg_arch', 'VGG16')
 
-        n_classes = self.get_from_config('n_classes')
+def vgg_convolution(dim, inp, b_norm, training, vgg_arch):
+    """VGG convolution part.
 
-        b_norm = self.get_from_config('b_norm', True)
-        momentum = self.get_from_config('momentum', 0.9)
+    Parameters
+    ----------
+    dim : int
+        spacial dimension of input without the number of channels
 
-        x_ph = tf.placeholder(tf.float32, shape=images_shape, name='images')
-        labels_ph = tf.placeholder(tf.uint8, shape=[None], name='labels')
-        training_ph = tf.placeholder(tf.bool, shape=[], name='training')
+    inp : tf.Tensor
 
-        tf.one_hot(labels_ph, depth=n_classes, name='targets')
+    b_norm : bool
+        if True enable batch normalization
 
-        model_output = vgg(x_ph, n_classes, vgg_arch, b_norm, training_ph, momentum)
-        predictions = tf.identity(model_output, name='predictions')
+    training : tf.Tensor
+        batch normalization training parameter
 
-        y_pred_softmax = tf.nn.softmax(predictions, name='predicted_prob')
-        tf.argmax(y_pred_softmax, axis=1, name='predicted_labels')
+    vgg_arch : str or list of tuples
+        see vgg()
+
+    Return
+    ------
+    outp : tf.Tensor
+    """
+
+    if isinstance(vgg_arch, str):
+        if vgg_arch == 'VGG16':
+            vgg_arch = VGG16
+        elif vgg_arch == 'VGG19':
+            vgg_arch = VGG19
+        elif vgg_arch == 'VGG7':
+            vgg_arch = VGG7
+        else:
+            raise NameError("{} is unknown NN.".format(vgg_arch))
+    elif isinstance(vgg_arch, list):
+        pass
+    else:
+        raise TypeError("vgg_arch must be list or str.")
+
+    net = inp
+    with tf.variable_scope('VGG-conv'):  # pylint: disable=not-context-manager
+        for i, block in enumerate(vgg_arch):
+            depth, filters, last_layer = block
+            if last_layer:
+                layout = ('c' + 'n' * b_norm + 'a') * (depth - 1)
+                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
+                layout = 'c' + 'n' * b_norm + 'ap'
+                net = conv_block(dim, net, filters, 1, layout, 'conv-block-1x1-' + str(i), is_training=training)
+            else:
+                layout = ('c' + 'n' * b_norm + 'a') * depth + 'p'
+                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
+            net = tf.identity(net, name='conv-block-{}-output'.format(i))
+    return net
