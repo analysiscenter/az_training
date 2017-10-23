@@ -17,7 +17,7 @@ class NetworkModel(TFModel):
         spacial dimension of input without the number of channels.
     """
     def __init__(self, *args, **kwargs):
-        super(self).__init__(*args, **kwargs)
+        super(NetworkModel, self).__init__(*args, **kwargs)
         self.input_shape = None
 
     def create_input(self):
