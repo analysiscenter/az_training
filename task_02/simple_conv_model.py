@@ -1,4 +1,5 @@
 """ File with convolution network """
+
 import sys
 
 import tensorflow as tf
@@ -6,23 +7,24 @@ import tensorflow as tf
 sys.path.append('..')
 
 from dataset.dataset.models.tf import TFModel
-from dataset.dataset.models.tf.layers import conv2d_block
+from dataset.dataset.models.tf.layers import conv_block
 
 
 class ConvModel(TFModel):
-    """ Simple convolution model """
-
+    """ Class to build conv model """
     def _build(self, *args, **kwargs):
         _ = args, kwargs
-        image = tf.placeholder(tf.float32, [None, 784], 'input')
-        image = tf.reshape(image, shape=[-1, 28, 28, 1])
+        keep_prob = tf.placeholder(tf.float32, name='dropout_rate')
+        training = self.is_training
 
-        net = conv2d_block(image, filters=4, kernel_size=(7, 7), layout='cpa', pool_size=(6, 6),
-                           pool_strides=(2, 2))
-        net = conv2d_block(net, filters=16, kernel_size=(5, 5), layout='cpa', pool_size=(5, 5),
-                           pool_strides=(2, 2))
-        net = conv2d_block(net, filters=32, kernel_size=(3, 3), layout='cpa', pool_size=(2, 2),
-                           pool_strides=(2, 2))
+        image = tf.placeholder(tf.float32, [None, 28, 28], name='input')
+        image = tf.reshape(image, shape=[-1, 28, 28, 1])
+        net = conv_block(2, image, filters=16, kernel_size=(7, 7), layout='cpna', pool_size=(3, 3),
+                         pool_strides=(2, 2))
+        net = conv_block(2, net, filters=32, kernel_size=(5, 5), layout='cpna', pool_size=(3, 3),
+                         pool_strides=(2, 2))
+        net = conv_block(2, net, filters=64, kernel_size=(3, 3), layout='cpna', pool_size=(2, 2),
+                         pool_strides=(1, 1), dropout_rate=keep_prob, is_training=training)
 
         net = tf.contrib.layers.flatten(net)
         net = tf.layers.dense(net, 128)
