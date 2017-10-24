@@ -66,7 +66,3 @@ class MyMnistModel(TFModel):
         labels = tf.cast(tf.argmax(y_, axis=1), tf.float32)
         true_labels = tf.identity(labels, name='true_labels')
         accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
-
-
-
-        # print('VARS ', tf.get_collection(tf.GraphKeys.VARIABLES))
