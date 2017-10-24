@@ -81,18 +81,18 @@ def fcn(dim, inp, n_classes, b_norm, output_name, training, fcn_arch):
         pool4 = tf.get_default_graph().get_tensor_by_name(fcn_arch+"/VGG-conv/conv-block-3-output:0")
         pool3 = tf.get_default_graph().get_tensor_by_name(fcn_arch+"/VGG-conv/conv-block-2-output:0")
         if fcn_arch == 'FCN32':
-            net = conv_block(dim, conv7, n_classes, 64, 't', 32)
+            net = conv_block(dim, conv7, n_classes, 64, 't', 'output', 32)
         else:
-            conv7 = conv_block(dim, conv7, n_classes, 1, 't', 2)
-            pool4 = conv_block(dim, pool4, n_classes, 1, 'c', 1)
+            conv7 = conv_block(dim, conv7, n_classes, 1, 't', 'conv7', 2)
+            pool4 = conv_block(dim, pool4, n_classes, 1, 'c', 'pool4', 1)
             fcn16_sum = tf.add(conv7, pool4)
             if fcn_arch == 'FCN16':
-                net = conv_block(dim, fcn16_sum, n_classes, 32, 't', 16)
+                net = conv_block(dim, fcn16_sum, n_classes, 32, 't', 'output', 16)
             elif fcn_arch == 'FCN8':
-                pool3 = conv_block(dim, pool3, n_classes, 1, 'c')
-                fcn16_sum = conv_block(dim, fcn16_sum, n_classes, 1, 't', 2)
+                pool3 = conv_block(dim, pool3, n_classes, 1, 'pool3', 'c')
+                fcn16_sum = conv_block(dim, fcn16_sum, n_classes, 1, 't', 'fcn16_sum', 2)
                 fcn8_sum = tf.add(pool3, fcn16_sum)
-                net = conv_block(dim, fcn8_sum, n_classes, 16, 't', 8)
+                net = conv_block(dim, fcn8_sum, n_classes, 16, 't', 'output', 8)
             else:
                 raise ValueError('Wrong value of fcn_arch')
     return tf.identity(net, output_name)

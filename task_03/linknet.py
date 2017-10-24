@@ -7,13 +7,30 @@ class LinkNetModel(NetworkModel):
     """LinkNet as TFModel"""
     def _build(self, *args, **kwargs):
         """ build function for LinkNet """
-        dim = self.get_from_config('dim', 2)
-        n_classes = self.get_from_config('n_classes', 2)
-        b_norm = self.get_from_config('b_norm')
+        """
+        input_config = self.get_from_config('input')
+        input_shape = input_config['input_shape']
+
+        output_config = self.get_from_config('output')
+
+        dim = len(input_shape) - 1
+        n_classes = output_config.get('n_outputs', 2)
+        b_norm = self.get_from_config('b_norm', True)
 
         inp = self.create_input()
         linknet(dim, inp, n_classes, b_norm, 'predictions', self.is_training)
         self.create_target('segmentation')
+        """
+        inp = self.create_placeholders('input')[0]
+        targets = self.create_placeholders('targets')
+
+        dim = len(inp.get_shape()) - 2
+        n_classes = self.get_from_config('n_classes')
+        b_norm = self.get_from_config('b_norm', True)
+
+        logit = linknet(dim, inp, n_classes, b_norm, 'predictions', self.is_training)
+
+        self.create_outputs_from_logit(logit)
 
 def encoder_block(dim, inp, out_filters, name, b_norm, training):
     """LinkNet encoder block.
