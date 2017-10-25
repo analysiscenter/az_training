@@ -60,7 +60,7 @@ def unet(dim, inp, n_classes, b_norm, output_name, **kwargs):
             axis = 1
 
         for i, filters in enumerate(unet_filters):
-            net = conv_block(dim, net, filters, 3, layout, 'encoder-'+str(i), 
+            net = conv_block(dim, net, filters, 3, layout, 'encoder-'+str(i),
                              pool_size=2, **kwargs)
             encoder_outputs.append(net)
 
