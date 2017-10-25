@@ -30,18 +30,18 @@ class VGGModel(NetworkModel):
 
     def _build(self, *args, **kwargs):
         """build function for VGG."""
-        inp, targ = self.create_placeholders('placeholders')
+        placeholders = self.create_placeholders('placeholders')
 
         dim = len(inp.get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('b_norm', True)
-        data_format = self.get_from_config('data_format', 'channels_last')
         vgg_arch = self.get_from_config('vgg_arch', 'VGG16')
 
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
         batch_norm = {'training': self.is_training, 'momentum': 0.99}
-        
-        logit = vgg(dim, inp, n_classes, b_norm, 'predictions', vgg_arch, conv=conv, batch_norm=batch_norm)
+
+        logit = vgg(dim, placeholders[0], n_classes, b_norm, 'predictions', vgg_arch, 
+                    conv=conv, batch_norm=batch_norm)
         self.create_outputs_from_logit(logit)
 
 
@@ -128,14 +128,14 @@ def vgg_convolution(dim, inp, b_norm, vgg_arch, **kwargs):
             depth, filters, last_layer = block
             if last_layer:
                 layout = ('c' + 'n' * b_norm + 'a') * (depth - 1)
-                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i), 
+                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i),
                                  **kwargs)
                 layout = 'c' + 'n' * b_norm + 'ap'
-                net = conv_block(dim, net, filters, 1, layout, 'conv-block-1x1-' + str(i), 
+                net = conv_block(dim, net, filters, 1, layout, 'conv-block-1x1-' + str(i),
                                  **kwargs)
             else:
                 layout = ('c' + 'n' * b_norm + 'a') * depth + 'p'
-                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i), 
+                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i),
                                  **kwargs)
             net = tf.identity(net, name='conv-block-{}-output'.format(i))
     return net

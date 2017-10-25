@@ -21,7 +21,8 @@ class LinkNetModel(NetworkModel):
         linknet(dim, inp, n_classes, b_norm, 'predictions', self.is_training)
         self.create_target('segmentation')
         """
-        inp, targets = self.create_placeholders('placeholders')
+
+        placeholders = self.create_placeholders('placeholders')
         dim = len(inp.get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('b_norm', True)
@@ -29,7 +30,8 @@ class LinkNetModel(NetworkModel):
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
         batch_norm = {'training': self.is_training, 'momentum': 0.99}
 
-        logit = linknet(dim, inp, n_classes, b_norm, 'predictions', conv=conv, batch_norm=batch_norm)
+        logit = linknet(dim, placeholders[0], n_classes, b_norm, 'predictions',
+                        conv=conv, batch_norm=batch_norm)
 
         self.create_outputs_from_logit(logit)
 
