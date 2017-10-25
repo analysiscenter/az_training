@@ -30,7 +30,7 @@ class VGGModel(NetworkModel):
 
     def _build(self, *args, **kwargs):
         """build function for VGG."""
-        placeholders = self.create_placeholders('placeholders')
+        placeholders = self.create_placeholders()
 
         dim = len(placeholders['input'].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')

@@ -6,7 +6,7 @@ from basemodels import NetworkModel
 class UNetModel(NetworkModel):
     """LinkNet as TFModel"""
     def _build(self, *args, **kwargs):
-        placeholders = self.create_placeholders('placeholders')
+        placeholders = self.create_placeholders()
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
         batch_norm = {'training': self.is_training, 'momentum': 0.1}
 
