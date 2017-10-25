@@ -6,15 +6,16 @@ from basemodels import NetworkModel
 class UNetModel(NetworkModel):
     """LinkNet as TFModel"""
     def _build(self, *args, **kwargs):
+        placeholders = self.create_placeholders('placeholders')
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
         batch_norm = {'training': self.is_training, 'momentum': 0.1}
 
-        logit = unet(len(placeholders[0].get_shape()) - 2, 
+        logit = unet(len(placeholders[0].get_shape()) - 2,
                      placeholders[0],
                      self.get_from_config('n_classes'),
-                     self.get_from_config('b_norm', True), 
+                     self.get_from_config('b_norm', True),
                      'predictions',
-                     conv=conv, 
+                     conv=conv,
                      batch_norm=batch_norm)
 
         self.create_outputs_from_logit(logit)
