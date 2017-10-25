@@ -4,7 +4,6 @@ import tensorflow as tf
 
 sys.path.append('..')
 
-from dataset.dataset.models.tf import TFModel
 from dataset.dataset.models.tf.layers import conv_block
 from basemodels import NetworkModel
 
@@ -31,25 +30,22 @@ class VGGModel(NetworkModel):
 
     def _build(self, *args, **kwargs):
         """build function for VGG."""
-        inp = self.create_placeholders('input')[0]
-        targ = self.create_placeholders('targets')
+        inp, targ = self.create_placeholders('placeholders')
 
         dim = len(inp.get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('b_norm', True)
-
+        data_format = self.get_from_config('data_format', 'channels_last')
         vgg_arch = self.get_from_config('vgg_arch', 'VGG16')
 
-        print(inp, targ)
-
-        logit = vgg(dim, inp, n_classes, b_norm, 'predictions', self.is_training, vgg_arch)
-
-        print(logit)
-
+        conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
+        batch_norm = {'training': self.is_training, 'momentum': 0.99}
+        
+        logit = vgg(dim, inp, n_classes, b_norm, 'predictions', vgg_arch, conv=conv, batch_norm=batch_norm)
         self.create_outputs_from_logit(logit)
 
 
-def vgg_fc_block(inp, n_classes, b_norm, training):
+def vgg_fc_block(inp, n_classes, b_norm, **kwargs):
     """VGG fully connected block
 
     Parameters
@@ -69,6 +65,7 @@ def vgg_fc_block(inp, n_classes, b_norm, training):
     ------
     outp : tf.Tensor
     """
+    training = kwargs['batch_norm']['training']
 
     with tf.variable_scope('VGG-fc'):  # pylint: disable=not-context-manager
         net = tf.layers.dense(inp, 100, name='fc1')
@@ -87,7 +84,7 @@ def vgg_fc_block(inp, n_classes, b_norm, training):
     return outp
 
 
-def vgg_convolution(dim, inp, b_norm, training, vgg_arch):
+def vgg_convolution(dim, inp, b_norm, vgg_arch, **kwargs):
     """VGG convolution part.
 
     Parameters
@@ -131,17 +128,20 @@ def vgg_convolution(dim, inp, b_norm, training, vgg_arch):
             depth, filters, last_layer = block
             if last_layer:
                 layout = ('c' + 'n' * b_norm + 'a') * (depth - 1)
-                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
+                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i), 
+                                 **kwargs)
                 layout = 'c' + 'n' * b_norm + 'ap'
-                net = conv_block(dim, net, filters, 1, layout, 'conv-block-1x1-' + str(i), is_training=training)
+                net = conv_block(dim, net, filters, 1, layout, 'conv-block-1x1-' + str(i), 
+                                 **kwargs)
             else:
                 layout = ('c' + 'n' * b_norm + 'a') * depth + 'p'
-                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i), is_training=training)
+                net = conv_block(dim, net, filters, 3, layout, 'conv-block-' + str(i), 
+                                 **kwargs)
             net = tf.identity(net, name='conv-block-{}-output'.format(i))
     return net
 
 
-def vgg(dim, inp, n_classes, b_norm, output_name, training, vgg_arch):
+def vgg(dim, inp, n_classes, b_norm, output_name, vgg_arch, **kwargs):
     """VGG tf.layers.
 
     Parameters
@@ -179,9 +179,9 @@ def vgg(dim, inp, n_classes, b_norm, output_name, training, vgg_arch):
 
     """
     with tf.variable_scope('VGG'):  # pylint: disable=not-context-manager
-        net = vgg_convolution(dim, inp, b_norm, training, vgg_arch)
+        net = vgg_convolution(dim, inp, b_norm, vgg_arch, **kwargs)
         net = tf.contrib.layers.flatten(net)
-        net = vgg_fc_block(net, n_classes, b_norm, training)
+        net = vgg_fc_block(net, n_classes, b_norm, **kwargs)
     return tf.identity(net, output_name)
 
 
@@ -200,5 +200,5 @@ VGG19 = [(2, 64, False),
 
 
 VGG7 = [(2, 64, False),
-         (2, 128, False),
-         (3, 256, True)]
+        (2, 128, False),
+        (3, 256, True)]

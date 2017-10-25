@@ -21,33 +21,33 @@ class NetworkModel(TFModel):
         self.input_shape = None
 
     def create_placeholders(self, name):
-
-        """Create tf.placeholder.
+        """Create tf.placeholders from dict config[name].
 
         Parameters
         ----------
         name : str
-            name of the placeholder before transformation
-        postname : str or None (default)
-            name of the placeholder after transformation
+            key in config of the model, corresponding value is config of the placeholder (see below)
 
         Return
         ------
-        out : tf.Tensor
+        out : list of tf.Tensors
         
-        If postname is None, create_placeholder uses dict self.get_from_config(name),
-        if str, uses dict self.get_from_config(postname):
+        Placeholder will be created for each key in dictionary self.get_from_config(name) where key
+        is placeholder name and corresponding values are config dictionaries with the following keys : values:
 
-        shape : tuple or list,
-            the shape of placeholder the input of model which include the number of channels, input batch will be
-            reshaped into that shape.
-        input_type : str or tf.DType
-            type of the input tensor. If str, it must be name of the tf type (int32, float64, ...).
-        name : str
-            name of the input in tf graph
-        data_format : str
+        type : str or tf.DType (by default 'float32')
+            type of the tensor. If str, it must be name of the tf type (int32, float64, etc).
+        shape : tuple, list or None (default),
+            the shape of placeholder which include the number of channels and doesn't include batch size.
+            Feeded tensor will be reshaped into [-1, shape].
+        data_format : str (by default 'channels_last')
             one of channels_last (default) or channels_first. The ordering of the dimensions in the inputs. 
-        n_outputs : int
+        transform : str or None
+            if transform='oh' one-hot encoding will be produced with n_classes. The new axis is created
+            at the last dimension if data_format is channels_last or at the first after batch size otherwise.
+        n_classes : int
+        name : str
+            name of the transformed and reshaped tensor.
         """
         
         placeholders_config = self.get_from_config(name)
@@ -57,25 +57,30 @@ class NetworkModel(TFModel):
         for name, config in placeholders_config.items():
             shape = config.get('shape', None)
             dtype = self._create_type(config)
-            transform = config.get('transform', None)
             postname = config.get('name', name+'-post')
 
-            pl = tf.placeholder(dtype, name=name)
+            placeholder = tf.placeholder(dtype, name=name)
+            
+            placeholder = self._transform(placeholder, config)
+            placeholder = self._reshape(placeholder, config)
 
-            if shape is not None:
-                pl = tf.reshape(pl, [-1] + list(shape))
-            if transform == 'label_to_oh':
-                data_format = config.get('data_format', 'channels_last')
-                n_classes = config.get('n_classes', None)
-                if data_format == 'channels_last':
-                    pl = tf.one_hot(pl, depth=n_classes, axis=-1)
-                elif data_format == 'channels_first':
-                    pl = tf.one_hot(pl, depth=n_classes, axis=1)
-                else:
-                    raise ValueError("data_format must be channels_last or channels_first",
-                                     "but {} was given".format(data_format))
-            res.append(tf.identity(pl, name=postname))
+            res.append(tf.identity(placeholder, name=postname))
         return res
+
+    def _transform(self, placeholder, config):
+        transform = config.get('transform', None)
+        if transform is not None:
+            transform = transform.split('-')
+            transform_dict = {'oh': self._one_hot_transform}
+            for transform_name in transform:
+                placeholder = transform_dict[transform_name](placeholder, config)
+        return placeholder
+
+    def _reshape(self, placeholder, config):
+        shape = config.get('shape', None)
+        if shape is not None:
+                placeholder = tf.reshape(placeholder, [-1] + list(shape))
+        return placeholder
 
     def create_outputs_from_logit(self, logit):
         """Create output for models which produce logit output
@@ -98,3 +103,19 @@ class NetworkModel(TFModel):
         else:
             raise ValueError('type must be str or tf.DType but {} was given'.format(type(type_in_config)))
         return type_in_config
+
+    def _one_hot_transform(self, placeholder, config):
+        shape = config.get('shape', None)
+        data_format = config.get('data_format', 'channels_last')        
+        if data_format == 'channels_last':
+            n_classes = shape[-1]
+            placeholder = tf.one_hot(placeholder, depth=n_classes, axis=-1)
+        elif data_format == 'channels_first':
+            n_classes = shape[0]
+            placeholder = tf.one_hot(placeholder, depth=n_classes, axis=1)
+        else:
+            raise ValueError("data_format must be channels_last or channels_first",
+                             "but {} was given".format(data_format))
+        return placeholder
+
+

@@ -31,18 +31,19 @@ class FCNModel(NetworkModel):
     def _build(self, *args, **kwargs):
         """build function for VGG."""
 
-        dim = self.get_from_config('dim', 2)
-        n_classes = self.get_from_config('n_classes', 2)
-        b_norm = self.get_from_config('b_norm')
+        inp, targets = self.create_placeholders('placeholders')
+        dim = len(inp.get_shape()) - 2
+        n_classes = self.get_from_config('n_classes')
+        b_norm = self.get_from_config('b_norm', True)
         fcn_arch = self.get_from_config('fcn_arch', 'FCN32')
 
-        inp = self.create_input()
-        outp = fcn(dim, inp, n_classes, b_norm, 'predictions', self.is_training, fcn_arch)
-        self.create_target('segmentation')
-        self.create_output(outp)
+        conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
+        batch_norm = {'training': self.is_training, 'momentum': 0.99}
+
+        outp = fcn(dim, inp, n_classes, b_norm, 'predictions', fcn_arch, conv=conv, batch_norm=batch_norm)
 
 
-def fcn(dim, inp, n_classes, b_norm, output_name, training, fcn_arch):
+def fcn(dim, inp, n_classes, b_norm, output_name, fcn_arch, **kwargs):
     """FCN network.
 
     Parameters
@@ -73,26 +74,26 @@ def fcn(dim, inp, n_classes, b_norm, output_name, training, fcn_arch):
 
     """
     with tf.variable_scope(fcn_arch):  # pylint: disable=not-context-manager
-        net = vgg_convolution(dim, inp, b_norm, training, 'VGG16')
-        net = conv_block(dim, net, 4096, 7, 'ca', 'conv-out-1', is_training=training)
-        net = conv_block(dim, net, 4096, 1, 'ca', 'conv-out-2', padding='VALID', is_training=training)
-        net = conv_block(dim, net, n_classes, 1, 'ca', 'conv-out-3', padding='VALID', is_training=training)
+        net = vgg_convolution(dim, inp, b_norm, 'VGG16', **kwargs)
+        net = conv_block(dim, net, 4096, 7, 'ca', 'conv-out-1', **kwargs)
+        net = conv_block(dim, net, 4096, 1, 'ca', 'conv-out-2', padding='VALID', **kwargs)
+        net = conv_block(dim, net, n_classes, 1, 'ca', 'conv-out-3', padding='VALID', **kwargs)
         conv7 = net
         pool4 = tf.get_default_graph().get_tensor_by_name(fcn_arch+"/VGG-conv/conv-block-3-output:0")
         pool3 = tf.get_default_graph().get_tensor_by_name(fcn_arch+"/VGG-conv/conv-block-2-output:0")
         if fcn_arch == 'FCN32':
-            net = conv_block(dim, conv7, n_classes, 64, 't', 'output', 32)
+            net = conv_block(dim, conv7, n_classes, 64, 't', 'output', 32, **kwargs)
         else:
-            conv7 = conv_block(dim, conv7, n_classes, 1, 't', 'conv7', 2)
-            pool4 = conv_block(dim, pool4, n_classes, 1, 'c', 'pool4', 1)
+            conv7 = conv_block(dim, conv7, n_classes, 1, 't', 'conv7', 2, **kwargs)
+            pool4 = conv_block(dim, pool4, n_classes, 1, 'c', 'pool4', 1, **kwargs)
             fcn16_sum = tf.add(conv7, pool4)
             if fcn_arch == 'FCN16':
-                net = conv_block(dim, fcn16_sum, n_classes, 32, 't', 'output', 16)
+                net = conv_block(dim, fcn16_sum, n_classes, 32, 't', 'output', 16, **kwargs)
             elif fcn_arch == 'FCN8':
                 pool3 = conv_block(dim, pool3, n_classes, 1, 'pool3', 'c')
-                fcn16_sum = conv_block(dim, fcn16_sum, n_classes, 1, 't', 'fcn16_sum', 2)
+                fcn16_sum = conv_block(dim, fcn16_sum, n_classes, 1, 't', 'fcn16_sum', 2, **kwargs)
                 fcn8_sum = tf.add(pool3, fcn16_sum)
-                net = conv_block(dim, fcn8_sum, n_classes, 16, 't', 'output', 8)
+                net = conv_block(dim, fcn8_sum, n_classes, 16, 't', 'output', 8, **kwargs)
             else:
                 raise ValueError('Wrong value of fcn_arch')
     return tf.identity(net, output_name)
