@@ -20,13 +20,8 @@ class NetworkModel(TFModel):
         super().__init__(*args, **kwargs)
         self.input_shape = None
 
-    def create_placeholders(self, name):
-        """Create tf.placeholders from dict config[name].
-
-        Parameters
-        ----------
-        name : str
-            key in config of the model, corresponding value is config of the placeholder (see below)
+    def create_placeholders(self):
+        """Create tf.placeholders from dict config['placeholders'].
 
         Return
         ------
@@ -50,9 +45,9 @@ class NetworkModel(TFModel):
             name of the transformed and reshaped tensor.
         """
 
-        placeholders_config = self.get_from_config(name)
+        placeholders_config = self.get_from_config('placeholders')
 
-        res = []
+        res = dict()
 
         for name, config in placeholders_config.items():
             dtype = self._create_type(config)
@@ -63,7 +58,7 @@ class NetworkModel(TFModel):
             placeholder = self._transform(placeholder, config)
             placeholder = self._reshape(placeholder, config)
 
-            res.append(tf.identity(placeholder, name=postname))
+            res[name] = tf.identity(placeholder, name=postname)
         return res
 
     def _transform(self, placeholder, config):

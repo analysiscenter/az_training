@@ -32,7 +32,7 @@ class FCNModel(NetworkModel):
         """build function for VGG."""
 
         placeholders = self.create_placeholders('placeholders')
-        dim = len(placeholders[0].get_shape()) - 2
+        dim = len(placeholders['input'].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('b_norm', True)
         fcn_arch = self.get_from_config('fcn_arch', 'FCN32')
@@ -40,7 +40,7 @@ class FCNModel(NetworkModel):
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
         batch_norm = {'training': self.is_training, 'momentum': 0.99}
 
-        fcn(dim, placeholders[0], n_classes, b_norm, 'predictions', fcn_arch,
+        fcn(dim, placeholders['input'], n_classes, b_norm, 'predictions', fcn_arch,
             conv=conv, batch_norm=batch_norm)
 
 

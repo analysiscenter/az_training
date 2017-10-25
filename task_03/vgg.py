@@ -32,7 +32,7 @@ class VGGModel(NetworkModel):
         """build function for VGG."""
         placeholders = self.create_placeholders('placeholders')
 
-        dim = len(placeholders[0].get_shape()) - 2
+        dim = len(placeholders['input'].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('b_norm', True)
         vgg_arch = self.get_from_config('vgg_arch', 'VGG16')
@@ -40,7 +40,7 @@ class VGGModel(NetworkModel):
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
         batch_norm = {'training': self.is_training, 'momentum': 0.99}
 
-        logit = vgg(dim, placeholders[0], n_classes, b_norm, 'predictions', vgg_arch,
+        logit = vgg(dim, placeholders['input'], n_classes, b_norm, 'predictions', vgg_arch,
                     conv=conv, batch_norm=batch_norm)
         self.create_outputs_from_logit(logit)
 

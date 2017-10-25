@@ -6,15 +6,15 @@ from basemodels import NetworkModel
 class LinkNetModel(NetworkModel):
     """LinkNet as TFModel"""
     def _build(self, *args, **kwargs):
-        placeholders = self.create_placeholders('placeholders')
-        dim = len(placeholders[0].get_shape()) - 2
+        placeholders = self.create_placeholders()
+        dim = len(placeholders['input'].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('b_norm', True)
 
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
         batch_norm = {'training': self.is_training, 'momentum': 0.1}
 
-        logit = linknet(dim, placeholders[0], n_classes, b_norm, 'predictions',
+        logit = linknet(dim, placeholders['input'], n_classes, b_norm, 'predictions',
                         conv=conv, batch_norm=batch_norm)
 
         self.create_outputs_from_logit(logit)

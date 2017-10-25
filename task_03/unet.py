@@ -10,8 +10,8 @@ class UNetModel(NetworkModel):
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
         batch_norm = {'training': self.is_training, 'momentum': 0.1}
 
-        logit = unet(len(placeholders[0].get_shape()) - 2,
-                     placeholders[0],
+        logit = unet(len(placeholders['input'].get_shape()) - 2,
+                     placeholders['input'],
                      self.get_from_config('n_classes'),
                      self.get_from_config('b_norm', True),
                      'predictions',
