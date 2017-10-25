@@ -32,7 +32,7 @@ class FCNModel(NetworkModel):
         """build function for VGG."""
 
         placeholders = self.create_placeholders('placeholders')
-        dim = len(inp.get_shape()) - 2
+        dim = len(placeholders[0].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('b_norm', True)
         fcn_arch = self.get_from_config('fcn_arch', 'FCN32')

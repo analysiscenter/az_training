@@ -6,24 +6,8 @@ from basemodels import NetworkModel
 class LinkNetModel(NetworkModel):
     """LinkNet as TFModel"""
     def _build(self, *args, **kwargs):
-        """ build function for LinkNet """
-        """
-        input_config = self.get_from_config('input')
-        input_shape = input_config['input_shape']
-
-        output_config = self.get_from_config('output')
-
-        dim = len(input_shape) - 1
-        n_classes = output_config.get('n_outputs', 2)
-        b_norm = self.get_from_config('b_norm', True)
-
-        inp = self.create_input()
-        linknet(dim, inp, n_classes, b_norm, 'predictions', self.is_training)
-        self.create_target('segmentation')
-        """
-
         placeholders = self.create_placeholders('placeholders')
-        dim = len(inp.get_shape()) - 2
+        dim = len(placeholders[0].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('b_norm', True)
 
