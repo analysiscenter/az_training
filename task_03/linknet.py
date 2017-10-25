@@ -12,7 +12,7 @@ class LinkNetModel(NetworkModel):
         b_norm = self.get_from_config('b_norm', True)
 
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
-        batch_norm = {'training': self.is_training, 'momentum': 0.99}
+        batch_norm = {'training': self.is_training, 'momentum': 0.1}
 
         logit = linknet(dim, placeholders[0], n_classes, b_norm, 'predictions',
                         conv=conv, batch_norm=batch_norm)
