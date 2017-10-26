@@ -1,23 +1,36 @@
 """ LinkNet as TFModel """
 import tensorflow as tf
 from dataset.dataset.models.tf.layers import conv_block
-from basemodels import NetworkModel
+from dataset.dataset.models.tf import TFModel
 
-class LinkNetModel(NetworkModel):
+class LinkNetModel(TFModel):
     """LinkNet as TFModel"""
-    def _build(self, *args, **kwargs):
-        placeholders = self.create_placeholders()
-        dim = len(placeholders['input'].get_shape()) - 2
+    def _build(self, inputs, *args, **kwargs):
+        
+        dim = len(inputs['input'].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
-        b_norm = self.get_from_config('b_norm', True)
+        b_norm = self.get_from_config('batch_norm', True)
 
         conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
-        batch_norm = {'training': self.is_training, 'momentum': 0.1}
 
-        logit = linknet(dim, placeholders['input'], n_classes, b_norm, 'predictions',
+        batch_norm = {'momentum': 0.1}
+
+        logit = linknet(dim, inputs['input'], n_classes, b_norm, 'predictions',
                         conv=conv, batch_norm=batch_norm)
 
-        self.create_outputs_from_logit(logit)
+        self._create_outputs_from_logit(logit)
+
+    def _create_outputs_from_logit(self, logit):
+        """Create output for models which produce logit output
+        Return
+        ------
+        predicted_prob, predicted_labels : tf.tensors
+        """
+
+        predicted_prob = tf.nn.softmax(logit, name='predicted_prob')
+        max_axis = len(logit.get_shape())-1
+        predicted_labels = tf.argmax(predicted_prob, axis=max_axis, name='predicted_labels')
+        return predicted_prob, predicted_labels
 
 def encoder_block(dim, inp, out_filters, name, b_norm, **kwargs):
     """LinkNet encoder block.
@@ -46,7 +59,7 @@ def encoder_block(dim, inp, out_filters, name, b_norm, **kwargs):
     outp : tf.Tensor
     """
     with tf.variable_scope(name): # pylint: disable=not-context-manager
-        layout = 'c' + 'n' * b_norm + 'a'
+        layout = 'cna' if b_norm else 'ca'
         net = conv_block(dim, inp, out_filters, 3, layout, 'encoder_conv_1', 2, **kwargs)
         net = conv_block(dim, net, out_filters, 3, layout, 'encoder_conv_2', **kwargs)
         shortcut = conv_block(dim, inp, out_filters, 1, layout, 'encoder_short_1', 2, **kwargs)
@@ -85,8 +98,8 @@ def decoder_block(dim, inp, out_filters, name, b_norm, **kwargs):
 
     """
     with tf.variable_scope(name): # pylint: disable=not-context-manager
-        layout = 'c' + 'n' * b_norm + 'a'
-        layout_transpose = 't' + 'n' * b_norm + 'a'
+        layout = 'cna' if b_norm else 'ca'
+        layout_transpose = 'tna' if b_norm else 'ta'
 
         n_filters = inp.get_shape()[-1].value // 4
 
@@ -124,7 +137,7 @@ def linknet(dim, inp, n_classes, b_norm, output_name, **kwargs):
 
     """
     with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
-        layout = 'cp' + 'n' * b_norm + 'a'
+        layout = 'cpna' if b_norm else 'cpa'
 
         net = conv_block(dim, inp, 64, 7, layout, 'decoder_conv_3', 2, pool_size=3, **kwargs)
 
@@ -140,8 +153,8 @@ def linknet(dim, inp, n_classes, b_norm, output_name, **kwargs):
 
         net = decoder_block(dim, net, 64, 'decoder-3', b_norm, **kwargs)
 
-        layout = 'c' + 'n' * b_norm + 'a'
-        layout_transpose = 't' + 'n' * b_norm + 'a'
+        layout = 'cna' if b_norm else 'ca'
+        layout_transpose = 'tna' if b_norm else 'ta'
 
         net = conv_block(dim, net, 32, 3, layout_transpose, 'output_conv_1', 2, **kwargs)
         net = conv_block(dim, net, 32, 3, layout, 'output_conv_2', **kwargs)

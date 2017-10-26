@@ -37,7 +37,8 @@ class FCNModel(NetworkModel):
         b_norm = self.get_from_config('b_norm', True)
         fcn_arch = self.get_from_config('fcn_arch', 'FCN32')
 
-        conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
+        conv = {'data_format': self.get_from_config('data_format', 'channels_last'),
+                'dilation_rate': self.get_from_config('dilation_rate', 1)}
         batch_norm = {'training': self.is_training, 'momentum': 0.99}
 
         fcn(dim, placeholders['input'], n_classes, b_norm, 'predictions', fcn_arch,

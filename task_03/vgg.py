@@ -5,11 +5,9 @@ import tensorflow as tf
 sys.path.append('..')
 
 from dataset.dataset.models.tf.layers import conv_block
-from basemodels import NetworkModel
+from dataset.dataset.models.tf import TFModel
 
-
-
-class VGGModel(NetworkModel):
+class VGGModel(TFModel):
     """VGG as TFModel
 
     Parameters
@@ -28,21 +26,19 @@ class VGGModel(NetworkModel):
     n_classes : int.
     """
 
-    def _build(self, *args, **kwargs):
+    def _build(self, inputs, *args, **kwargs):
         """build function for VGG."""
-        placeholders = self.create_placeholders()
-
-        dim = len(placeholders['input'].get_shape()) - 2
+        dim = len(inputs['input'].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
-        b_norm = self.get_from_config('b_norm', True)
+        batch_norm = self.get_from_config('batch_norm', True)
         vgg_arch = self.get_from_config('vgg_arch', 'VGG16')
 
-        conv = {'data_format': self.get_from_config('data_format', 'channels_last')}
-        batch_norm = {'training': self.is_training, 'momentum': 0.99}
+        conv = {'data_format': self.get_from_config('data_format', 'channels_last'),
+                'dilation_rate': self.get_from_config('dilation_rate', 1)}
+        batch_norm = {'momentum': 0.99}
 
-        logit = vgg(dim, placeholders['input'], n_classes, b_norm, 'predictions', vgg_arch,
+        logit = vgg(dim, inputs['input'], n_classes, b_norm, 'predictions', vgg_arch,
                     conv=conv, batch_norm=batch_norm)
-        self.create_outputs_from_logit(logit)
 
 
 def vgg_fc_block(inp, n_classes, b_norm, **kwargs):
