@@ -38,7 +38,7 @@ class VGGModel(TFModel):
         batch_norm = {'momentum': 0.99}
 
         vgg(dim, inputs['input'], n_classes, b_norm, 'predictions', vgg_arch,
-                    conv=conv, batch_norm=batch_norm)
+            conv=conv, batch_norm=batch_norm)
 
 
 def vgg_fc_block(inp, n_classes, b_norm, **kwargs):
