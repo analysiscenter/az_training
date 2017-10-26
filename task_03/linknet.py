@@ -6,7 +6,7 @@ from dataset.dataset.models.tf import TFModel
 class LinkNetModel(TFModel):
     """LinkNet as TFModel"""
     def _build(self, inputs, *args, **kwargs):
-        
+
         dim = len(inputs['input'].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
         b_norm = self.get_from_config('batch_norm', True)

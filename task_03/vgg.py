@@ -30,14 +30,14 @@ class VGGModel(TFModel):
         """build function for VGG."""
         dim = len(inputs['input'].get_shape()) - 2
         n_classes = self.get_from_config('n_classes')
-        batch_norm = self.get_from_config('batch_norm', True)
+        b_norm = self.get_from_config('batch_norm', True)
         vgg_arch = self.get_from_config('vgg_arch', 'VGG16')
 
         conv = {'data_format': self.get_from_config('data_format', 'channels_last'),
                 'dilation_rate': self.get_from_config('dilation_rate', 1)}
         batch_norm = {'momentum': 0.99}
 
-        logit = vgg(dim, inputs['input'], n_classes, b_norm, 'predictions', vgg_arch,
+        vgg(dim, inputs['input'], n_classes, b_norm, 'predictions', vgg_arch,
                     conv=conv, batch_norm=batch_norm)
 
 
