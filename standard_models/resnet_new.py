@@ -168,45 +168,46 @@ class ResNetModel(TFModel):
     def conv_block(dim, input_tensor, kernel_size, filters, layout, name, block_number, conv_params,
                            strides, is_training=True, bottleneck=False, bottelneck_factor=4, dropout_rate=0.):
 
-        name = name + '+' + str(block_number)
-
         if block_number != 0:
             strides = 1
 
-        if bottleneck:
+        name = name + '/' + str(block_number)
+        with tf.variable_scope("conv1"):
 
-            output_filters = filters * bottelneck_factor
-            
+            if bottleneck:
 
-            x = conv_block(dim, input_tensor, filters, (1, 1), layout, name=name + '_b1_11', strides=strides, padding='same', \
-                           activation=tf.nn.relu, is_training=is_training, conv=conv_params)
+                output_filters = filters * bottelneck_factor
+                
 
-            x = conv_block(dim, x, filters, kernel_size, layout, name=name + '_b2_33', padding='same', \
-                            activation=tf.nn.relu, is_training=is_training, conv=conv_params)
+                x = conv_block(dim, input_tensor, filters, (1, 1), layout, strides=strides, padding='same', \
+                               activation=tf.nn.relu, is_training=is_training, conv=conv_params)
+
+                x = conv_block(dim, x, filters, kernel_size, layout,  padding='same', activation=tf.nn.relu, \
+                               is_training=is_training, conv=conv_params)
 
 
-            x = conv_block(dim, x, output_filters, (1, 1), layout, name=name + '_b2_11', padding='same', \
-                            activation=tf.nn.relu, is_training=is_training, conv=conv_params)
+                x = conv_block(dim, x, output_filters, (1, 1), layout, padding='same', activation=tf.nn.relu, \
+                               is_training=is_training, conv=conv_params)
 
-       
-        else:
-            output_filters = filters
+           
+            else:
+                output_filters = filters
 
-            x = conv_block(dim, input_tensor, filters, kernel_size, layout + 'd', name=name + '_b1_33', strides=strides, padding='same', \
-                           activation=tf.nn.relu, is_training=is_training, dropout_rate=dropout_rate, conv=conv_params)
+                x = conv_block(dim, input_tensor, filters, kernel_size, layout + 'd', strides=strides, padding='same', \
+                               activation=tf.nn.relu, is_training=is_training, dropout_rate=dropout_rate, conv=conv_params)
 
-            x = conv_block(dim, x, filters, kernel_size, layout, name=name + '_b2_33', padding='same', \
-                            activation=tf.nn.relu, is_training=is_training, conv=conv_params)
+                x = conv_block(dim, x, filters, kernel_size, layout, padding='same', activation=tf.nn.relu, is_training=is_training, \
+                               conv=conv_params)
 
-        if strides != 1:
-            shortcut = conv_block(dim, input_tensor, output_filters, (1, 1), 'c', name=name + '_shortuct', strides=strides, padding='same', 
-                                           is_training=is_training, conv=conv_params)
-        else:
-            shortcut = input_tensor
+            if strides != 1:
+                shortcut = conv_block(dim, input_tensor, output_filters, (1, 1), 'c', strides=strides, padding='same', \
+                                      is_training=is_training, conv=conv_params)
+            else:
+                shortcut = input_tensor
 
-        x = tf.add(x, shortcut)
-        x = tf.nn.relu(x)
-        # x = tf.layers.dropout(x, rate, training)
+            x = tf.add(x, shortcut)
+            x = tf.nn.relu(x, name='output')
+            # x = tf.layers.dropout(x, rate, training)
         return x
 
 
