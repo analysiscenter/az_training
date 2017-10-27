@@ -5,68 +5,31 @@ from basemodels import NetworkModel
 
 class UNetModel(NetworkModel):
     """LinkNet as TFModel"""
-    def _build(self, *args, **kwargs):
-        placeholders = self.create_placeholders()
-        conv = {'data_format': self.get_from_config('data_format', 'channels_last'),
-                'dilation_rate': self.get_from_config('dilation_rate', 1)}
-        batch_norm = {'training': self.is_training, 'momentum': 0.1}
+    def _build(self, inputs, *args, **kwargs):
 
-        logit = unet(len(placeholders['input'].get_shape()) - 2,
-                     placeholders['input'],
-                     self.get_from_config('n_classes'),
-                     self.get_from_config('b_norm', True),
-                     'predictions',
-                     conv=conv,
-                     batch_norm=batch_norm)
+        n_classes = self.num_channels('masks')
+        data_format = self.data_format('images')
+        dim = self.spatial_dim('images')
+        b_norm = self.get_from_config('batch_norm', True)
 
-        self.create_outputs_from_logit(logit)
+        conv = {'data_format': data_format}
+        batch_norm = {'momentum': 0.1}
 
+        kwargs = {'conv': conv, 'batch_norm': batch_norm}
 
-def unet(dim, inp, n_classes, b_norm, output_name, **kwargs):
-    """UNet tf.layers.
+        layout = 'cnacnap' if b_norm else 'cacap'
 
-    Parameters
-    ----------
-    dim : int
-        spacial dimension of input without the number of channels
-
-    inp : tf.Tensor
-
-    n_classes : int
-        number of classes to segmentate.
-
-    b_norm : bool
-        if True enable batch normalization
-
-    output_name : string
-        name of the output tensor
-
-    training : tf.Tensor
-        batch normalization training parameter
-
-    Return
-    ------
-    outp : tf.Tensor
-
-    """
-    with tf.variable_scope('UNet'): # pylint: disable=not-context-manager
-        layout = ('c' + 'n' * b_norm + 'a') * 2 + 'p'
-
-        net = inp
+        net = inputs['images']
         encoder_outputs = []
         unet_filters = [64, 128, 256, 512]
-        data_format = kwargs['conv']['data_format']
-        if data_format == 'channels_last':
-            axis = dim + 1
-        else:
-            axis = 1
+        axis = dim+1 if data_format == 'channels_last' else 1
 
         for i, filters in enumerate(unet_filters):
             net = conv_block(dim, net, filters, 3, layout, 'encoder-'+str(i),
                              pool_size=2, **kwargs)
             encoder_outputs.append(net)
 
-        layout = ('c' + 'n' * b_norm + 'a') * 2
+        layout = 'cnacna' if b_norm else 'caca'
 
         net = conv_block(dim, net, 1024, 3, layout, 'middle-block', **kwargs)
         net = conv_block(dim, net, 512, 2, 't', 'middle-block-out', 2, **kwargs)
@@ -80,4 +43,6 @@ def unet(dim, inp, n_classes, b_norm, output_name, **kwargs):
         net = conv_block(dim, net, 64, 3, layout, 'decoder-block-3', **kwargs)
         net = conv_block(dim, net, n_classes, 1, layout, 'decoder-block-3-out', **kwargs)
 
-    return tf.identity(net, output_name)
+        logit = tf.identity(net, 'predictions')
+
+        self.create_outputs_from_logit(logit)
