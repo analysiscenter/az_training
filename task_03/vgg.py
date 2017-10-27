@@ -126,14 +126,14 @@ class VGGModel(TFModel):
                           (3, 256, True),
                           (3, 512, True),
                           (3, 512, True)],
-        'VGG19': [(2, 64, False),
-                  (2, 128, False),
-                  (4, 256, False),
-                  (4, 512, False),
-                  (4, 512, False)],
-        'VGG7': [(2, 64, False),
-                 (2, 128, False),
-                 (3, 256, True)]}
+                'VGG19': [(2, 64, False),
+                          (2, 128, False),
+                          (4, 256, False),
+                          (4, 512, False),
+                          (4, 512, False)],
+                'VGG7': [(2, 64, False),
+                         (2, 128, False),
+                         (3, 256, True)]}
 
         if isinstance(vgg_arch, list):
             pass
