@@ -17,11 +17,6 @@ class LinkNetModel(TFModel):
 
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
 
-        """
-        logit = linknet(dim, inputs['images'], n_classes, b_norm, 'predictions',
-                        conv=conv, batch_norm=batch_norm)
-        """
-
         inp = inputs['images']
         with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
             layout = 'cpna' if b_norm else 'cpa'
@@ -47,21 +42,7 @@ class LinkNetModel(TFModel):
             net = conv_block(dim, net, 32, 3, layout, 'output_conv_2', **kwargs)
             net = conv_block(dim, net, n_classes, 2, 't', 'output_conv_3', 2, **kwargs)
 
-        logit = tf.identity(net, 'predictions')
-
-        self._create_outputs_from_logit(logit)
-
-    def _create_outputs_from_logit(self, logit):
-        """Create output for models which produce logit output
-        Return
-        ------
-        predicted_prob, predicted_labels : tf.tensors
-        """
-
-        predicted_prob = tf.nn.softmax(logit, name='predicted_prob')
-        max_axis = len(logit.get_shape())-1
-        predicted_labels = tf.argmax(predicted_prob, axis=max_axis, name='predicted_labels')
-        return predicted_prob, predicted_labels
+        tf.identity(net, 'predictions')
 
     def encoder_block(self, dim, inp, out_filters, name, b_norm, **kwargs):
         """LinkNet encoder block.
@@ -138,57 +119,3 @@ class LinkNetModel(TFModel):
             net = conv_block(dim, net, n_filters, 3, layout_transpose, 'decoder_conv_2', 2, **kwargs)
             outp = conv_block(dim, net, out_filters, 1, layout, 'decoder_conv_3', **kwargs)
             return outp
-
-
-def linknet(dim, inp, n_classes, b_norm, output_name, **kwargs):
-    """LinkNet tf.layers.
-
-    Parameters
-    ----------
-    dim : int
-        spacial dimension of input without the number of channels
-
-    inp : tf.Tensor
-
-    n_classes : int
-        number of classes to segmentate.
-
-    b_norm : bool
-        if True enable batch normalization
-
-    output_name : string
-        name of the output tensor
-
-    training : tf.Tensor
-        batch normalization training parameter
-
-    Return
-    ------
-    outp : tf.Tensor
-
-    """
-    with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
-        layout = 'cpna' if b_norm else 'cpa'
-
-        net = conv_block(dim, inp, 64, 7, layout, 'decoder_conv_3', 2, pool_size=3, **kwargs)
-
-        encoder_output = []
-
-        for i, n_filters in enumerate([64, 128, 256, 512]):
-            net = encoder_block(dim, net, n_filters, 'encoder-'+str(i), b_norm, **kwargs)
-            encoder_output.append(net)
-
-        for i, n_filters in enumerate([256, 128, 64]):
-            net = decoder_block(dim, net, n_filters, 'decoder-'+str(i), b_norm, **kwargs)
-            net = tf.add(net, encoder_output[-2-i])
-
-        net = decoder_block(dim, net, 64, 'decoder-3', b_norm, **kwargs)
-
-        layout = 'cna' if b_norm else 'ca'
-        layout_transpose = 'tna' if b_norm else 'ta'
-
-        net = conv_block(dim, net, 32, 3, layout_transpose, 'output_conv_1', 2, **kwargs)
-        net = conv_block(dim, net, 32, 3, layout, 'output_conv_2', **kwargs)
-        net = conv_block(dim, net, n_classes, 2, 't', 'output_conv_3', 2, **kwargs)
-
-    return tf.identity(net, output_name)

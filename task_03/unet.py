@@ -43,6 +43,4 @@ class UNetModel(NetworkModel):
         net = conv_block(dim, net, 64, 3, layout, 'decoder-block-3', **kwargs)
         net = conv_block(dim, net, n_classes, 1, layout, 'decoder-block-3-out', **kwargs)
 
-        logit = tf.identity(net, 'predictions')
-
-        self.create_outputs_from_logit(logit)
+        tf.identity(net, 'predictions')
