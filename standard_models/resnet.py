@@ -14,6 +14,50 @@ class ResNetModel(TFModel):
     ''' Universal Resnet model constructor
     '''
     def _build(self, *args, **kwargs):
+        '''
+        Builds a ResNet model.
+
+        Parameters are taken from the config
+        ----------
+        input_config: a dict containing 
+            dim_shape: list, mandatory
+                Shape of the input tenror including number of channels.
+            data_format: str, either "channels_last" or "channels_first"
+                 It specifies which data format convention will follow. Default value is "channels_last".
+            n_classes: int
+                Number of classes.
+            length_factor: list of length 4 with int elements
+                Specifies how many Reidual blocks will be of the same feature maps dimension.
+                Recall that ResNet can have [16, 32, 64, 128] output feature maps thefore there are 4 types of
+                sequences of ResNet blocks whith the same n_filters parameter.
+                So the length_factor = [1, 2, 3, 4] will make one block with 16 feature maps, 2 blocks with 32,
+                3 blocks with 64, 4 with 128.
+            widening_factor: int. Default is 4.
+                Myltiplies default [1, 2, 3, 4] feature maps sizes.
+                For example, widening_factor = 4 will make [64, 128, 256, 512] feature maps sizes.
+            layout: str - a sequence of layers
+                c - convolution
+                n - batch normalization
+                a - activation
+                p - max pooling
+                Default is 'cna'.
+            bottleneck: bool
+                If True all residual blocks will have 1x1, 3x3, 1x1 convolutional layers.
+            max_pool: bool
+                Whether to do maxpulling with stride 2 after first convolutional layer.
+            conv : dict - parameters for convolution layers, like initializers, regularalizers, etc
+            downsampling_keys: list of length 4 with boolean elements
+                Defines whether to do first downsampling convolution with stride 2 in every sequence 
+                of ResNet blocks.
+                For example, [True, False, False, False] will make downsampling convoultion with stride 2 only
+                in the beginning of the network and other expansions of number of feature maps will be performed
+                without downsampling.
+            dropout_rate: float in [0, 1]. Default is 0.
+
+        Returns
+        -------
+        '''
+
         input_config = self.get_from_config('input', None)
         if input_config == None:
             raise ValueError('you should specify configuration of input data')
@@ -41,7 +85,7 @@ class ResNetModel(TFModel):
             dim_shape = dim_shape[1:] + dim_shape[0]
         dim = len(dim_shape) - 1
         
-        x_reshaped =  tf.reshape(x, shape=[-1] + dim_shape)
+        x_reshaped = tf.reshape(x, shape=[-1] + dim_shape)
 
 
         n_filters = 16 * widening_factor
@@ -82,7 +126,7 @@ class ResNetModel(TFModel):
                 net = downsampling_block(dim, net, 3, [128, 128], layout, '4' + str(block_number), conv_params['conv'], strides=2, w_factor=widening_factor, is_training=is_training, \
                                          bottleneck=bottleneck, dropout_rate=dropout_rate)
             else:
-                net  = identity_block(dim, net, 3, [128, 128], layout, '4_' + str(block_number), conv_params['conv'], w_factor=widening_factor, \
+                net = identity_block(dim, net, 3, [128, 128], layout, '4_' + str(block_number), conv_params['conv'], w_factor=widening_factor, \
                                       is_training=is_training, bottleneck=bottleneck, dropout_rate=dropout_rate)
 
         net = tf.identity(net, name = 'conv_output')
@@ -91,11 +135,11 @@ class ResNetModel(TFModel):
         net = tf.contrib.layers.flatten(net)
 
 
-        net = tf.layers.dense(net, n_classes)
+        net = tf.layers.dense(net, n_classes)ф
         predictions = tf.identity(net, name='predictions')
 
         probs = tf.nn.softmax(net, name='predicted_prob')
-        y_ = tf.placeholder(tf.float32, [None, 10], name='targets')
+        y_ = tf.placeholder(tf.float32, [None, n_classes], name='targets')
 
         labels_hat = tf.cast(tf.argmax(predictions, axis=1), tf.float32, name='labels_hat')
         labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, 'true_labels')
@@ -158,11 +202,11 @@ def downsampling_block(dim, input_tensor, kernel_size, filters, layout, name, co
                        activation=tf.nn.relu, is_training=is_training, dropout_rate=dropout_rate)
 
         x = conv_block(dim, x, filters2, kernel_size, layout, name=name + '_b2_33', padding='same', \
-                        activation=tf.nn.relu, is_training=is_training,  conv=conv_params)
+                        activation=tf.nn.relu, is_training=is_training, conv=conv_params)
 
 
     shortcut = conv_block(dim, input_tensor, filters3, (1, 1), 'c', name=name + '_shortuct', strides=strides, padding='same', 
-                                       is_training=is_training,  conv=conv_params)
+                                       is_training=is_training, conv=conv_params)
 
     x = tf.add(x, shortcut)
     x = tf.nn.relu(x)
@@ -202,22 +246,22 @@ def identity_block(dim, input_tensor, kernel_size, filters, layout, name, conv_p
         filters3 = filters1 * BOTTLENECK_FACTOR
 
         x = conv_block(dim, input_tensor, filters1, (1, 1), layout, name=name + '_b1_11', padding='same', \
-                       activation=tf.nn.relu, is_training=is_training,  conv=conv_params)
+                       activation=tf.nn.relu, is_training=is_training, conv=conv_params)
 
         x = conv_block(dim, x, filters2, kernel_size, layout, name=name + '_b2_33', padding='same', \
-                        activation=tf.nn.relu, is_training=is_training,  conv=conv_params)
+                        activation=tf.nn.relu, is_training=is_training, conv=conv_params)
 
         x = conv_block(dim, x, filters3, (1, 1), layout, name=name + '_b2_11', padding='same', \
-                        activation=tf.nn.relu, is_training=is_training,  conv=conv_params)
+                        activation=tf.nn.relu, is_training=is_training, conv=conv_params)
    
     else:
         filters1, filters2 = filters
 
         x = conv_block(dim, input_tensor, filters1, kernel_size, layout + 'd', name=name + '_b1_33', padding='same', \
-                       activation=tf.nn.relu, is_training=is_training, dropout_rate=dropout_rate,  conv=conv_params)
+                       activation=tf.nn.relu, is_training=is_training, dropout_rate=dropout_rate, conv=conv_params)
 
         x = conv_block(dim, x, filters2, kernel_size, layout, name=name + '_b2_33', padding='same', \
-                        activation=tf.nn.relu, is_training=is_training,  conv=conv_params)
+                        activation=tf.nn.relu, is_training=is_training, conv=conv_params)
 
 
     x = tf.add(x, input_tensor)
