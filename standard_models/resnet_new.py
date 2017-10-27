@@ -107,7 +107,7 @@ class ResNetModel(TFModel):
         for index, block_length in enumerate(length_factor):
             for block_number in range(block_length):
                 net = self.conv_block(dim, net, 3, filters[index], layout, str(index), block_number, conv_params['conv'], strides=strides[index], is_training=is_training, \
-                                      bottleneck=bottleneck, bottelneck_factor=4, dropout_rate=dropout_rate)
+                                      data_format=data_format, bottleneck=bottleneck, bottelneck_factor=bottelneck_factor, dropout_rate=dropout_rate)
         #         else:
 
 
@@ -165,8 +165,8 @@ class ResNetModel(TFModel):
 
 
     @staticmethod
-    def conv_block(dim, input_tensor, kernel_size, filters, layout, name, block_number, conv_params,
-                           strides, is_training=True, bottleneck=False, bottelneck_factor=4, dropout_rate=0.):
+    def conv_block(dim, input_tensor, kernel_size, filters, layout, name, block_number, conv_params, strides, 
+                   is_training=True, data_format='channels_last', bottleneck=False, bottelneck_factor=4, dropout_rate=0.):
 
         if block_number != 0:
             strides = 1
@@ -179,24 +179,24 @@ class ResNetModel(TFModel):
                 output_filters = filters * bottelneck_factor
                 
 
-                x = conv_block(dim, input_tensor, filters, (1, 1), layout, strides=strides, padding='same', \
+                x = conv_block(dim, input_tensor, filters, (1, 1), layout, '1', strides=strides, padding='same', data_format=data_format, \
                                activation=tf.nn.relu, is_training=is_training, conv=conv_params)
 
-                x = conv_block(dim, x, filters, kernel_size, layout,  padding='same', activation=tf.nn.relu, \
+                x = conv_block(dim, x, filters, kernel_size, layout, '2', padding='same', data_format=data_format, activation=tf.nn.relu, \
                                is_training=is_training, conv=conv_params)
 
 
-                x = conv_block(dim, x, output_filters, (1, 1), layout, padding='same', activation=tf.nn.relu, \
+                x = conv_block(dim, x, output_filters, (1, 1), layout, '3', padding='same', data_format=data_format, activation=tf.nn.relu, \
                                is_training=is_training, conv=conv_params)
 
            
             else:
                 output_filters = filters
 
-                x = conv_block(dim, input_tensor, filters, kernel_size, layout + 'd', strides=strides, padding='same', \
+                x = conv_block(dim, input_tensor, filters, kernel_size, layout, '1', strides=strides, padding='same', data_format=data_format,\
                                activation=tf.nn.relu, is_training=is_training, dropout_rate=dropout_rate, conv=conv_params)
 
-                x = conv_block(dim, x, filters, kernel_size, layout, padding='same', activation=tf.nn.relu, is_training=is_training, \
+                x = conv_block(dim, x, filters, kernel_size, layout, '2', padding='same', data_format=data_format, activation=tf.nn.relu, is_training=is_training, \
                                conv=conv_params)
 
             if strides != 1:
