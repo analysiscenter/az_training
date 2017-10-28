@@ -4,9 +4,9 @@ import sys
 import tensorflow as tf
 sys.path.append('..')
 
-from pooling import max_pooling, average_pooling
 from dataset.dataset.models.tf import TFModel
 from dataset.dataset.models.tf.layers import conv_block
+from dataset.dataset.models.tf.layers.pooling import max_pooling, average_pooling
 
 class GoogLeNet(TFModel):
     """ implementation GoogLeNet model
