@@ -108,41 +108,6 @@ class ResNetModel(TFModel):
             for block_number in range(block_length):
                 net = self.conv_block(dim, net, 3, filters[index], layout, str(index), block_number, conv_params['conv'], strides=strides[index], is_training=is_training, \
                                       data_format=data_format, bottleneck=bottleneck, bottelneck_factor=bottelneck_factor, dropout_rate=dropout_rate)
-        #         else:
-
-
-        # for block_number in range(length_factor[0]):
-        #     if block_number == 0 and downsampling_keys[0]:
-        #             net = downsampling_block(dim, net, 3, [16, 16], layout,'1' + str(block_number), conv_params['conv'], strides=2, w_factor=widening_factor, is_training=is_training, \
-        #                              bottleneck=bottleneck, dropout_rate=dropout_rate)
-        #     else:
-        #         net  = identity_block(dim, net, 3, [16, 16], layout, '1_' + str(block_number), conv_params['conv'], w_factor=widening_factor, \
-        #                               is_training=is_training, bottleneck=bottleneck, dropout_rate=dropout_rate)
-
-        # for block_number in range(length_factor[1]):
-        #     if block_number == 0 and downsampling_keys[0]:
-        #         net = downsampling_block(dim, net, 3, [32, 32], layout, '2' + str(block_number), conv_params['conv'], strides=2, w_factor=widening_factor, is_training=is_training, \
-        #                                 bottleneck=bottleneck, dropout_rate=dropout_rate)
-        #     else:
-        #         net  = identity_block(dim, net, 3, [32, 32], layout, '2_' + str(block_number), conv_params['conv'], w_factor=widening_factor, \
-        #                               is_training=is_training, bottleneck=bottleneck, dropout_rate=dropout_rate)
-
-        # for block_number in range(length_factor[2]):
-        #     if block_number == 0 and downsampling_keys[0]:
-        #         net = downsampling_block(dim, net, 3, [64, 64], layout, '3' + str(block_number), conv_params['conv'], strides=2, w_factor=widening_factor, is_training=is_training, \
-        #                                  bottleneck=bottleneck, dropout_rate=dropout_rate)
-        #     else:
-        #         net  = identity_block(dim, net, 3, [64, 64], layout, '3_' + str(block_number), conv_params['conv'], w_factor=widening_factor, \
-        #                               is_training=is_training, bottleneck=bottleneck, dropout_rate=dropout_rate)
-
-
-        # for block_number in range(length_factor[2]):
-        #     if block_number == 0 and downsampling_keys[0]:
-        #         net = downsampling_block(dim, net, 3, [128, 128], layout, '4' + str(block_number), conv_params['conv'], strides=2, w_factor=widening_factor, is_training=is_training, \
-        #                                  bottleneck=bottleneck, dropout_rate=dropout_rate)
-        #     else:
-        #         net = identity_block(dim, net, 3, [128, 128], layout, '4_' + str(block_number), conv_params['conv'], w_factor=widening_factor, \
-        #                               is_training=is_training, bottleneck=bottleneck, dropout_rate=dropout_rate)
 
         net = tf.identity(net, name = 'conv_output')
 
@@ -155,10 +120,8 @@ class ResNetModel(TFModel):
 
         probs = tf.nn.softmax(net, name='predicted_prob')
         y_ = tf.placeholder(tf.float32, [None, n_classes], name='targets')
-        print(tf.get_collection(tf.GraphKeys.VARIABLES))
         labels_hat = tf.cast(tf.argmax(predictions, axis=1), tf.float32, name='labels_hat')
         labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, 'true_labels')
-        # true_labels = tf.identity(labels, name='true_labels')
 
         accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), \
                                   tf.float32), name='accuracy')
