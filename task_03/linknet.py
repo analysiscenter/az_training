@@ -44,7 +44,8 @@ class LinkNetModel(TFModel):
 
         tf.identity(net, 'predictions')
 
-    def encoder_block(self, dim, inp, out_filters, name, b_norm, **kwargs):
+    @staticmethod
+    def encoder_block(dim, inp, out_filters, name, b_norm, **kwargs):
         """LinkNet encoder block.
 
         Parameters
@@ -81,8 +82,8 @@ class LinkNetModel(TFModel):
             outp = tf.add(net, encoder_add, 'encoder_add_2')
         return outp
 
-
-    def decoder_block(self, dim, inp, out_filters, name, b_norm, **kwargs):
+    @staticmethod
+    def decoder_block(dim, inp, out_filters, name, b_norm, **kwargs):
         """LinkNet decoder block.
 
         Parameters
