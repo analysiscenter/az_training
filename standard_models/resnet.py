@@ -62,6 +62,13 @@ class ResNetModel(TFModel):
         dim_shape = input_config.get('shape', None)
         data_format = input_config.get('data_format', 'channels_last')
         n_classes = input_config.get('n_classes', 2)
+        dim = input_config.get('dim', None)
+        if dim == None:
+            raise ValueError('dim should be customized in config')
+    
+        if dim_shape == None:
+            raise ValueError('dim_shape should be customized in config')
+
 
         filters = self.get_from_config('filters', [64, 128, 256, 512])
         length_factor = self.get_from_config('length_factor', [1, 1, 1, 1])
@@ -79,14 +86,11 @@ class ResNetModel(TFModel):
 
         is_training = self.is_training
 
-        if dim_shape == None:
-            raise ValueError('dim_shape should be customized in config')
 
         x = tf.placeholder(tf.float32, name='input_images')
 
         if data_format == 'channels_first':
             dim_shape = dim_shape[1:] + dim_shape[0]
-        dim = len(dim_shape) - 1
         
         x_reshaped = tf.reshape(x, shape=[-1] + dim_shape)
 
@@ -133,7 +137,6 @@ class ResNetModel(TFModel):
         with tf.variable_scope(name):
 
             if bottleneck:
-                print('bottle')
                 output_filters = filters * bottelneck_factor
                 
 
