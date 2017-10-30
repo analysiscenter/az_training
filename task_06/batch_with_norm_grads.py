@@ -6,64 +6,8 @@ import tensorflow as tf
 from tensorflow.contrib.layers import xavier_initializer_conv2d as xavier
 
 sys.path.append('..')
+from .batch import conv_block, identity_block, create_train  
 from dataset import action, model, Batch
-
-def conv_block(input_tensor, kernel, filters, name, strides=(2, 2)):
-    """ Function to create block of ResNet network which include
-    three convolution layers and one skip-connection layer.
-
-    Args:
-        input_tensor: input tensorflow layer
-        kernel: tuple of kernel size in convolution layer
-        filters: list of nums filters in convolution layers
-        name: name of block
-        strides: typle of strides in convolution layer
-
-    Output:
-        x: Block output layer """
-    filters1, filters2, filters3 = filters
-    x = tf.layers.conv2d(input_tensor, filters1, (1, 1), strides, name='convfir' + name, activation=tf.nn.relu,\
-                         kernel_initializer=xavier())
-
-    x = tf.layers.conv2d(x, filters2, kernel, name='convsec' + name, activation=tf.nn.relu, padding='SAME',\
-                         kernel_initializer=xavier())
-
-    x = tf.layers.conv2d(x, filters3, (1, 1), name='convthr' + name,\
-                         kernel_initializer=xavier())
-
-    shortcut = tf.layers.conv2d(input_tensor, filters3, (1, 1), strides, name='short' + name, \
-                         kernel_initializer=xavier())
-    x = tf.concat([x, shortcut], axis=1)
-    x = tf.nn.relu(x)
-    return x
-
-def identity_block(input_tensor, kernel, filters, name):
-    """ Function to create block of ResNet network which include
-    three convolution layers.
-
-    Args:
-        input_tensor: input tensorflow layer.
-        kernel: tuple of kernel size in convolution layer.
-        filters: list of nums filters in convolution layers.
-        name: name of block.
-
-    Output:
-        x: Block output layer """
-    filters1, filters2, filters3 = filters
-    x = tf.layers.conv2d(input_tensor, filters1, (1, 1), name='convfir' + name, activation=tf.nn.relu,\
-                         kernel_initializer=xavier())
-
-    x = tf.layers.conv2d(x, filters2, kernel, name='convsec' + name, activation=tf.nn.relu, padding='SAME',\
-                         kernel_initializer=xavier())
-
-    x = tf.layers.conv2d(x, filters3, (1, 1), name='convthr' + name,\
-                         kernel_initializer=xavier())
-
-
-    x = tf.concat([x, input_tensor], axis=1)
-    x = tf.nn.relu(x)
-    return x
-
 
 
 def create_train(opt, src, global_step, it, global_it, learn, scaled):
