@@ -170,10 +170,7 @@ class ResNetModel(TFModel):
 
             x = tf.add(x, shortcut)
             x = tf.nn.relu(x, name='output')
-            # x = tf.layers.dropout(x, rate, training)
         return x
-
-
 
 
 class ResNet152(ResNetModel):
