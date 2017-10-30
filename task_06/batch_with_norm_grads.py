@@ -64,12 +64,13 @@ def identity_block(input_tensor, kernel, filters, name):
     x = tf.nn.relu(x)
     return x
 
-def create_train(opt, src, global_step, loss, it, global_it, learn, scaled):
+
+
+def create_train(opt, src, global_step, it, global_it, learn, scaled):
     """ Function for create optimizer to each layer.
         Args:
             src: name of layer which be optimize.
-            glogal_step: tenforflow Variable. Need to count train steps.
-            loss: loss function.
+            global_step: tenforflow Variable. Need to count train steps.
             it: number of last iteraion for current layer.
             global_it: number of last interation for all layers.
             learn: Basic learning rate for current layer.
@@ -78,12 +79,14 @@ def create_train(opt, src, global_step, loss, it, global_it, learn, scaled):
             New optimizer. """
     def learning_rate(last, src, global_it, learn, scaled):
         """ Function for create step of changing learning rate.
+
         Args:
             last: number of last iteration.
             src: mane of layer which be optimize.
             global_it: number of last interation for all layers.
             learn: Basic learning rate for current layer.
             scaled: method of disable layers.
+
         Output:
             bound: list of bounders - number of iteration, after which learning rate will change.
             values: list of new learnings rates.
@@ -96,15 +99,18 @@ def create_train(opt, src, global_step, loss, it, global_it, learn, scaled):
             values = [0.5 * learn * (1 + np.cos(np.pi * i / last)) for i in range(2, last+1)] + [1e-2]
 
         bound = list(np.linspace(0, last, len(range(2, last+1)), dtype=np.int32)) + [global_it]
-        var = [i for i in tf.trainable_variables() if src in i.name or 'dense' in i.name]
-        return list(np.int32(bound)), list(np.float32(values)), var
+        var = [i for i in tf.trainable_variables() if src in i.name]
 
+        return list(np.int32(bound)), list(np.float32(values)), var
+    if src == '6':
+        var = [i for i in tf.trainable_variables() if src in i.name]
+        return opt(0.0001, 0.9, use_nesterov=True), var
     b, val, var = learning_rate(it, src, global_it, learn, scaled)
     learning_rate = tf.train.piecewise_constant(global_step, b, val)
+    return opt(learning_rate, 0.9, use_nesterov=True), var
 
-    return opt(learning_rate, 0.9, use_nesterov=True).minimize(loss, global_step, var)
 
-class ResBatch(Batch):
+class ResBatch2(Batch):
     """ Batch to train models with and without FreezeOut """
 
     def __init__(self, index, *args, **kwargs):
@@ -116,15 +122,17 @@ class ResBatch(Batch):
         """ Define componentis. """
         return 'images', 'lables'
 
+
     @model(mode='dynamic')
-    def freeznet(self, config=None):
+    def new_model(self, config=None): # too-many-locals
         """ Simple implementation of ResNet with FreezeOut method.
         Args:
             config: dict with params:
-                -iteartions: Total number iteration for train model.
+                -iterations: Total number iteration for train model.
                 -degree: 1 or 3.
                 -learning_rate: initial learning rate.
                 -scaled: True or False.
+
         Outputs:
             Method return list with len = 2 and some params:
             [0][0]: indices - Plcaeholder which takes batch indices.
@@ -133,11 +141,9 @@ class ResBatch(Batch):
             [0][3]: loss - Value of loss function.
             [0][4]: train - List of train optimizers.
             [0][5]: prob - softmax output, need to prediction.
+
             [1][0]: accuracy - Current accuracy
             [1][1]: session - tf session """
-        iteration = config['iteration']
-        learning_rate = config['learning_rate']
-        scaled = config['scaled']
 
         with tf.Graph().as_default():
 
@@ -147,34 +153,41 @@ class ResBatch(Batch):
             input_batch = tf.reshape(input_batch, shape=[-1, 28, 28, 1], name='x_to_tens')
 
             net = tf.layers.conv2d(input_batch, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
-                                   kernel_initializer=xavier(), name='1')
+                                   kernel_initializer=xavier(), name='0')
             net = tf.layers.max_pooling2d(net, (2, 2), (2, 2), name='max_pool')
 
-            net = conv_block(net, 3, [32, 32, 128], name='2', strides=(1, 1))
-            net = identity_block(net, 3, [32, 32, 128], name='3')
+            net = conv_block(net, 3, [32, 32, 128], name='1', strides=(1, 1))
+            net = identity_block(net, 3, [32, 32, 128], name='2')
 
-            net = conv_block(net, 3, [64, 64, 256], name='4', strides=(1, 1))
-            net = identity_block(net, 3, [64, 64, 256], name='5')
+            net = conv_block(net, 3, [64, 64, 256], name='3', strides=(1, 1))
+            net = identity_block(net, 3, [64, 64, 256], name='4')
 
             net = tf.layers.average_pooling2d(net, (7, 7), strides=(1, 1))
             net = tf.contrib.layers.flatten(net)
 
-            with tf.variable_scope('dense'):
-                net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer(), name='dense')
+            net = tf.layers.dense(net, 10, kernel_initializer=tf.contrib.layers.xavier_initializer(), name='5')
 
             prob = tf.nn.softmax(net, name='soft')
-            all_labels = tf.placeholder(tf.float32, [None, 10], name='all_labels')
-            y = tf.gather_nd(all_labels, indices, name='y')
-
+            all_lables = tf.placeholder(tf.float32, [None, 10], name='all_lables')
+            y = tf.gather_nd(all_lables, indices, name='y')
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y), name='loss')
-            global_steps = []
-            train = []
 
-            for i in range(1, 6):
+            global_steps = []
+            optimizer, grad_accum = [], []
+            apl = []
+
+            for i in range(6):
                 global_steps.append(tf.Variable(0, trainable=False, name='var_{}'.format(i)))
-                train.append(create_train(tf.train.MomentumOptimizer, str(i), \
-                                          global_steps[-1], loss, iteration * (i / 10 + 0.5) ** config['degree'], \
-                                           iteration, learning_rate, scaled))
+                opt = create_train(tf.train.MomentumOptimizer, str(i), \
+                                   global_steps[-1], config['iteration'] * (i / 10 + 0.5) ** config['degree'], \
+                                   config['iteration'], config['learning_rate'], config['scaled'])
+
+                optimizer.append(opt[0])
+                grad_accum.append(opt[0].compute_gradients(loss, opt[1]))
+
+            for i in range(6):
+                apl.append(optimizer[i].apply_gradients(grad_accum[i], global_steps[i]))
+
 
             lables_hat = tf.cast(tf.argmax(net, axis=1), tf.float32, name='lables_hat')
             lables = tf.cast(tf.argmax(y, axis=1), tf.float32, name='lables')
@@ -182,10 +195,9 @@ class ResBatch(Batch):
 
             session = tf.Session()
             session.run(tf.global_variables_initializer())
+        return [[indices, all_data, all_lables, loss, apl, prob], [accuracy, session]]
 
-        return [[indices, all_data, all_labels, loss, train, prob], [accuracy, session]]
-
-    @action(model='freeznet')
+    @action(model='new_model')
     def train_freez(self, models, train_loss, data, lables):
         """ Function for traning ResNet with freezeout method.
         Args:
@@ -200,82 +212,6 @@ class ResBatch(Batch):
 
         loss, _ = session.run([loss, train], feed_dict={indices:self.indices.reshape(-1, 1), all_lables:lables, \
             all_data:data})
-
-        train_loss.append(loss)
-
-        return self
-
-    @model(mode='dynamic')
-    def resnet(self):
-        """ Simple implementation of Resnet.
-        Args:
-            self
-
-        Outputs:
-            Method return list with len = 2 and some params:
-            [0][0]: indices - Placeholder which takes batch indices.
-            [0][1]: all_data - Placeholder which takes all images.
-            [0][2]; all_lables - Placeholder for lables.
-            [0][3]: loss - Value of loss function.
-            [0][4]: train - List of train optimizers.
-            [0][5]: prob - softmax output, need to prediction.
-
-            [1][0]: accuracy - Current accuracy
-            [1][1]: session - tf session """
-        with tf.Graph().as_default():
-            indices = tf.placeholder(tf.int32, shape=[None, 1])
-            all_data = tf.placeholder(tf.float32, shape=[50000, 28, 28])
-            input_batch = tf.gather_nd(all_data, indices)
-            x1_to_tens = tf.reshape(input_batch, shape=[-1, 28, 28, 1])
-
-            net1 = tf.layers.conv2d(x1_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', activation=tf.nn.relu, \
-                kernel_initializer=xavier(), name='11')
-            net1 = tf.layers.max_pooling2d(net1, (2, 2), (2, 2))
-
-            net1 = conv_block(net1, 3, [32, 32, 128], name='22', strides=(1, 1))
-
-            net1 = identity_block(net1, 3, [32, 32, 128], name='33')
-
-            net1 = conv_block(net1, 3, [64, 64, 256], name='53', strides=(1, 1))
-            net1 = identity_block(net1, 3, [64, 64, 256], name='63')
-
-            net1 = tf.layers.average_pooling2d(net1, (7, 7), strides=(1, 1))
-            net1 = tf.contrib.layers.flatten(net1)
-
-            with tf.variable_scope('dense3'):
-                net1 = tf.layers.dense(net1, 10, kernel_initializer=tf.contrib.layers.xavier_initializer())
-
-
-            prob1 = tf.nn.softmax(net1)
-            all_lables = tf.placeholder(tf.float32, [None, 10])
-
-            y = tf.gather_nd(all_lables, indices)
-
-            loss1 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net1, labels=y), name='loss3')
-            train1 = tf.train.MomentumOptimizer(0.03, 0.8, use_nesterov=True).minimize(loss1)
-            lables_hat1 = tf.cast(tf.argmax(net1, axis=1), tf.float32, name='lables_3at')
-            lables1 = tf.cast(tf.argmax(y, axis=1), tf.float32, name='labl3es')
-
-            accuracy1 = tf.reduce_mean(tf.cast(tf.equal(lables_hat1, lables1), tf.float32, name='a3ccuracy'))
-            session = tf.Session()
-            session.run(tf.global_variables_initializer())
-        return [[indices, all_data, all_lables, loss1, train1, prob1], [accuracy1, session]]
-
-    @action(model='resnet')
-    def train_res(self, models, train_loss, data, lables):
-        """ Function for traning ResNet.
-        Args:
-            sess: tensorflow session.
-            train_loss: list with info of train loss.
-            train_acc: list with info of train accuracy.
-
-        Output:
-            self """
-
-        session = models[1][1]
-        indices, all_data, all_lables, loss, train, _ = models[0]
-        loss, _ = session.run([loss, train], feed_dict={indices:self.indices.reshape(-1, 1),\
-         all_lables:lables, all_data:data})
 
         train_loss.append(loss)
 
