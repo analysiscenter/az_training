@@ -155,7 +155,7 @@ class ResNetModel(TFModel):
 
         probs = tf.nn.softmax(net, name='predicted_prob')
         y_ = tf.placeholder(tf.float32, [None, n_classes], name='targets')
-
+        print(tf.get_collection(tf.GraphKeys.VARIABLES))
         labels_hat = tf.cast(tf.argmax(predictions, axis=1), tf.float32, name='labels_hat')
         labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, 'true_labels')
         # true_labels = tf.identity(labels, name='true_labels')
@@ -172,7 +172,7 @@ class ResNetModel(TFModel):
             strides = 1
 
         name = name + '/' + str(block_number)
-        with tf.variable_scope("conv1"):
+        with tf.variable_scope(name):
 
             if bottleneck:
 
