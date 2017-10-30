@@ -8,7 +8,8 @@ sys.path.append("..")
 
 from dataset.dataset.models.tf import TFModel
 from dataset.dataset.models.tf.layers import conv_block
-    
+from dataset.dataset.models.tf.layers.pooling import global_average_pooling
+
 
 class ResNetModel(TFModel):
     ''' Universal Resnet model constructor
@@ -28,13 +29,10 @@ class ResNetModel(TFModel):
                 Number of classes.
             length_factor: list of length 4 with int elements
                 Specifies how many Reidual blocks will be of the same feature maps dimension.
-                Recall that ResNet can have [16, 32, 64, 128] output feature maps thefore there are 4 types of
+                Recall that ResNet can have [64, 128, 256, 512] output feature maps thefore there are 4 types of
                 sequences of ResNet blocks whith the same n_filters parameter.
                 So the length_factor = [1, 2, 3, 4] will make one block with 16 feature maps, 2 blocks with 32,
                 3 blocks with 64, 4 with 128.
-            widening_factor: int. Default is 4.
-                Myltiplies default [1, 2, 3, 4] feature maps sizes.
-                For example, widening_factor = 4 will make [64, 128, 256, 512] feature maps sizes.
             layout: str - a sequence of layers
                 c - convolution
                 n - batch normalization
@@ -65,22 +63,19 @@ class ResNetModel(TFModel):
         data_format = input_config.get('data_format', 'channels_last')
         n_classes = input_config.get('n_classes', 2)
 
-        filters = self.get_from_config('filters', [16, 32, 64, 128])
-        length_factor = self.get_from_config('length_factor', [1, 1, 1, 1]) 
+        filters = self.get_from_config('filters', [64, 128, 256, 512])
+        length_factor = self.get_from_config('length_factor', [1, 1, 1, 1])
         strides = self.get_from_config('strides', [2, 1, 1, 1])
 
-
-        widening_factor = self.get_from_config('widenning_factor', 4)
         layout = self.get_from_config('layout', 'cna')
 
         bottleneck = self.get_from_config('bottleneck', False)
         bottelneck_factor = self.get_from_config('bottelneck_factor', 4)
         
         max_pool = self.get_from_config('max_pool', False)
-        conv_params = self.get_from_config('conv_params', {})
-        downsampling_keys = self.get_from_config('downsampling_keys', [True, True, True, True])
+        conv_params = self.get_from_config('conv_params', {'conv': {}})
         dropout_rate = self.get_from_config('dropout_rate', 0.)
-
+        kernel_size = self.get_from_config('kernel_size', 3)
 
         is_training = self.is_training
 
@@ -95,23 +90,23 @@ class ResNetModel(TFModel):
         
         x_reshaped = tf.reshape(x, shape=[-1] + dim_shape)
 
-
-        n_filters = 16 * widening_factor
         if max_pool:
             first_layout = layout + 'p'
         else:
             first_layout = layout
 
-        net = conv_block(dim, x_reshaped, n_filters, (7, 7), first_layout, '0', strides=2, is_training=is_training, pool_size=3, pool_strides=2)
+        net = conv_block(dim, x_reshaped, filters[0], (7, 7), first_layout, name='0', strides=2, is_training=is_training, pool_size=3, pool_strides=2)
+        print(net.get_shape)
 
         for index, block_length in enumerate(length_factor):
             for block_number in range(block_length):
-                net = self.conv_block(dim, net, 3, filters[index], layout, str(index), block_number, conv_params['conv'], strides=strides[index], is_training=is_training, \
+                net = self.conv_block(dim, net, kernel_size, filters[index], layout, str(index), block_number, conv_params['conv'], strides=strides[index], is_training=is_training, \
                                       data_format=data_format, bottleneck=bottleneck, bottelneck_factor=bottelneck_factor, dropout_rate=dropout_rate)
+                print(net.get_shape)
 
         net = tf.identity(net, name = 'conv_output')
 
-        net = tf.layers.average_pooling2d(net, (7, 7), strides=(1, 1))
+        net = global_average_pooling(dim, net, data_format)
         net = tf.contrib.layers.flatten(net)
 
 
@@ -138,7 +133,7 @@ class ResNetModel(TFModel):
         with tf.variable_scope(name):
 
             if bottleneck:
-
+                print('bottle')
                 output_filters = filters * bottelneck_factor
                 
 
@@ -162,7 +157,7 @@ class ResNetModel(TFModel):
                 x = conv_block(dim, x, filters, kernel_size, layout, '2', padding='same', data_format=data_format, activation=tf.nn.relu, is_training=is_training, \
                                conv=conv_params)
 
-            if strides != 1:
+            if block_number == 0:
                 shortcut = conv_block(dim, input_tensor, output_filters, (1, 1), 'c', strides=strides, padding='same', \
                                       is_training=is_training, conv=conv_params)
             else:
@@ -178,7 +173,6 @@ class ResNet152(ResNetModel):
         ''' An original ResNet-101 architecture for ImageNet
         '''
         self.config['length_factor'] = [3, 8, 36, 3]
-        self.config['widenning_factor'] = 4
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
         self.config['n_classes'] = 1000
@@ -190,7 +184,6 @@ class ResNet101(ResNetModel):
         ''' An original ResNet-101 architecture for ImageNet
         '''
         self.config['length_factor'] = [3, 4, 23, 3]
-        self.config['widenning_factor'] = 4
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
         self.config['n_classes'] = 1000
@@ -202,7 +195,6 @@ class ResNet50(ResNetModel):
         ''' An original ResNet-50 architecture for ImageNet
         '''
         self.config['length_factor'] = [3, 4, 6, 3]
-        self.config['widenning_factor'] = 4
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
         self.config['n_classes'] = 1000
@@ -214,7 +206,6 @@ class ResNet34(ResNetModel):
         ''' An original ResNet-34 architecture for ImageNet
         '''
         self.config['length_factor'] = [3, 4, 6, 3]
-        self.config['widenning_factor'] = 4
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
         self.config['n_classes'] = 1000
@@ -228,7 +219,6 @@ class ResNet18(ResNetModel):
         ''' An original ResNet-18 architecture for ImageNet
         '''
         self.config['length_factor'] = [2, 2, 2, 2]
-        self.config['widenning_factor'] = 4
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
         self.config['n_classes'] = 1000
