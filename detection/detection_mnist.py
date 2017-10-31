@@ -4,6 +4,7 @@ Generate images with MNIST in random positions
 import sys
 import pickle
 import numpy as np
+import time
 
 sys.path.append('..')
 
@@ -77,13 +78,16 @@ class DetectionMnist(Batch):
             self.bboxes = bboxes
             return self
 
+
     @action
     @inbatch_parallel(init='init_func', post='post_func_bbox_batch', target='threads')
     def create_bbox_batch(self, ind, *args, **kwargs):
         n_bboxes = kwargs['n_bboxes']
         bboxes = self.bboxes[ind]
         labels = self.labels[ind]
-        sample = np.random.choice(len(bboxes), min([len(bboxes), n_bboxes]))
+        sample = np.random.choice(len(bboxes), min([len(bboxes), n_bboxes]), replace=False)
+        if len(sample) < n_bboxes:
+            sample = np.concatenate([sample, np.zeros(n_bboxes - len(sample), dtype=np.int32)])
         return bboxes[sample], labels[sample]
 
     def post_func_bbox_batch(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
@@ -96,37 +100,50 @@ class DetectionMnist(Batch):
             self.bboxes_batch = bboxes
             return self
 
+
     @action
     @inbatch_parallel(init='init_func', post='post_func_reg_cls', target='threads')
     def create_reg_cls(self, ind):
-        anchors = self.anchors.reshape(-1, 9, 4)
+        anchors = self.anchors.reshape((-1, 4))
         bboxes = self.bboxes_batch[ind]
         labels = self.labels_batch[ind]
-        iou_cut = lambda x: int(x >= 0.7) - int(x < 0.2)
-        reg = []
-        clsf = []
-        true_labels = []
-        for current_pixel_anchors in anchors:    
-            best_bboxes, best_labels, ious = find_best_bboxes(current_pixel_anchors, bboxes, labels)
-            reg.append(best_bboxes)
-            clsf.append((1 - ious, ious))
-            true_labels.append(best_labels)
-        reg = np.array(reg)
-        clsf = np.array(clsf).transpose(0, 2, 1)
-        true_labels = np.array(true_labels)
-        return reg, clsf,  true_labels
+
+        n = anchors.shape[0]
+        k = bboxes.shape[0]
+
+        # Compute the IoUs of the anchors and ground truth boxes
+        tiled_anchors = np.tile(np.expand_dims(anchors, 1), (1, k, 1))
+        tiled_bboxes = np.tile(np.expand_dims(bboxes, 0), (n, 1, 1))
+
+        tiled_anchors = tiled_anchors.reshape((-1, 4))
+        tiled_bboxes = tiled_bboxes.reshape((-1, 4))
+
+        ious = iou_bbox(tiled_anchors, tiled_bboxes)[0]
+        ious = ious.reshape(n, k)
+
+        # Label each anchor based on its max IoU
+        max_ious = np.max(ious, axis=1)
+    
+        best_gt_bbox_ids = np.argmax(ious, axis=1)
+
+        reg = bboxes[best_gt_bbox_ids].reshape(self.anchors.shape)
+        true_labels = labels[best_gt_bbox_ids].reshape(self.anchors.shape[:-1]+(10,))
+        clsf = max_ious.reshape(self.anchors.shape[:-1])
+        clsf = np.stack([1 - clsf, clsf], axis=-1)
+        return reg, clsf, true_labels
 
     def post_func_reg_cls(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
         if any_action_failed(list_of_res):
             print(list_of_res)
             raise Exception("Something bad happened")
         else:
-            reg, clsf,  true_labels = list(zip(*list_of_res))
-            self.reg = np.array(reg).reshape(len(self.images), *self.anchors.shape[:2], 9*4)
-            self.clsf = np.array(clsf).reshape(len(self.images), *self.anchors.shape[:2], 9*2)
-            self.true_labels = np.array(true_labels).reshape(len(self.images), *self.anchors.shape[:2], 9, 10)
-            self.reg_clsf = np.concatenate([self.reg, self.clsf],-1)
+            reg, clsf, true_labels = list(zip(*list_of_res))
+            self.reg = np.array(reg).reshape(len(self.images), -1, 9*4)
+            self.clsf = np.array(clsf).reshape(len(self.images), -1, 9*2)
+            self.true_labels = np.array(true_labels).reshape(len(self.images), -1, 9*10)
+            self.reg_clsf = np.concatenate([self.reg, self.clsf],-1).reshape((-1, *self.anchors.shape[:2], 9*6))
             return self
+
 
     @action
     def create_anchors(self, img_shape, map_shape, scales=[8, 16, 32], ratio=3):
@@ -175,7 +192,6 @@ class DetectionMnist(Batch):
         self.anchors = np.array(self.anchors).transpose(1, 0, 2).reshape(*map_shape, 9, 4)
         return self
 
-
 def iou_anchor_bbox(anchor, bbox):
     """ Compute the IoUs between bounding boxes. """
     anchor = np.array(anchor, np.float32)
@@ -221,3 +237,27 @@ def find_best_bboxes(anchors, bboxes, labels):
             best_labels.append(best_label)
         ious.append(iou_max)
     return np.array(best_bboxes), np.array(best_labels), np.array(ious)
+
+def iou_bbox(bboxes1, bboxes2):
+    """ Compute the IoUs between bounding boxes. """
+    bboxes1 = np.array(bboxes1, np.float32)
+    bboxes2 = np.array(bboxes2, np.float32)
+    
+    intersection_min_y = np.maximum(bboxes1[:, 0], bboxes2[:, 0])
+    intersection_max_y = np.minimum(bboxes1[:, 0] + bboxes1[:, 2] - 1, bboxes2[:, 0] + bboxes2[:, 2] - 1)
+    intersection_height = np.maximum(intersection_max_y - intersection_min_y + 1, np.zeros_like(bboxes1[:, 0]))
+
+    intersection_min_x = np.maximum(bboxes1[:, 1], bboxes2[:, 1])
+    intersection_max_x = np.minimum(bboxes1[:, 1] + bboxes1[:, 3] - 1, bboxes2[:, 1] + bboxes2[:, 3] - 1)
+    intersection_width = np.maximum(intersection_max_x - intersection_min_x + 1, np.zeros_like(bboxes1[:, 1]))
+
+    area_intersection = intersection_height * intersection_width
+    area_first = bboxes1[:, 2] * bboxes1[:, 3]
+    area_second = bboxes2[:, 2] * bboxes2[:, 3]
+    area_union = area_first + area_second - area_intersection
+    
+    iou = area_intersection * 1.0 / area_union
+    iof = area_intersection * 1.0 / area_first
+    ios = area_intersection * 1.0 / area_second
+
+    return iou, iof, ios
