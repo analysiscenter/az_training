@@ -8,7 +8,7 @@ from dataset.dataset.models.tf import TFModel
 from dataset.dataset.models.tf.layers import conv_block
 from dataset.dataset.models.tf.layers.pooling import max_pooling, global_average_pooling
 
-class Inception_v1(TFModel):
+class InceptionV1(TFModel):
     """ implementation GoogLeNet model
 
     Parameters:
@@ -27,7 +27,6 @@ class Inception_v1(TFModel):
 
         input_image = input_after['images']
         targets = input_after['labels']
-
         with tf.variable_scope('inception'):
             net = conv_block(dim=dim, input_tensor=input_image, filters=64, kernel_size=7, strides=2, layout='cp',\
                              data_format=data_format, pool_size=3, pool_strides=2)
@@ -36,27 +35,27 @@ class Inception_v1(TFModel):
             net = conv_block(dim=dim, input_tensor=net, filters=192, kernel_size=3, layout='cp',\
                              data_format=data_format, pool_size=3, strides=2)
             net = googlenet_block(dim=dim, input_tensor=net, filters=[64, 96, 128, 16, 32, 32],\
-                                  data_format=data_format, name='3a')
+                                  data_format=data_format, name='3a', is_training=self.is_training)
             net = googlenet_block(dim=dim, input_tensor=net, filters=[128, 128, 192, 32, 96, 64],\
-                                  data_format=data_format, name='3b')
-            net = max_pooling(inputs=net, dim=dim, pool_size=3, strides=2, padding='same', data_format=data_format)
+                                  data_format=data_format, name='3b', is_training=self.is_training)
+            net = max_pooling(dim=dim, inputs=net, pool_size=3, strides=2, padding='same', data_format=data_format)
 
             net = googlenet_block(dim=dim, input_tensor=net, filters=[192, 96, 208, 16, 48, 64],\
-                                  data_format=data_format, name='4a')
+                                  data_format=data_format, name='4a', is_training=self.is_training)
             net = googlenet_block(dim=dim, input_tensor=net, filters=[160, 112, 224, 24, 64, 64],\
-                                  data_format=data_format, name='4b')
+                                  data_format=data_format, name='4b', is_training=self.is_training)
             net = googlenet_block(dim=dim, input_tensor=net, filters=[128, 128, 256, 24, 64, 64],\
-                                  data_format=data_format, name='4c')
+                                  data_format=data_format, name='4c', is_training=self.is_training)
             net = googlenet_block(dim=dim, input_tensor=net, filters=[112, 144, 288, 32, 64, 64],\
-                                  data_format=data_format, name='4d')
+                                  data_format=data_format, name='4d', is_training=self.is_training)
             net = googlenet_block(dim=dim, input_tensor=net, filters=[256, 160, 320, 32, 128, 128],\
-                                  data_format=data_format, name='4e')
-            net = max_pooling(inputs=net, dim=dim, pool_size=3, strides=2, padding='same', data_format=data_format)
+                                  data_format=data_format, name='4e', is_training=self.is_training)
+            net = max_pooling(dim=dim, inputs=net, pool_size=3, strides=2, padding='same', data_format=data_format)
 
             net = googlenet_block(dim=dim, input_tensor=net, filters=[256, 160, 320, 32, 128, 128],\
-                                  data_format=data_format, name='5a')
+                                  data_format=data_format, name='5a', is_training=self.is_training)
             net = googlenet_block(dim=dim, input_tensor=net, filters=[384, 192, 384, 48, 128, 128],\
-                                  data_format=data_format, name='5b')
+                                  data_format=data_format, name='5b', is_training=self.is_training)
             net = global_average_pooling(dim=dim, inputs=net, data_format=data_format)
             net = tf.layers.dropout(net, 0.4, training=self.is_training)
             net = tf.contrib.layers.flatten(net)
@@ -82,7 +81,7 @@ class Inception_v1(TFModel):
         labels = tf.cast(tf.argmax(targets, axis=1), tf.float32, name='labels')
         tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
 
-def googlenet_block(dim, input_tensor, filters, data_format, name, batch_norm=False):
+def googlenet_block(dim, input_tensor, filters, data_format, name, batch_norm=False, is_training=True):
     """ Function contains building block from googlenet achitecture
 
     Parameters:
@@ -119,21 +118,21 @@ def googlenet_block(dim, input_tensor, filters, data_format, name, batch_norm=Fa
 
     with tf.variable_scope("block_" + name):
         block_1 = conv_block(dim=dim, input_tensor=input_tensor, filters=filters[0], kernel_size=1,\
-                             layout=layout, name='conv_1', data_format=data_format)
+                             layout=layout, name='conv_1', data_format=data_format, is_training=is_training)
 
         block_1_3 = conv_block(dim=dim, input_tensor=input_tensor, filters=filters[1], kernel_size=1,\
-                             layout=layout, name='conv_1_3', data_format=data_format)
+                               layout=layout, name='conv_1_3', data_format=data_format, is_training=is_training)
         block_3 = conv_block(dim=dim, input_tensor=block_1_3, filters=filters[2], kernel_size=1,\
-                             layout=layout, name='conv_3', data_format=data_format)
+                             layout=layout, name='conv_3', data_format=data_format, is_training=is_training)
 
         block_1_5 = conv_block(dim=dim, input_tensor=input_tensor, filters=filters[3], kernel_size=1,\
-                             layout=layout, name='conv_1_5', data_format=data_format)
+                               layout=layout, name='conv_1_5', data_format=data_format, is_training=is_training)
         block_5 = conv_block(dim=dim, input_tensor=block_1_5, filters=filters[4], kernel_size=1,\
-                             layout=layout, name='conv_5', data_format=data_format)
+                             layout=layout, name='conv_5', data_format=data_format, is_training=is_training)
 
         conv_pool = conv_block(dim=dim, input_tensor=input_tensor, filters=filters[5], kernel_size=1, \
                                layout='p'+layout, name='conv_pool', data_format=data_format, pool_size=1,\
-                               pool_strides=1)
+                               pool_strides=1, is_training=is_training)
 
         if data_format == 'channels_last':
             return tf.concat([block_1, block_3, block_5, conv_pool], -1, name='output')
