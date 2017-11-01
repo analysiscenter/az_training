@@ -6,9 +6,9 @@ sys.path.append('..')
 
 from dataset.dataset.models.tf import TFModel
 from dataset.dataset.models.tf.layers import conv_block
-from dataset.dataset.models.tf.layers.pooling import max_pooling, average_pooling
+from dataset.dataset.models.tf.layers.pooling import max_pooling, global_average_pooling
 
-class GoogLeNet(TFModel):
+class Inception_v1(TFModel):
     """ implementation GoogLeNet model
 
     Parameters:
@@ -19,21 +19,16 @@ class GoogLeNet(TFModel):
     spacial dimension of input without the number of channels
     """
 
-    def _build(self, inputs, *args, **kwargs):
-        _ = args, kwargs
+    def _build(self, input_before, input_after, *args, **kwargs):
+        _ = input_before, args, kwargs
 
         data_format = self.get_from_config('data_format')
         dim = self.get_from_config('dim')
 
-        # placeholders = self._make_inputs()
-        # input_image = inputs['images']
-        # labels = inputs['labels']
-        # targets = inputs['targets']
-        input_image = tf.placeholder(tf.float32, name='input', shape=[None, 28, 28, 1])
-        targets = tf.placeholder(tf.int32, name='labels', shape=[None, 1])
-        targets = tf.one_hot(targets, 10)
+        input_image = input_after['images']
+        targets = input_after['labels']
 
-        with tf.variable_scope('googlenet'):
+        with tf.variable_scope('inception'):
             net = conv_block(dim=dim, input_tensor=input_image, filters=64, kernel_size=7, strides=2, layout='cp',\
                              data_format=data_format, pool_size=3, pool_strides=2)
             net = conv_block(dim=dim, input_tensor=net, filters=64, kernel_size=3, layout='c',\
@@ -44,7 +39,7 @@ class GoogLeNet(TFModel):
                                   data_format=data_format, name='3a')
             net = googlenet_block(dim=dim, input_tensor=net, filters=[128, 128, 192, 32, 96, 64],\
                                   data_format=data_format, name='3b')
-            net = max_pooling(dim=dim, inputs=net, pool_size=3, strides=2, padding='same', data_format=data_format)
+            net = max_pooling(inputs=net, dim=dim, pool_size=3, strides=2, padding='same', data_format=data_format)
 
             net = googlenet_block(dim=dim, input_tensor=net, filters=[192, 96, 208, 16, 48, 64],\
                                   data_format=data_format, name='4a')
@@ -56,20 +51,18 @@ class GoogLeNet(TFModel):
                                   data_format=data_format, name='4d')
             net = googlenet_block(dim=dim, input_tensor=net, filters=[256, 160, 320, 32, 128, 128],\
                                   data_format=data_format, name='4e')
-            net = max_pooling(dim=dim, inputs=net, pool_size=3, strides=2, padding='same', data_format=data_format)
+            net = max_pooling(inputs=net, dim=dim, pool_size=3, strides=2, padding='same', data_format=data_format)
 
             net = googlenet_block(dim=dim, input_tensor=net, filters=[256, 160, 320, 32, 128, 128],\
                                   data_format=data_format, name='5a')
             net = googlenet_block(dim=dim, input_tensor=net, filters=[384, 192, 384, 48, 128, 128],\
                                   data_format=data_format, name='5b')
-            pool_size = net.get_shape()[1:3]
-            net = average_pooling(dim=dim, inputs=net, pool_size=pool_size, strides=1, padding='same',\
-                                  data_format=data_format)
+            net = global_average_pooling(dim=dim, inputs=net, data_format=data_format)
             net = tf.layers.dropout(net, 0.4, training=self.is_training)
             net = tf.contrib.layers.flatten(net)
             net = tf.layers.dense(net, 10)
 
-        tf.identity(net, name='predictions')
+        self.statistic(tf.identity(net, name='predictions'), targets)
 
 
 
