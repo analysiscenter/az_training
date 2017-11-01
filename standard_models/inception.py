@@ -20,14 +20,16 @@ class InceptionV1(TFModel):
     """
 
     def _build(self, *args, **kwargs):
-        _ = input_before, args, kwargs
+        _ = args, kwargs
 
         data_format = self.get_from_config('data_format')
         dim = self.get_from_config('dim')
 
         names = ['images', 'labels']
         input_image, targets = self._make_inputs(names)
-
+        # input_image = tf.placeholder(tf.float32, name='images', shape=[None, 28, 28, 1])     
+        # targets = tf.placeholder(tf.int32, name='labels', shape=[None])        
+        # targets = tf.one_hot(targets, 10)
         with tf.variable_scope('inception'):
             net = conv_block(dim=dim, input_tensor=input_image, filters=64, kernel_size=7, strides=2, layout='cp',\
                              data_format=data_format, pool_size=3, pool_strides=2)
