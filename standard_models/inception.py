@@ -19,14 +19,15 @@ class InceptionV1(TFModel):
     spacial dimension of input without the number of channels
     """
 
-    def _build(self, input_before, input_after, *args, **kwargs):
+    def _build(self, *args, **kwargs):
         _ = input_before, args, kwargs
 
         data_format = self.get_from_config('data_format')
         dim = self.get_from_config('dim')
 
-        input_image = input_after['images']
-        targets = input_after['labels']
+        names = ['images', 'labels']
+        input_image, targets = self._make_inputs(names)
+
         with tf.variable_scope('inception'):
             net = conv_block(dim=dim, input_tensor=input_image, filters=64, kernel_size=7, strides=2, layout='cp',\
                              data_format=data_format, pool_size=3, pool_strides=2)
