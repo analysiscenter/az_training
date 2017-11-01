@@ -24,14 +24,13 @@ class DetectionMnist(Batch):
         self.anchors = None
         self.reg = None
         self.clsf = None
-        self.reg_clsf = None
         self.true_labels = None
 
     @property
     def components(self):
         """Define components."""
         return ('images', 'labels', 'bboxes', 'labels_batch', 'bboxes_batch', 
-               'anchors', 'reg', 'clsf', 'true_labels', 'reg_clsf')
+               'anchors', 'reg', 'clsf', 'true_labels')
 
     @action
     def load_images(self):
@@ -39,7 +38,7 @@ class DetectionMnist(Batch):
         with open('../mnist/mnist_pics.pkl', 'rb') as file:
             self.images = pickle.load(file)[self.indices].reshape(-1, 28, 28)
         with open('../mnist/mnist_labels.pkl', 'rb') as file:
-            self.labels = pickle.load(file)[self.indices]
+            self.labels = np.argmax(pickle.load(file)[self.indices], axis=-1)
         return self
 
     def init_func(self, *args, **kwargs): # pylint: disable=unused-argument
@@ -104,7 +103,7 @@ class DetectionMnist(Batch):
     @action
     @inbatch_parallel(init='init_func', post='post_func_reg_cls', target='threads')
     def create_reg_cls(self, ind):
-        anchors = self.anchors.reshape((-1, 4))
+        anchors = self.anchors
         bboxes = self.bboxes_batch[ind]
         labels = self.labels_batch[ind]
 
@@ -126,10 +125,10 @@ class DetectionMnist(Batch):
     
         best_gt_bbox_ids = np.argmax(ious, axis=1)
 
-        reg = bboxes[best_gt_bbox_ids].reshape(self.anchors.shape)
-        true_labels = labels[best_gt_bbox_ids].reshape(self.anchors.shape[:-1]+(10,))
-        clsf = max_ious.reshape(self.anchors.shape[:-1])
-        clsf = np.stack([1 - clsf, clsf], axis=-1)
+        reg = bboxes[best_gt_bbox_ids]
+        #reg = param_bbox(reg, self.anchors)
+        true_labels = labels[best_gt_bbox_ids].reshape(-1)
+        clsf = max_ious > 0.7
         return reg, clsf, true_labels
 
     def post_func_reg_cls(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
@@ -138,11 +137,46 @@ class DetectionMnist(Batch):
             raise Exception("Something bad happened")
         else:
             reg, clsf, true_labels = list(zip(*list_of_res))
-            self.reg = np.array(reg).reshape(len(self.images), -1, 9*4)
-            self.clsf = np.array(clsf).reshape(len(self.images), -1, 9*2)
-            self.true_labels = np.array(true_labels).reshape(len(self.images), -1, 9*10)
-            self.reg_clsf = np.concatenate([self.reg, self.clsf],-1).reshape((-1, *self.anchors.shape[:2], 9*6))
+            self.reg = np.array(reg)
+            self.clsf = np.array(clsf)
+            self.true_labels = np.array(true_labels)
+            print('clsf:', self.clsf.shape)
             return self
+
+    @action
+    def param_reg(self):
+        """ Parameterize bounding boxes with respect to anchors. Namely, (y,x,h,w)->(ty,tx,th,tw). """
+        
+        anchors = self.anchors
+        param_bb = []
+        for bboxes in self.reg:
+            tyx = (bboxes[:, :2] - anchors[:, :2]) / anchors[:, 2:]
+            thw = np.log(bboxes[:, 2:] / anchors[:, 2:])
+            param_bb.append(np.concatenate((tyx, thw), axis=1))
+        param_bb = np.array(param_bb)
+        self.reg = param_bb
+        return self
+
+    @action
+    def unparam_bbox(predictions, max_shape=None):
+        """ Unparameterize bounding boxes with respect to anchors. Namely, (ty,tx,th,tw)->(y,x,h,w). """
+        predictions = np.array(t, np.float32)
+        anchors = self.anchors
+        unparam_bb = []
+
+        for t in predictions:
+            yx = t[:, :2] * anchors[:, 2:] + anchors[:, :2]
+            hw = np.exp(t[:, 2:]) * anchors[:, 2:]
+
+            bboxes = np.concatenate((yx, hw), axis=1)
+
+            if max_shape != None:
+                bboxes = rectify_bbox(bboxes, max_shape)
+
+            unparam_bb.append(bboxes)
+        unparam_bb = np.array(unparam_bb)
+        predictions = unparam_bb
+        return self
 
 
     @action
@@ -189,7 +223,7 @@ class DetectionMnist(Batch):
                 anchors = np.concatenate((y, x, h, w), axis=1)
                 self.anchors.append(np.array(anchors, np.int32))
 
-        self.anchors = np.array(self.anchors).transpose(1, 0, 2).reshape(*map_shape, 9, 4)
+        self.anchors = np.array(self.anchors).transpose(1, 0, 2).reshape(-1, 4)
         return self
 
 def iou_anchor_bbox(anchor, bbox):
@@ -261,3 +295,4 @@ def iou_bbox(bboxes1, bboxes2):
     ios = area_intersection * 1.0 / area_second
 
     return iou, iof, ios
+

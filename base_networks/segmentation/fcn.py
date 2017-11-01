@@ -2,14 +2,14 @@
 import sys
 import tensorflow as tf
 
-sys.path.append('..')
+sys.path.append('../..')
+sys.path.append('../classification')
 
 from dataset.dataset.models.tf.layers import conv_block
+from dataset.dataset.models.tf import TFModel
 from vgg import VGGModel
-from basemodels import NetworkModel
 
-
-class FCNModel(NetworkModel):
+class FCNModel(TFModel):
     """FCN as TFModel
 
     Parameters
@@ -28,7 +28,7 @@ class FCNModel(NetworkModel):
     n_classes : int.
     """
 
-    def _build(self, inputs, *args, **kwargs):
+    def _build(self, inp1, inp2, *args, **kwargs):
         """build function for VGG."""
         n_classes = self.num_channels('masks')
         data_format = self.data_format('images')
@@ -42,7 +42,7 @@ class FCNModel(NetworkModel):
 
         layers_dicts = {'conv': conv, 'batch_norm': batch_norm}
 
-        net = VGGModel.fully_conv_block(dim, inputs['images'], b_norm, 'VGG16', **layers_dicts)
+        net = VGGModel.fully_conv_block(dim, inp2['images'], b_norm, 'VGG16', **layers_dicts)
         net = conv_block(dim, net, 100, 7, 'ca', 'conv-out-1', **layers_dicts)
         net = conv_block(dim, net, 100, 1, 'ca', 'conv-out-2', padding='VALID', **layers_dicts)
         net = conv_block(dim, net, n_classes, 1, 'ca', 'conv-out-3', padding='VALID', **layers_dicts)

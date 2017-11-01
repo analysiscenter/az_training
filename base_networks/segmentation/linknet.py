@@ -5,7 +5,7 @@ from dataset.dataset.models.tf import TFModel
 
 class LinkNetModel(TFModel):
     """LinkNet as TFModel"""
-    def _build(self, inputs, *args, **kwargs):
+    def _build(self, inp1, inp2, *args, **kwargs):
 
         n_classes = self.num_channels('masks')
         data_format = self.data_format('images')
@@ -17,7 +17,7 @@ class LinkNetModel(TFModel):
 
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
 
-        inp = inputs['images']
+        inp = inp2['images']
         with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
             layout = 'cpna' if b_norm else 'cpa'
 

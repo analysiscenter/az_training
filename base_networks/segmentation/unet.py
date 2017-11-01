@@ -1,11 +1,11 @@
-""" LinkNet as TFModel """
+""" UNet as TFModel """
 import tensorflow as tf
 from dataset.dataset.models.tf.layers import conv_block
-from basemodels import NetworkModel
+from dataset.dataset.models.tf import TFModel
 
-class UNetModel(NetworkModel):
+class UNetModel(TFModel):
     """LinkNet as TFModel"""
-    def _build(self, inputs, *args, **kwargs):
+    def _build(self, inp1, inp2, *args, **kwargs):
 
         n_classes = self.num_channels('masks')
         data_format = self.data_format('images')
@@ -19,7 +19,7 @@ class UNetModel(NetworkModel):
 
         layout = 'cnacnap' if b_norm else 'cacap'
 
-        net = inputs['images']
+        net = inp2['images']
         encoder_outputs = []
         unet_filters = [64, 128, 256, 512]
         axis = dim+1 if data_format == 'channels_last' else 1

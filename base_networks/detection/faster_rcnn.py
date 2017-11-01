@@ -9,7 +9,7 @@ from vgg import VGGModel
 
 class FRCNNModel(TFModel):
     """LinkNet as TFModel"""
-    def _build(self, inputs, *args, **kwargs):
+    def _build(self, inp1, inp2, *args, **kwargs):
 
         #n_classes = self.num_channels('masks')
         data_format = self.data_format('images')
@@ -21,7 +21,7 @@ class FRCNNModel(TFModel):
 
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
         
-        inp = inputs['reshaped_images']
+        inp = inp2['images']
         with tf.variable_scope('FRCNN'): # pylint: disable=not-context-manager
             net = VGGModel.fully_conv_block(dim, inp, b_norm, 'VGG6', **kwargs)
             net = conv_block(dim, net, 512, 3, 'ca', **kwargs)
