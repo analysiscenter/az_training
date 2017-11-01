@@ -26,7 +26,7 @@ class VGGModel(TFModel):
     n_classes : int.
     """
 
-    def _build(self, inp1, inp2, *args, **kwargs):
+    def _build(self, _, inp2, *args, **kwargs):
         n_classes = self.num_channels('labels')
         data_format = self.data_format('images')
         dim = self.spatial_dim('images')

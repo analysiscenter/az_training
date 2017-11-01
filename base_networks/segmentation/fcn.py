@@ -28,7 +28,7 @@ class FCNModel(TFModel):
     n_classes : int.
     """
 
-    def _build(self, inp1, inp2, *args, **kwargs):
+    def _build(self, _, inp2, *args, **kwargs):
         """build function for VGG."""
         n_classes = self.num_channels('masks')
         data_format = self.data_format('images')

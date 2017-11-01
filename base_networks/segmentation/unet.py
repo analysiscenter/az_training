@@ -5,7 +5,7 @@ from dataset.dataset.models.tf import TFModel
 
 class UNetModel(TFModel):
     """LinkNet as TFModel"""
-    def _build(self, inp1, inp2, *args, **kwargs):
+    def _build(self, _, inp2, *args, **kwargs):
 
         n_classes = self.num_channels('masks')
         data_format = self.data_format('images')
