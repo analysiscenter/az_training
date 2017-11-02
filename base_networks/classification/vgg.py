@@ -11,7 +11,7 @@ class VGGModel(TFModel):
     """VGG as TFModel
     """
 
-    def _build(self, *args, **kwargs):
+    def _build(self):
         names = ['images', 'labels']
         _, inputs = self._make_inputs(names)
 
@@ -24,7 +24,7 @@ class VGGModel(TFModel):
         conv = {'data_format': data_format,
                 'dilation_rate': self.get_from_config('dilation_rate', 1)}
         batch_norm = {'momentum': 0.9,
-        			  'training': self.is_training}
+                      'training': self.is_training}
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
 
         net = self.fully_conv_block(dim, inputs['images'], b_norm, vgg_arch, **kwargs)
@@ -156,7 +156,7 @@ class VGG19Model(VGGModel):
     """VGG19 as TFModel"""
     def _build(self, *args, **kwargs):
         self.config['vgg_arch'] = 'VGG19'
-        super()._build( *args, **kwargs)
+        super()._build(*args, **kwargs)
 
 class VGG7Model(VGGModel):
     """VGG7 as TFModel"""

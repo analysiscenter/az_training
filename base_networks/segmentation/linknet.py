@@ -5,7 +5,7 @@ from dataset.dataset.models.tf import TFModel
 
 class LinkNetModel(TFModel):
     """LinkNet as TFModel"""
-    def _build(self, *args, **kwargs):
+    def _build(self):
 
         names = ['images', 'masks']
         _, inputs = self._make_inputs(names)

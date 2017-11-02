@@ -13,7 +13,7 @@ class FCNModel(TFModel):
     """FCN as TFModel
     """
 
-    def _build(self, *args, **kwargs):
+    def _build(self):
         """build function for VGG."""
         names = ['images', 'masks']
         _, inputs = self._make_inputs(names)
@@ -53,5 +53,4 @@ class FCNModel(TFModel):
                 net = conv_block(dim, fcn8_sum, n_classes, 16, 't', 'output', 8, **layers_dicts)
             else:
                 raise ValueError('Wrong value of fcn_arch')
-        logits = tf.identity(net, 'predictions')
-        tf.nn.softmax(logits, name='predicted_prob')
+        tf.nn.softmax(tf.identity(net, 'predictions'), name='predicted_prob')
