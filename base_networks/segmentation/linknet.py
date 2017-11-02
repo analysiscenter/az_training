@@ -5,7 +5,10 @@ from dataset.dataset.models.tf import TFModel
 
 class LinkNetModel(TFModel):
     """LinkNet as TFModel"""
-    def _build(self, _, inp2, *args, **kwargs):
+    def _build(self, *args, **kwargs):
+
+        names = ['images', 'masks']
+        _, inputs = self._make_inputs(names)
 
         n_classes = self.num_channels('masks')
         data_format = self.data_format('images')
@@ -13,11 +16,12 @@ class LinkNetModel(TFModel):
         b_norm = self.get_from_config('batch_norm', True)
 
         conv = {'data_format': data_format}
-        batch_norm = {'momentum': 0.1}
+        batch_norm = {'momentum': 0.1,
+                      'training': self.is_training}
 
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
 
-        inp = inp2['images']
+        inp = inputs['images']
         with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
             layout = 'cpna' if b_norm else 'cpa'
 
@@ -42,7 +46,9 @@ class LinkNetModel(TFModel):
             net = conv_block(dim, net, 32, 3, layout, 'output_conv_2', **kwargs)
             net = conv_block(dim, net, n_classes, 2, 't', 'output_conv_3', 2, **kwargs)
 
-        tf.identity(net, 'predictions')
+        logits = tf.identity(net, 'predictions')
+        tf.nn.softmax(logits, name='predicted_prob')
+
 
     @staticmethod
     def encoder_block(dim, inp, out_filters, name, b_norm, **kwargs):

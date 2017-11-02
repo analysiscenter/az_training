@@ -11,25 +11,13 @@ from vgg import VGGModel
 
 class FCNModel(TFModel):
     """FCN as TFModel
-
-    Parameters
-    ----------
-    dim : int
-        spacial dimension of input without the number of channels
-
-    images_shape : tuple of ints
-
-    fcn_arch : str or list of tuples
-        see fcn()
-
-    b_norm : bool
-        Use batch normalization. By default is True.
-
-    n_classes : int.
     """
 
-    def _build(self, _, inp2, *args, **kwargs):
+    def _build(self, *args, **kwargs):
         """build function for VGG."""
+        names = ['images', 'masks']
+        _, inputs = self._make_inputs(names)
+
         n_classes = self.num_channels('masks')
         data_format = self.data_format('images')
         dim = self.spatial_dim('images')
@@ -38,11 +26,12 @@ class FCNModel(TFModel):
 
         conv = {'data_format': data_format,
                 'dilation_rate': self.get_from_config('dilation_rate', 1)}
-        batch_norm = {'momentum': 0.99}
+        batch_norm = {'momentum': 0.1,
+                      'training': self.is_training}
 
         layers_dicts = {'conv': conv, 'batch_norm': batch_norm}
 
-        net = VGGModel.fully_conv_block(dim, inp2['images'], b_norm, 'VGG16', **layers_dicts)
+        net = VGGModel.fully_conv_block(dim, inputs['images'], b_norm, 'VGG16', **layers_dicts)
         net = conv_block(dim, net, 100, 7, 'ca', 'conv-out-1', **layers_dicts)
         net = conv_block(dim, net, 100, 1, 'ca', 'conv-out-2', padding='VALID', **layers_dicts)
         net = conv_block(dim, net, n_classes, 1, 'ca', 'conv-out-3', padding='VALID', **layers_dicts)
@@ -64,4 +53,5 @@ class FCNModel(TFModel):
                 net = conv_block(dim, fcn8_sum, n_classes, 16, 't', 'output', 8, **layers_dicts)
             else:
                 raise ValueError('Wrong value of fcn_arch')
-        tf.identity(net, 'predictions')
+        logits = tf.identity(net, 'predictions')
+        tf.nn.softmax(logits, name='predicted_prob')

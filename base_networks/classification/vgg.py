@@ -9,24 +9,12 @@ from dataset.dataset.models.tf import TFModel
 
 class VGGModel(TFModel):
     """VGG as TFModel
-
-    Parameters
-    ----------
-    images_shape : tuple of ints
-
-    vgg_arch : str or list of tuples
-        see vgg()
-
-    b_norm : bool
-        Use batch normalization. By default is True.
-
-    momentum : float
-        Batch normalization momentum. By default is 0.9.
-
-    n_classes : int.
     """
 
-    def _build(self, _, inp2, *args, **kwargs):
+    def _build(self, *args, **kwargs):
+        names = ['images', 'labels']
+        _, inputs = self._make_inputs(names)
+
         n_classes = self.num_channels('labels')
         data_format = self.data_format('images')
         dim = self.spatial_dim('images')
@@ -35,10 +23,11 @@ class VGGModel(TFModel):
 
         conv = {'data_format': data_format,
                 'dilation_rate': self.get_from_config('dilation_rate', 1)}
-        batch_norm = {'momentum': 0.9}
+        batch_norm = {'momentum': 0.9,
+        			  'training': self.is_training}
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
 
-        net = self.fully_conv_block(dim, inp2['images'], b_norm, vgg_arch, **kwargs)
+        net = self.fully_conv_block(dim, inputs['images'], b_norm, vgg_arch, **kwargs)
 
         net = tf.contrib.layers.flatten(net)
         net = tf.layers.dense(net, 100, name='fc1')
@@ -47,7 +36,14 @@ class VGGModel(TFModel):
         net = tf.layers.dense(net, 100, name='fc2')
         net = conv_block(dim, net, None, None, layout, **kwargs)
         net = tf.layers.dense(net, n_classes, name='fc3')
-        tf.identity(net, name='predictions')
+
+        logits = tf.identity(net, name='predictions')
+        pred_proba = tf.nn.softmax(logits, name='predicted_prob')
+        pred_labels = tf.argmax(pred_proba, axis=-1, name='predicted_labels')
+        true_labels = tf.argmax(inputs['labels'], axis=-1, name='true_labels')
+        equality = tf.equal(pred_labels, true_labels)
+        equality = tf.cast(equality, dtype=tf.float32)
+        tf.reduce_mean(equality, name='accuracy')
 
     @staticmethod
     def block(dim, inp, depth, filters, last_layer, b_norm, name='vgg_block', **kwargs):
@@ -152,18 +148,18 @@ class VGGModel(TFModel):
 
 class VGG16Model(VGGModel):
     """VGG16 as TFModel"""
-    def _build(self, inputs, *args, **kwargs):
+    def _build(self, *args, **kwargs):
         self.config['vgg_arch'] = 'VGG16'
-        super()._build(inputs, *args, **kwargs)
+        super()._build(*args, **kwargs)
 
 class VGG19Model(VGGModel):
     """VGG19 as TFModel"""
-    def _build(self, inputs, *args, **kwargs):
+    def _build(self, *args, **kwargs):
         self.config['vgg_arch'] = 'VGG19'
-        super()._build(inputs, *args, **kwargs)
+        super()._build( *args, **kwargs)
 
 class VGG7Model(VGGModel):
     """VGG7 as TFModel"""
-    def _build(self, inputs, *args, **kwargs):
+    def _build(self, *args, **kwargs):
         self.config['vgg_arch'] = 'VGG7'
-        super()._build(inputs, *args, **kwargs)
+        super()._build(*args, **kwargs)

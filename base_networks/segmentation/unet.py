@@ -4,8 +4,11 @@ from dataset.dataset.models.tf.layers import conv_block
 from dataset.dataset.models.tf import TFModel
 
 class UNetModel(TFModel):
-    """LinkNet as TFModel"""
-    def _build(self, _, inp2, *args, **kwargs):
+    """UNet as TFModel"""
+    def _build(self, *args, **kwargs):
+
+        names = ['images', 'masks']
+        _, inputs = self._make_inputs(names)
 
         n_classes = self.num_channels('masks')
         data_format = self.data_format('images')
@@ -13,13 +16,14 @@ class UNetModel(TFModel):
         b_norm = self.get_from_config('batch_norm', True)
 
         conv = {'data_format': data_format}
-        batch_norm = {'momentum': 0.1}
+        batch_norm = {'momentum': 0.1,
+                      'training': self.is_training}
 
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
 
         layout = 'cnacnap' if b_norm else 'cacap'
 
-        net = inp2['images']
+        net = inputs['images']
         encoder_outputs = []
         unet_filters = [64, 128, 256, 512]
         axis = dim+1 if data_format == 'channels_last' else 1
@@ -43,4 +47,5 @@ class UNetModel(TFModel):
         net = conv_block(dim, net, 64, 3, layout, 'decoder-block-3', **kwargs)
         net = conv_block(dim, net, n_classes, 1, layout, 'decoder-block-3-out', **kwargs)
 
-        tf.identity(net, 'predictions')
+        logits = tf.identity(net, 'predictions')
+        tf.nn.softmax(logits, name='predicted_prob')
