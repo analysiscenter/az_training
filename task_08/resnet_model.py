@@ -1,5 +1,7 @@
 """ ResNetModel class
 """
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-arguments
 import sys
 
 import tensorflow as tf
@@ -56,16 +58,16 @@ class ResNetModel(TFModel):
         Returns
         -------
         '''
-
+        _ = args, kwargs
         input_config = self.get_from_config('input', None)
-        if input_config == None:
+        if input_config is None:
             raise ValueError('you should specify configuration of input data')
 
         data_format = input_config.get('data_format', 'channels_last')
         n_classes = input_config.get('n_classes', 2)
 
         dim = input_config.get('dim', None)
-        if dim == None:
+        if dim is None:
             raise ValueError('dim should be customized in config')
 
 
@@ -75,7 +77,7 @@ class ResNetModel(TFModel):
 
         layout = self.get_from_config('layout', 'cna')
 
-        bottleneck = self.get_from_config('bottleneck', False)  
+        bottleneck = self.get_from_config('bottleneck', False)
         skip = self.get_from_config('skip', True)
         stochastic = self.get_from_config('stochastic', False)
         bottelneck_factor = self.get_from_config('bottelneck_factor', 4)
@@ -86,7 +88,7 @@ class ResNetModel(TFModel):
         kernel_size = self.get_from_config('kernel_size', 3)
 
         names = ['images', 'labels']
-        input_placeholders, transformed_placeholders = self._make_inputs(names)
+        _, transformed_placeholders = self._make_inputs(names)
 
         if max_pool:
             first_layout = layout + 'p'
@@ -95,15 +97,17 @@ class ResNetModel(TFModel):
 
         threshold = np.linspace(1, 0.5, sum(length_factor))
 
-        net = conv_block(dim, transformed_placeholders['images'], filters[0], (7, 7), first_layout, name='first_convolution', strides=2,\
+        net = conv_block(dim, transformed_placeholders['images'], filters[0], (7, 7), first_layout,\
+                         name='first_convolution', strides=2,\
                          is_training=self.is_training, pool_size=3, pool_strides=2)
 
         for index, block_length in enumerate(length_factor):
             for block_number in range(block_length):
-                net =  self.conv_block(dim, net, kernel_size, filters[index], layout, str(index), block_number, \
+                net = self.conv_block(dim, net, kernel_size, filters[index], layout, str(index), block_number, \
                                        conv_params['conv'], strides=strides[index], is_training=self.is_training, \
-                                       data_format=data_format, bottleneck=bottleneck, bottelneck_factor=bottelneck_factor,\
-                                       dropout_rate=dropout_rate, skip=skip, stochastic=stochastic, threshold=threshold[index+block_number])
+                                       data_format=data_format, bottleneck=bottleneck, \
+                                       bottelneck_factor=bottelneck_factor, dropout_rate=dropout_rate, skip=skip, \
+                                       stochastic=stochastic, threshold=threshold[index+block_number])
 
         net = tf.identity(net, name='conv_output')
 
@@ -114,19 +118,19 @@ class ResNetModel(TFModel):
         net = tf.layers.dense(net, n_classes)
         predictions = tf.identity(net, name='predictions')
 
-        probs = tf.nn.softmax(net, name='predicted_prob')
+        tf.nn.softmax(net, name='predicted_prob')
         labels_hat = tf.cast(tf.argmax(predictions, axis=1), tf.float32, name='labels_hat')
         labels = tf.cast(tf.argmax(transformed_placeholders['labels'], axis=1), tf.float32, 'true_labels')
 
-        accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), \
-                                  tf.float32), name='accuracy')
+        tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
 
 
     @staticmethod
     def conv_block(dim, input_tensor, kernel_size, filters, layout, name, block_number, conv_params, strides, \
-                   is_training=True, data_format='channels_last', bottleneck=False, bottelneck_factor=4, dropout_rate=0., \
-                   skip=True, stochastic=False, threshold=0.):
-
+                   is_training=True, data_format='channels_last', bottleneck=False, bottelneck_factor=4, \
+                   dropout_rate=0., skip=True, stochastic=False, threshold=0.):
+        """ Building block of ResNet architecture
+        """
         if block_number != 0:
             strides = 1
 
@@ -135,22 +139,35 @@ class ResNetModel(TFModel):
 
             if bottleneck:
                 output_filters = filters * bottelneck_factor
-                x = conv_block(dim, input_tensor, filters, (1, 1), layout, 'first_1x1', strides=strides, padding='same', data_format=data_format, \
-                               activation=tf.nn.relu, is_training=is_training, conv=conv_params)
-
-                x = conv_block(dim, x, filters, kernel_size, layout, 'conv_3x3', padding='same', data_format=data_format, activation=tf.nn.relu, \
+                x = conv_block(dim, input_tensor, filters, (1, 1), layout, 'first_1x1', strides=strides, \
+                               padding='same', data_format=data_format, activation=tf.nn.relu, \
                                is_training=is_training, conv=conv_params)
 
-                x = conv_block(dim, x, output_filters, (1, 1), layout, 'second_1x1', padding='same', data_format=data_format, activation=tf.nn.relu, \
-                               is_training=is_training, conv=conv_params)
-           
+                x = conv_block(dim, x, filters, kernel_size, layout, 'conv_3x3', padding='same', \
+                               data_format=data_format, activation=tf.nn.relu, is_training=is_training, \
+                               conv=conv_params)
+
+                x = conv_block(dim, x, output_filters, (1, 1), layout, 'second_1x1', padding='same', \
+                               data_format=data_format, activation=tf.nn.relu, is_training=is_training, \
+                               conv=conv_params)
+
+                # if SE:
+                #     full = tf.reduce_mean(x, [1, 2])
+                #     full = tf.reshape(full, [-1, 1, 1, C])
+                #     full = tf.layers.dense(full, int(C/r), activation=tf.nn.relu, \
+                #         kernel_initializer=tf.contrib.layers.xavier_initializer())
+                #     full = tf.layers.dense(full, C, activation=tf.nn.sigmoid, \
+                #         kernel_initializer=tf.contrib.layers.xavier_initializer())
+                #     x = x * full
             else:
                 output_filters = filters
 
-                x = conv_block(dim, input_tensor, filters, kernel_size, layout, 'first_3x3', strides=strides, padding='same', data_format=data_format,\
-                               activation=tf.nn.relu, is_training=is_training, dropout_rate=dropout_rate, conv=conv_params)
+                x = conv_block(dim, input_tensor, filters, kernel_size, layout, 'first_3x3', strides=strides,\
+                               padding='same', data_format=data_format, activation=tf.nn.relu, is_training=is_training,\
+                               dropout_rate=dropout_rate, conv=conv_params)
 
-                x = conv_block(dim, x, filters, kernel_size, layout, 'second_3x3', padding='same', data_format=data_format, activation=tf.nn.relu, is_training=is_training, \
+                x = conv_block(dim, x, filters, kernel_size, layout, 'second_3x3', padding='same', \
+                               data_format=data_format, activation=tf.nn.relu, is_training=is_training,\
                                conv=conv_params)
                 if not skip:
                     return tf.nn.relu(x, name='output')
@@ -174,9 +191,9 @@ class ResNetModel(TFModel):
 
 
 class ResNet152(ResNetModel):
+    ''' An original ResNet-152 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-101 architecture for ImageNet
-        '''
         self.config['length_factor'] = [3, 8, 36, 3]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
@@ -185,9 +202,9 @@ class ResNet152(ResNetModel):
         super()._build()
 
 class ResNet101(ResNetModel):
+    ''' An original ResNet-101 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-101 architecture for ImageNet
-        '''
         self.config['length_factor'] = [3, 4, 23, 3]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
@@ -196,9 +213,9 @@ class ResNet101(ResNetModel):
         super()._build()
 
 class ResNet50(ResNetModel):
+    ''' An original ResNet-50 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-50 architecture for ImageNet
-        '''
         self.config['length_factor'] = [3, 4, 6, 3]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
@@ -207,9 +224,9 @@ class ResNet50(ResNetModel):
         super()._build()
 
 class ResNet34(ResNetModel):
+    ''' An original ResNet-34 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-34 architecture for ImageNet
-        '''
         self.config['length_factor'] = [3, 4, 6, 3]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
@@ -218,11 +235,11 @@ class ResNet34(ResNetModel):
         super()._build()
 
 
- 
+
 class ResNet18(ResNetModel):
+    ''' An original ResNet-18 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-18 architecture for ImageNet
-        '''
         self.config['length_factor'] = [2, 2, 2, 2]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
