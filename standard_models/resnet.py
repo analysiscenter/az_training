@@ -20,18 +20,21 @@ class ResNetModel(TFModel):
 
         Parameters are taken from the config
         ----------
-        input_config: a dict containing 
+        input_config: a dict containing
             dim_shape: list, mandatory
                 Shape of the input tenror including number of channels.
             data_format: str, either "channels_last" or "channels_first"
-                 It specifies which data format convention will follow. Default value is "channels_last".
+                 It specifies which data format convention will follow.
+                 Default value is "channels_last".
             n_classes: int
                 Number of classes.
             length_factor: list of length 4 with int elements
-                Specifies how many Reidual blocks will be of the same feature maps dimension.
-                Recall that ResNet can have [64, 128, 256, 512] output feature maps thefore there are 4 types of
-                sequences of ResNet blocks whith the same n_filters parameter.
-                So the length_factor = [1, 2, 3, 4] will make one block with 16 feature maps, 2 blocks with 32,
+                Specifies how many Reidual blocks
+                will be of the same feature maps dimension.
+                Recall that ResNet can have [64, 128, 256, 512] output feature maps so
+                there are 4 types of sequences of ResNet blocks with the same n_filters parameter.
+                So the length_factor = [1, 2, 3, 4] will make one block with 16 feature maps,
+                2 blocks with 32,
                 3 blocks with 64, 4 with 128.
             layout: str - a sequence of layers
                 c - convolution
@@ -45,11 +48,11 @@ class ResNetModel(TFModel):
                 Whether to do maxpulling with stride 2 after first convolutional layer.
             conv : dict - parameters for convolution layers, like initializers, regularalizers, etc
             downsampling_keys: list of length 4 with boolean elements
-                Defines whether to do first downsampling convolution with stride 2 in every sequence 
+                Defines whether to do first downsampling convolution with stride 2 in every sequence
                 of ResNet blocks.
-                For example, [True, False, False, False] will make downsampling convoultion with stride 2 only
-                in the beginning of the network and other expansions of number of feature maps will be performed
-                without downsampling.
+                For example, [True, False, False, False] will make downsampling convoultion with
+                stride 2 only in the beginning of the network and other expansions of number of
+                feature maps will be performed without downsampling.
             dropout_rate: float in [0, 1]. Default is 0.
 
         Returns
@@ -65,7 +68,7 @@ class ResNetModel(TFModel):
         dim = input_config.get('dim', None)
         if dim == None:
             raise ValueError('dim should be customized in config')
-    
+
         if dim_shape == None:
             raise ValueError('dim_shape should be customized in config')
 
@@ -78,7 +81,7 @@ class ResNetModel(TFModel):
 
         bottleneck = self.get_from_config('bottleneck', False)
         bottelneck_factor = self.get_from_config('bottelneck_factor', 4)
-        
+
         max_pool = self.get_from_config('max_pool', False)
         conv_params = self.get_from_config('conv_params', {'conv': {}})
         dropout_rate = self.get_from_config('dropout_rate', 0.)
@@ -91,7 +94,7 @@ class ResNetModel(TFModel):
 
         if data_format == 'channels_first':
             dim_shape = dim_shape[1:] + dim_shape[0]
-        
+
         x_reshaped = tf.reshape(x, shape=[-1] + dim_shape)
 
         if max_pool:
@@ -99,16 +102,18 @@ class ResNetModel(TFModel):
         else:
             first_layout = layout
 
-        net = conv_block(dim, x_reshaped, filters[0], (7, 7), first_layout, name='0', strides=2, is_training=is_training, pool_size=3, pool_strides=2)
-        print(net.get_shape)
+        net = conv_block(dim, x_reshaped, filters[0], (7, 7), first_layout, name='0', strides=2, \
+                         is_training=is_training, pool_size=3, pool_strides=2)
 
         for index, block_length in enumerate(length_factor):
             for block_number in range(block_length):
-                net = self.conv_block(dim, net, kernel_size, filters[index], layout, str(index), block_number, conv_params['conv'], strides=strides[index], is_training=is_training, \
-                                      data_format=data_format, bottleneck=bottleneck, bottelneck_factor=bottelneck_factor, dropout_rate=dropout_rate)
-                print(net.get_shape)
+                net = self.conv_block(dim, net, kernel_size, filters[index], layout, str(index), \
+                                      block_number, conv_params['conv'], strides=strides[index], \
+                                      is_training=is_training, data_format=data_format, \
+                                      bottleneck=bottleneck, bottelneck_factor=bottelneck_factor, \
+                                      dropout_rate=dropout_rate)
 
-        net = tf.identity(net, name = 'conv_output')
+        net = tf.identity(net, name='conv_output')
 
         net = global_average_pooling(dim, net, data_format)
         net = tf.contrib.layers.flatten(net)
@@ -127,8 +132,9 @@ class ResNetModel(TFModel):
 
 
     @staticmethod
-    def conv_block(dim, input_tensor, kernel_size, filters, layout, name, block_number, conv_params, strides, 
-                   is_training=True, data_format='channels_last', bottleneck=False, bottelneck_factor=4, dropout_rate=0.):
+    def conv_block(dim, input_tensor, kernel_size, filters, layout, name, block_number, conv_params,
+                   strides, is_training=True, data_format='channels_last', bottleneck=False,
+                   bottelneck_factor=4, dropout_rate=0.):
 
         if block_number != 0:
             strides = 1
@@ -138,31 +144,36 @@ class ResNetModel(TFModel):
 
             if bottleneck:
                 output_filters = filters * bottelneck_factor
-                
 
-                x = conv_block(dim, input_tensor, filters, (1, 1), layout, '1', strides=strides, padding='same', data_format=data_format, \
-                               activation=tf.nn.relu, is_training=is_training, conv=conv_params)
+                x = conv_block(dim, input_tensor, filters, (1, 1), layout, '1', strides=strides, \
+                               padding='same', data_format=data_format, activation=tf.nn.relu, \
+                               is_training=is_training, conv=conv_params)
 
-                x = conv_block(dim, x, filters, kernel_size, layout, '2', padding='same', data_format=data_format, activation=tf.nn.relu, \
+                x = conv_block(dim, x, filters, kernel_size, layout, '2', padding='same', \
+                               data_format=data_format, activation=tf.nn.relu, \
                                is_training=is_training, conv=conv_params)
 
 
-                x = conv_block(dim, x, output_filters, (1, 1), layout, '3', padding='same', data_format=data_format, activation=tf.nn.relu, \
+                x = conv_block(dim, x, output_filters, (1, 1), layout, '3', padding='same', \
+                               data_format=data_format, activation=tf.nn.relu, \
                                is_training=is_training, conv=conv_params)
 
-           
             else:
                 output_filters = filters
 
-                x = conv_block(dim, input_tensor, filters, kernel_size, layout, '1', strides=strides, padding='same', data_format=data_format,\
-                               activation=tf.nn.relu, is_training=is_training, dropout_rate=dropout_rate, conv=conv_params)
+                x = conv_block(dim, input_tensor, filters, kernel_size, layout, '1', \
+                               strides=strides, padding='same', data_format=data_format, \
+                               activation=tf.nn.relu, is_training=is_training, \
+                               dropout_rate=dropout_rate, conv=conv_params)
 
-                x = conv_block(dim, x, filters, kernel_size, layout, '2', padding='same', data_format=data_format, activation=tf.nn.relu, is_training=is_training, \
-                               conv=conv_params)
+                x = conv_block(dim, x, filters, kernel_size, layout, '2', padding='same', \
+                               data_format=data_format, activation=tf.nn.relu, \
+                               is_training=is_training, conv=conv_params)
 
             if block_number == 0:
-                shortcut = conv_block(dim, input_tensor, output_filters, (1, 1), 'c', strides=strides, padding='same', \
-                                      is_training=is_training, conv=conv_params)
+                shortcut = conv_block(dim, input_tensor, output_filters, (1, 1), 'c', \
+                                      strides=strides, padding='same', is_training=is_training, \
+                                      conv=conv_params)
             else:
                 shortcut = input_tensor
 
@@ -172,9 +183,9 @@ class ResNetModel(TFModel):
 
 
 class ResNet152(ResNetModel):
+    ''' An original ResNet-101 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-101 architecture for ImageNet
-        '''
         self.config['length_factor'] = [3, 8, 36, 3]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
@@ -183,9 +194,9 @@ class ResNet152(ResNetModel):
         super()._build()
 
 class ResNet101(ResNetModel):
+    ''' An original ResNet-101 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-101 architecture for ImageNet
-        '''
         self.config['length_factor'] = [3, 4, 23, 3]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
@@ -194,9 +205,9 @@ class ResNet101(ResNetModel):
         super()._build()
 
 class ResNet50(ResNetModel):
+    ''' An original ResNet-50 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-50 architecture for ImageNet
-        '''
         self.config['length_factor'] = [3, 4, 6, 3]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
@@ -205,9 +216,9 @@ class ResNet50(ResNetModel):
         super()._build()
 
 class ResNet34(ResNetModel):
+    ''' An original ResNet-34 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-34 architecture for ImageNet
-        '''
         self.config['length_factor'] = [3, 4, 6, 3]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
@@ -216,11 +227,10 @@ class ResNet34(ResNetModel):
         super()._build()
 
 
- 
 class ResNet18(ResNetModel):
+    ''' An original ResNet-18 architecture for ImageNet
+    '''
     def _build(self, *args, **kwargs):
-        ''' An original ResNet-18 architecture for ImageNet
-        '''
         self.config['length_factor'] = [2, 2, 2, 2]
         self.config['dim_shape'] = [None, 224, 224, 3]
         self.config['layout'] = 'cna'
