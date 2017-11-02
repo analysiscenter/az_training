@@ -80,8 +80,18 @@ class ResNetModel(TFModel):
         bottleneck = self.get_from_config('bottleneck', False)
         skip = self.get_from_config('skip', True)
         stochastic = self.get_from_config('stochastic', False)
+        SE = self.get_from_config('SE_block', False)
+        if SE:
+            if type(SE) is dict:
+                if 'C' not in SE:
+                    SE['C'] = 128
+                if 'r' not in SE:
+                    SE['r'] = 8
+            elif type(SE) is bool:
+                SE = dict(C=128, r=8)
+            else:
+                raise ValueError('SE_block must be dict or bool not {}'.format(type(SE)))
         bottelneck_factor = self.get_from_config('bottelneck_factor', 4)
-
         max_pool = self.get_from_config('max_pool', False)
         conv_params = self.get_from_config('conv_params', {'conv': {}})
         dropout_rate = self.get_from_config('dropout_rate', 0.)
@@ -107,7 +117,7 @@ class ResNetModel(TFModel):
                                        conv_params['conv'], strides=strides[index], is_training=self.is_training, \
                                        data_format=data_format, bottleneck=bottleneck, \
                                        bottelneck_factor=bottelneck_factor, dropout_rate=dropout_rate, skip=skip, \
-                                       stochastic=stochastic, threshold=threshold[index+block_number])
+                                       stochastic=stochastic, threshold=threshold[index+block_number], SE=SE)
 
         net = tf.identity(net, name='conv_output')
 
@@ -128,7 +138,7 @@ class ResNetModel(TFModel):
     @staticmethod
     def conv_block(dim, input_tensor, kernel_size, filters, layout, name, block_number, conv_params, strides, \
                    is_training=True, data_format='channels_last', bottleneck=False, bottelneck_factor=4, \
-                   dropout_rate=0., skip=True, stochastic=False, threshold=0.):
+                   dropout_rate=0., skip=True, stochastic=False, threshold=0., SE={}):
         """ Building block of ResNet architecture
         """
         if block_number != 0:
@@ -151,14 +161,6 @@ class ResNetModel(TFModel):
                                data_format=data_format, activation=tf.nn.relu, is_training=is_training, \
                                conv=conv_params)
 
-                # if SE:
-                #     full = tf.reduce_mean(x, [1, 2])
-                #     full = tf.reshape(full, [-1, 1, 1, C])
-                #     full = tf.layers.dense(full, int(C/r), activation=tf.nn.relu, \
-                #         kernel_initializer=tf.contrib.layers.xavier_initializer())
-                #     full = tf.layers.dense(full, C, activation=tf.nn.sigmoid, \
-                #         kernel_initializer=tf.contrib.layers.xavier_initializer())
-                #     x = x * full
             else:
                 output_filters = filters
 
@@ -171,6 +173,17 @@ class ResNetModel(TFModel):
                                conv=conv_params)
                 if not skip:
                     return tf.nn.relu(x, name='output')
+
+            if SE:
+                r = SE['r']
+                C = SE['C']
+                full = tf.reduce_mean(x, [1, 2])
+                full = tf.reshape(full, [-1, 1, 1, C])
+                full = tf.layers.dense(full, int(C/r), activation=tf.nn.relu, \
+                    kernel_initializer=tf.contrib.layers.xavier_initializer())
+                full = tf.layers.dense(full, C, activation=tf.nn.sigmoid, \
+                    kernel_initializer=tf.contrib.layers.xavier_initializer())
+                x = x * full
 
             if block_number == 0:
                 shortcut = conv_block(dim, input_tensor, output_filters, (1, 1), 'c', strides=strides, padding='same', \
