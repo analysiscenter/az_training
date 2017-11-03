@@ -7,11 +7,12 @@ import numpy as np
 import time
 from scipy.special import expit
 import scipy.ndimage
+import itertools
 
 sys.path.append('..')
 
 from dataset import action, inbatch_parallel, any_action_failed
-from dataset.dataset.image import ImagesBatch
+from dataset.image import ImagesBatch
 
 IOU_TH = 0.7
 
@@ -33,13 +34,18 @@ class DetectionMnist(ImagesBatch):
         self.bbox_batch_sizes = None
         self.roi_predictions = None
         self.iou_predictions = None
+        self.output_maps = None
+        self.roi = None
+        self.fastrcnn_labels = None
+        self.fastrcnn_reg = None
 
     @property
     def components(self):
         """Define components."""
         return ('images', 'labels', 'bboxes', 'labels_batch', 'bboxes_batch',
                 'anchors', 'reg', 'clsf', 'proposal_bboxes_labels', 'bbox_batch_sizes',
-                'roi_predictions', 'iou_predictions')
+                'roi_predictions', 'iou_predictions', 'output_maps', 'roi', 
+                'fastrcnn_labels', 'fastrcnn_reg')
 
     @action
     def load_images(self):
@@ -196,14 +202,42 @@ class DetectionMnist(ImagesBatch):
                 bboxes = rectify_bbox(bboxes, max_shape)
 
             unparam_bb.append(bboxes)
-        unparam_bb = np.array(unparam_bb)
+        unparam_bb = np.array(unparam_bb, np.int32)
         self.roi_predictions = unparam_bb
         self.iou_predictions = expit(self.iou_predictions)
         return self
 
+    @action
+    @inbatch_parallel(init='init_func', post='post_func_crop_roi', target='threads')
+    def crop_roi_from_map(self, ind):
+        output_map = self.images[ind]#self.output_maps[ind]
+        roi_bboxes = self.roi_predictions[ind]
+        roi = []
+        for pred in roi_bboxes:
+            roi_crop = output_map[pred[0]:pred[0]+pred[2], pred[1]:pred[1]+pred[3]]
+            roi.append(roi_crop)
+        return roi
+
+    def post_func_crop_roi(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
+        if any_action_failed(list_of_res):
+            print(list_of_res)
+            raise Exception("Something bad happened")
+        else:
+            roi = list(itertools.chain(*list_of_res))
+            self.roi = roi
+            return self
 
     @action
-    def create_anchors(self, img_shape, map_shape, scales=(4, 8, 16), ratio=2):
+    def create_fastrcnn_inputs(self):
+        print('ppl:', self.proposal_bboxes_labels.shape)
+        self.fastrcnn_labels = self.proposal_bboxes_labels.reshape(-1)
+        self.fastrcnn_reg = self.reg.reshape(-1, 4)
+        return self
+
+
+    @action
+    def create_anchors(self, img_shape, scales=(4, 8, 16), ratio=2):
+        map_shape = self.pipeline.config['rpn']['output_map_shape']
         ratios = ((np.sqrt(ratio), 1/np.sqrt(ratio)),
                   (1, 1),
                   (1/np.sqrt(ratio), np.sqrt(ratio)))

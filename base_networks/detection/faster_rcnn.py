@@ -3,17 +3,14 @@ import tensorflow as tf
 
 sys.path.append('../task_03')
 
-from dataset.dataset.models.tf.layers import conv_block
-from dataset.dataset.models.tf import TFModel
+from dataset.models.tf.layers import conv_block
+from dataset.models.tf import TFModel
 from vgg import VGGModel
 
-IMAGE_SHAPE = (64, 64)
-MAP_SHAPE = (8, 8)
-N_ANCHORS = MAP_SHAPE[0] * MAP_SHAPE[1] * 9
 MNIST_PER_IMAGE = 5
 
 class RPNModel(TFModel):
-    """LinkNet as TFModel"""
+    """RPNNet as TFModel"""
     def _build(self, *args, **kwargs):
 
         #n_classes = self.num_channels('masks')
@@ -34,24 +31,30 @@ class RPNModel(TFModel):
             reg = conv_block(dim, net, 4*9, 1, 'ca', **kwargs)
             cls = conv_block(dim, net, 1*9, 1, 'c', **kwargs)
 
-        reg = tf.reshape(reg, [-1, N_ANCHORS, 4], name='RoI')
-        cls = tf.reshape(cls, [-1, N_ANCHORS], name='IoU')
-        true_cls = tf.placeholder(tf.float32, shape = [None, N_ANCHORS], name='proposal_targets')
-        true_reg = tf.placeholder(tf.float32, shape = [None, N_ANCHORS, 4], name='bbox_targets')
+        tf.identity(net, name='output_map')
+        output_map_shape = net.get_shape().as_list()[1:3]
+        self.config['output_map_shape'] = output_map_shape
+
+        n_anchors = output_map_shape[0] * output_map_shape[1] * 9
+
+        reg = tf.reshape(reg, [-1, n_anchors, 4], name='RoI')
+        cls = tf.reshape(cls, [-1, n_anchors], name='IoU')
+        true_cls = tf.placeholder(tf.float32, shape = [None, n_anchors], name='proposal_targets')
+        true_reg = tf.placeholder(tf.float32, shape = [None, n_anchors, 4], name='bbox_targets')
         
-        loss = self.rpn_loss(reg, cls, true_reg, true_cls)
+        loss = self.rpn_loss(reg, cls, true_reg, true_cls, n_anchors)
         loss = tf.identity(loss, name='loss')
         tf.losses.add_loss(loss)
 
     
-    def rpn_loss(self, reg, cls, true_reg, true_cls):
+    def rpn_loss(self, reg, cls, true_reg, true_cls, n_anchors):
         cls_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=true_cls, logits=cls) / MNIST_PER_IMAGE   
         cls_loss = tf.reduce_sum(cls_loss, axis=-1)
         cls_loss = tf.reduce_mean(cls_loss, name='cls_loss')
 
         sums = tf.reduce_sum((true_reg - reg) ** 2, axis=-1)
         reg_mask = tf.cast(true_cls, dtype=tf.float32)
-        reg_mask = tf.reshape(reg_mask, shape=[-1, N_ANCHORS])
+        reg_mask = tf.reshape(reg_mask, shape=[-1, n_anchors])
 
         reg_loss = sums * true_cls
         reg_loss = tf.reduce_sum(reg_loss, axis=-1)

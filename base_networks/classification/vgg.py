@@ -4,8 +4,8 @@ import tensorflow as tf
 
 sys.path.append('..')
 
-from dataset.dataset.models.tf.layers import conv_block
-from dataset.dataset.models.tf import TFModel
+from dataset.models.tf.layers import conv_block
+from dataset.models.tf import TFModel
 
 class VGGModel(TFModel):
     """VGG as TFModel
