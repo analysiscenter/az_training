@@ -13,7 +13,7 @@ sys.path.append('..')
 from dataset import action, inbatch_parallel, any_action_failed
 from dataset.dataset.image import ImagesBatch
 
-IoU_TH = 0.7
+IOU_TH = 0.7
 
 class DetectionMnist(ImagesBatch):
     """Batch class for LinkNet."""
@@ -31,15 +31,15 @@ class DetectionMnist(ImagesBatch):
         self.clsf = None
         self.proposal_bboxes_labels = None
         self.bbox_batch_sizes = None
-        self.RoI_predictions = None
-        self.IoU_predictions = None
+        self.roi_predictions = None
+        self.iou_predictions = None
 
     @property
     def components(self):
         """Define components."""
-        return ('images', 'labels', 'bboxes', 'labels_batch', 'bboxes_batch', 
-               'anchors', 'reg', 'clsf', 'proposal_bboxes_labels', 'bbox_batch_sizes',
-               'RoI_predictions', 'IoU_predictions')
+        return ('images', 'labels', 'bboxes', 'labels_batch', 'bboxes_batch',
+                'anchors', 'reg', 'clsf', 'proposal_bboxes_labels', 'bbox_batch_sizes',
+                'roi_predictions', 'iou_predictions')
 
     @action
     def load_images(self):
@@ -53,7 +53,7 @@ class DetectionMnist(ImagesBatch):
     def init_func(self, *args, **kwargs): # pylint: disable=unused-argument
         """Create tasks."""
         return [i for i in range(self.images.shape[0])]
-    
+
     @action
     @inbatch_parallel(init='init_func', post='post_func_multi', target='threads')
     def generate_multimnist_images(self, ind, *args, **kwargs):
@@ -62,10 +62,10 @@ class DetectionMnist(ImagesBatch):
         max_digits = kwargs['max_dig']
         n_digits = max_digits#np.random.randint(1, max_digits+1)
         digits = np.random.choice(len(self.images), min([n_digits, len(self.images)]))
-        large_image = np.zeros(image_shape)
+        large_image = np.random.uniform(low=0, high=0.5, size=image_shape)
         bboxes = []
         labels = []
-        
+
         for i in digits:
             image = self.images[i]
             shape = [np.random.randint(10, 20)] * 2
@@ -73,12 +73,15 @@ class DetectionMnist(ImagesBatch):
             image = scipy.ndimage.interpolation.zoom(image, factor, order=3)
             new_x = np.random.randint(0, image_shape[0]-image.shape[0])
             new_y = np.random.randint(0, image_shape[1]-image.shape[1])
-            large_image[new_x:new_x+image.shape[0], new_y:new_y+image.shape[1]] = np.max([image, large_image[new_x:new_x+image.shape[0], new_y:new_y+image.shape[1]]], axis=0)
+            old_region = large_image[new_x:new_x+image.shape[0], new_y:new_y+image.shape[1]]
+            large_image[new_x:new_x+image.shape[0], new_y:new_y+image.shape[1]] = np.max([image, old_region], axis=0)
             bboxes.append((new_x, new_y, image.shape[0], image.shape[1]))
             labels.append(self.labels[i])
         return large_image, np.array(bboxes), np.array(labels)
 
     def post_func_multi(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
+        """Post function for generate_multimnist_images
+        """
         if any_action_failed(list_of_res):
             print(list_of_res)
             raise Exception("Something bad happened")
@@ -112,7 +115,7 @@ class DetectionMnist(ImagesBatch):
             bboxes, labels = list(zip(*list_of_res))
             self.labels_batch = labels
             self.bboxes_batch = bboxes
-            self.bbox_batch_sizes = np.array(list(map(len, self.bboxes_batch)))
+            self.bbox_batch_sizes = np.array([len(x) for x in self.bboxes_batch])
             return self
 
 
@@ -138,18 +141,16 @@ class DetectionMnist(ImagesBatch):
 
         # Label each anchor based on its max IoU
         max_ious = np.max(ious, axis=1)
-    
+
         best_gt_bbox_ids = np.argmax(ious, axis=1)
 
         reg = bboxes[best_gt_bbox_ids]
         #reg = param_bbox(reg, self.anchors)
         proposal_bboxes_labels = labels[best_gt_bbox_ids].reshape(-1)
-        clsf = np.array(max_ious > IoU_TH, dtype=np.int32)
-        #print("1:", np.mean(clsf))
-        clsf[np.argmax(ious, axis=0)] = 1
-        #print("2:", np.mean(clsf))
-        #clsf[np.max(ious, axis=0) < 0.3] = 0
-        #print("3:", np.mean(clsf))
+        clsf = np.array(max_ious > IOU_TH, dtype=np.int32)
+        best_anchor_for_gt = np.argmax(ious, axis=0)
+        best_anchor_for_gt = np.argmax(ious, axis=0)[np.max(ious, axis=0) > 0.3]
+        clsf[best_anchor_for_gt] = 1
         return reg, clsf, proposal_bboxes_labels
 
     def post_func_reg_cls(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
@@ -180,7 +181,7 @@ class DetectionMnist(ImagesBatch):
     @action
     def unparam_predictions(self, max_shape=None):
         """ Unparameterize bounding boxes with respect to anchors. Namely, (ty,tx,th,tw)->(y,x,h,w). """
-        t = self.RoI_predictions
+        t = self.roi_predictions
         predictions = np.array(t, np.float32)
         anchors = self.anchors
         unparam_bb = []
@@ -196,13 +197,13 @@ class DetectionMnist(ImagesBatch):
 
             unparam_bb.append(bboxes)
         unparam_bb = np.array(unparam_bb)
-        self.RoI_predictions = unparam_bb
-        self.IoU_predictions = expit(self.IoU_predictions)
+        self.roi_predictions = unparam_bb
+        self.iou_predictions = expit(self.iou_predictions)
         return self
 
 
     @action
-    def create_anchors(self, img_shape, map_shape, scales=[4, 8, 16], ratio=2):
+    def create_anchors(self, img_shape, map_shape, scales=(4, 8, 16), ratio=2):
         ratios = ((np.sqrt(ratio), 1/np.sqrt(ratio)),
                   (1, 1),
                   (1/np.sqrt(ratio), np.sqrt(ratio)))
@@ -252,7 +253,7 @@ def iou_bbox(bboxes1, bboxes2):
     """ Compute the IoUs between bounding boxes. """
     bboxes1 = np.array(bboxes1, np.float32)
     bboxes2 = np.array(bboxes2, np.float32)
-    
+
     intersection_min_y = np.maximum(bboxes1[:, 0], bboxes2[:, 0])
     intersection_max_y = np.minimum(bboxes1[:, 0] + bboxes1[:, 2] - 1, bboxes2[:, 0] + bboxes2[:, 2] - 1)
     intersection_height = np.maximum(intersection_max_y - intersection_min_y + 1, np.zeros_like(bboxes1[:, 0]))
@@ -265,7 +266,7 @@ def iou_bbox(bboxes1, bboxes2):
     area_first = bboxes1[:, 2] * bboxes1[:, 3]
     area_second = bboxes2[:, 2] * bboxes2[:, 3]
     area_union = area_first + area_second - area_intersection
-    
+
     iou = area_intersection * 1.0 / area_union
     iof = area_intersection * 1.0 / area_first
     ios = area_intersection * 1.0 / area_second
