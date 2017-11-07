@@ -12,6 +12,26 @@ class VGGModel(TFModel):
     """
 
     def _build(self):
+        '''
+        Builds a VGG model.
+        Parameters are taken from the config
+        ----------
+        input_config: a dict containing
+
+            b_norm : bool
+                if True enable batch normalization layers
+
+            vgg_arch : str or list of tuple
+                if str, it 
+                tuple[0] : int
+                    depth of the block
+                tuple[1] : int
+                    the number of filters in each layer of the block
+                tuple[2] : bool
+                    if True the last layer is convolution with 1x1 kernel else with 3x3.
+        Returns
+        -------
+        '''
         names = ['images', 'labels']
         _, inputs = self._make_inputs(names)
 
@@ -32,9 +52,11 @@ class VGGModel(TFModel):
         net = tf.contrib.layers.flatten(net)
         net = tf.layers.dense(net, 100, name='fc1')
         layout = 'na' if b_norm else 'a'
-        net = conv_block(dim, net, None, None, layout, **kwargs)
+        #net = conv_block(dim, net, None, None, layout, **kwargs)
+        net = tf.nn.relu(net)
         net = tf.layers.dense(net, 100, name='fc2')
-        net = conv_block(dim, net, None, None, layout, **kwargs)
+        net = tf.nn.relu(net)        
+        #net = conv_block(dim, net, None, None, layout, **kwargs)
         net = tf.layers.dense(net, n_classes, name='fc3')
 
         logits = tf.identity(net, name='predictions')
@@ -67,12 +89,6 @@ class VGGModel(TFModel):
         b_norm : bool
             if True enable batch normalization
 
-        training : tf.Tensor
-            batch normalization training parameter
-
-        vgg_arch : list of tuples
-            see vgg()
-
         Return
         ------
         outp : tf.Tensor
@@ -82,9 +98,9 @@ class VGGModel(TFModel):
             if last_layer:
                 layout = 'cna' if b_norm else 'ca'
                 layout = layout * (depth - 1)
-                net = conv_block(dim, net, filters, 3, layout, **kwargs)
+                net = conv_block(dim, net, filters, 3, layout, name='0', **kwargs)
                 layout = 'cnap' if b_norm else 'cap'
-                net = conv_block(dim, net, filters, 1, layout, **kwargs)
+                net = conv_block(dim, net, filters, 1, layout, name='1', **kwargs)
             else:
                 layout = 'cna' if b_norm else 'ca'
                 layout = layout * depth + 'p'
@@ -106,11 +122,8 @@ class VGGModel(TFModel):
         b_norm : bool
             if True enable batch normalization
 
-        training : tf.Tensor
-            batch normalization training parameter
-
-        vgg_arch : list of tuples
-            see vgg()
+        vgg_arch : str or list of tuples
+            see _build doc-string
 
         Return
         ------
@@ -147,19 +160,46 @@ class VGGModel(TFModel):
         return net
 
 class VGG16Model(VGGModel):
-    """VGG16 as TFModel"""
+    '''
+    Builds a VGG16 model.
+    Parameters are taken from the config
+    ----------
+    input_config: a dict containing
+        b_norm : bool
+            if True enable batch normalization layers
+    Returns
+    -------
+    '''
     def _build(self, *args, **kwargs):
         self.config['vgg_arch'] = 'VGG16'
         super()._build(*args, **kwargs)
 
 class VGG19Model(VGGModel):
-    """VGG19 as TFModel"""
+    '''
+    Builds a VGG19 model.
+    Parameters are taken from the config
+    ----------
+    input_config: a dict containing
+        b_norm : bool
+            if True enable batch normalization layers
+    Returns
+    -------
+    '''
     def _build(self, *args, **kwargs):
         self.config['vgg_arch'] = 'VGG19'
         super()._build(*args, **kwargs)
 
 class VGG7Model(VGGModel):
-    """VGG7 as TFModel"""
+    '''
+    Builds a VGG7 model.
+    Parameters are taken from the config
+    ----------
+    input_config: a dict containing
+        b_norm : bool
+            if True enable batch normalization layers
+    Returns
+    -------
+    '''
     def _build(self, *args, **kwargs):
         self.config['vgg_arch'] = 'VGG7'
         super()._build(*args, **kwargs)

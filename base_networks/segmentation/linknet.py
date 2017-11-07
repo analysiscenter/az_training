@@ -4,9 +4,19 @@ from dataset.dataset.models.tf.layers import conv_block
 from dataset.dataset.models.tf import TFModel
 
 class LinkNetModel(TFModel):
-    """LinkNet as TFModel"""
+    """LinkNet as TFModel
+    """
     def _build(self):
-
+        '''
+        Builds a LinkNet model.
+        Parameters are taken from the config
+        ----------
+        input_config: a dict containing
+            b_norm : bool
+                if True enable batch normalization layers
+        Returns
+        -------
+        '''
         names = ['images', 'masks']
         _, inputs = self._make_inputs(names)
 
@@ -70,9 +80,6 @@ class LinkNetModel(TFModel):
         b_norm : bool
             if True enable batch normalization
 
-        training : tf.Tensor
-            batch normalization training parameter
-
         Return
         ------
         outp : tf.Tensor
@@ -99,7 +106,7 @@ class LinkNetModel(TFModel):
 
         inp : tf.Tensor
 
-        n_classes : int
+        out_filters : int
             number of output filters
 
         name : str
@@ -107,9 +114,6 @@ class LinkNetModel(TFModel):
 
         b_norm : bool
             if True enable batch normalization
-
-        training : tf.Tensor
-            batch normalization training parameter
 
         Return
         ------

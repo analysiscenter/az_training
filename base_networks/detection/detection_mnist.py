@@ -185,25 +185,17 @@ class DetectionMnist(ImagesBatch):
         return self
 
     @action
-    def unparam_predictions(self, max_shape=None):
+    def unparam_predictions(self):
         """ Unparameterize bounding boxes with respect to anchors. Namely, (ty,tx,th,tw)->(y,x,h,w). """
-        t = self.roi_predictions
-        predictions = np.array(t, np.float32)
+        predictions = np.array(self.roi_predictions, np.float32)
         anchors = self.anchors
         unparam_bb = []
-
-        for t in predictions:
-            yx = t[:, :2] * anchors[:, 2:] + anchors[:, :2]
-            hw = np.exp(t[:, 2:]) * anchors[:, 2:]
-
-            bboxes = np.concatenate((yx, hw), axis=1)
-
-            if max_shape != None:
-                bboxes = rectify_bbox(bboxes, max_shape)
-
-            unparam_bb.append(bboxes)
-        unparam_bb = np.array(unparam_bb, np.int32)
-        self.roi_predictions = unparam_bb
+        cloned_anchors = np.stack([anchors]*predictions.shape[0])
+        yx = predictions[:, :, :2] * cloned_anchors[:, :, 2:] + cloned_anchors[:, :, :2]
+        hw = np.exp(predictions[:, :, 2:]) * cloned_anchors[:, :, 2:]
+        bboxes = np.concatenate((yx, hw), axis=2)
+        bboxes = np.array(bboxes, np.int32)
+        self.roi_predictions = bboxes
         self.iou_predictions = expit(self.iou_predictions)
         return self
 

@@ -25,11 +25,12 @@ class RPNModel(TFModel):
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
         
         inp = inp2['images']
+        print(inp)
         with tf.variable_scope('FRCNN'): # pylint: disable=not-context-manager
             net = VGGModel.fully_conv_block(dim, inp, b_norm, 'VGG7', **kwargs)
-            net = conv_block(dim, net, 512, 3, 'ca', **kwargs)
-            reg = conv_block(dim, net, 4*9, 1, 'ca', **kwargs)
-            cls = conv_block(dim, net, 1*9, 1, 'c', **kwargs)
+            net = conv_block(dim, net, 512, 3, 'ca', name='0', **kwargs)
+            reg = conv_block(dim, net, 4*9, 1, 'ca', name='1', **kwargs)
+            cls = conv_block(dim, net, 1*9, 1, 'c', name='2', **kwargs)
 
         tf.identity(net, name='output_map')
         output_map_shape = net.get_shape().as_list()[1:3]
@@ -45,6 +46,11 @@ class RPNModel(TFModel):
         loss = self.rpn_loss(reg, cls, true_reg, true_cls, n_anchors)
         loss = tf.identity(loss, name='loss')
         tf.losses.add_loss(loss)
+
+    def param_input(inp, anchors):
+        anchors = tf.constant(anchors, dtype=tf.float32, shape=anchors.shape)
+
+        return outp
 
     
     def rpn_loss(self, reg, cls, true_reg, true_cls, n_anchors):

@@ -6,7 +6,16 @@ from dataset.dataset.models.tf import TFModel
 class UNetModel(TFModel):
     """UNet as TFModel"""
     def _build(self):
-
+        '''
+        Builds a UNet model.
+        Parameters are taken from the config
+        ----------
+        input_config: a dict containing
+            b_norm : bool
+                if True enable batch normalization layers
+        Returns
+        -------
+        '''
         names = ['images', 'masks']
         _, inputs = self._make_inputs(names)
 
