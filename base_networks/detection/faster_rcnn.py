@@ -6,6 +6,7 @@ sys.path.append('../task_03')
 from dataset.models.tf.layers import conv_block
 from dataset.models.tf import TFModel
 from vgg import VGGModel
+import numpy as np
 
 MNIST_PER_IMAGE = 5
 
@@ -18,6 +19,7 @@ class RPNModel(TFModel):
         data_format = self.data_format('images')
         dim = self.spatial_dim('images')
         b_norm = self.get_from_config('batch_norm', True)
+        minibatch_size = self.get_from_config('minibatch_size', 256)
 
         conv = {'data_format': data_format}
         batch_norm = {'momentum': 0.1}
@@ -25,7 +27,6 @@ class RPNModel(TFModel):
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
         
         inp = inp2['images']
-        print(inp)
         with tf.variable_scope('FRCNN'): # pylint: disable=not-context-manager
             net = VGGModel.fully_conv_block(dim, inp, b_norm, 'VGG7', **kwargs)
             net = conv_block(dim, net, 512, 3, 'ca', name='0', **kwargs)
@@ -38,6 +39,8 @@ class RPNModel(TFModel):
 
         n_anchors = output_map_shape[0] * output_map_shape[1] * 9
 
+        anchor_minibatch = np.random.choice(n_anchors, minibatch_size)
+
         reg = tf.reshape(reg, [-1, n_anchors, 4], name='RoI')
         cls = tf.reshape(cls, [-1, n_anchors], name='IoU')
         true_cls = tf.placeholder(tf.float32, shape = [None, n_anchors], name='proposal_targets')
@@ -47,8 +50,18 @@ class RPNModel(TFModel):
         loss = tf.identity(loss, name='loss')
         tf.losses.add_loss(loss)
 
-    def param_input(inp, anchors):
+    def unparam_rpn_predictions(roi, iou, anchors):
         anchors = tf.constant(anchors, dtype=tf.float32, shape=anchors.shape)
+        predictions = np.array(self.roi_predictions, np.float32)
+        anchors = self.anchors
+        unparam_bb = []
+        cloned_anchors = np.stack([anchors]*predictions.shape[0])
+        yx = predictions[:, :, :2] * cloned_anchors[:, :, 2:] + cloned_anchors[:, :, :2]
+        hw = np.exp(predictions[:, :, 2:]) * cloned_anchors[:, :, 2:]
+        bboxes = np.concatenate((yx, hw), axis=2)
+        bboxes = np.array(bboxes, np.int32)
+        self.roi_predictions = bboxes
+        self.iou_predictions = expit(self.iou_predictions)
 
         return outp
 

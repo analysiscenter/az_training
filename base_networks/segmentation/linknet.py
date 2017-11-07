@@ -1,22 +1,20 @@
-""" LinkNet as TFModel """
+"""LinkNet"""
 import tensorflow as tf
 from dataset.dataset.models.tf.layers import conv_block
 from dataset.dataset.models.tf import TFModel
 
 class LinkNetModel(TFModel):
     """LinkNet as TFModel
+
+    **Configuration**
+    -----------------
+    inputs : dict
+        input config with keys 'images' and 'masks'
+    b_norm : bool
+        if True enable batch normalization layers
     """
     def _build(self):
-        '''
-        Builds a LinkNet model.
-        Parameters are taken from the config
-        ----------
-        input_config: a dict containing
-            b_norm : bool
-                if True enable batch normalization layers
-        Returns
-        -------
-        '''
+        """Builds a LinkNet model."""
         names = ['images', 'masks']
         _, inputs = self._make_inputs(names)
 

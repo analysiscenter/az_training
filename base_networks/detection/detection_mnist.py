@@ -14,7 +14,8 @@ sys.path.append('..')
 from dataset import action, inbatch_parallel, any_action_failed
 from dataset.image import ImagesBatch
 
-IOU_TH = 0.7
+IOU_POSITIVE = 0.7
+IOU_NEGATIVE = 0.3
 
 class DetectionMnist(ImagesBatch):
     """Batch class for LinkNet."""
@@ -25,13 +26,10 @@ class DetectionMnist(ImagesBatch):
         self.images = None
         self.labels = None
         self.bboxes = None
-        self.labels_batch = None
-        self.bboxes_batch = None
         self.anchors = None
         self.reg = None
         self.clsf = None
-        self.proposal_bboxes_labels = None
-        self.bbox_batch_sizes = None
+        self.reg_labels = None
         self.roi_predictions = None
         self.iou_predictions = None
         self.output_maps = None
@@ -42,8 +40,7 @@ class DetectionMnist(ImagesBatch):
     @property
     def components(self):
         """Define components."""
-        return ('images', 'labels', 'bboxes', 'labels_batch', 'bboxes_batch',
-                'anchors', 'reg', 'clsf', 'proposal_bboxes_labels', 'bbox_batch_sizes',
+        return ('images', 'labels', 'bboxes', 'anchors', 'reg', 'clsf', 'reg_labels',
                 'roi_predictions', 'iou_predictions', 'output_maps', 'roi', 
                 'fastrcnn_labels', 'fastrcnn_reg')
 
@@ -101,17 +98,53 @@ class DetectionMnist(ImagesBatch):
             self.bbox_batch_sizes = np.array(list(map(len, self.bboxes_batch)))
             return self
 
-
     @action
-    @inbatch_parallel(init='init_func', post='post_func_bbox_batch', target='threads')
-    def create_bbox_batch(self, ind, *args, **kwargs):
-        n_bboxes = kwargs['n_bboxes']
-        bboxes = self.bboxes[ind]
-        labels = self.labels[ind]
-        sample = np.random.choice(len(bboxes), min([len(bboxes), n_bboxes]), replace=False)
-        if len(sample) < n_bboxes:
-            sample = np.concatenate([sample, np.zeros(n_bboxes - len(sample), dtype=np.int32)])
-        return bboxes[sample], labels[sample]
+    def create_anchors(self, img_shape, scales=(4, 8, 16), ratio=2):
+        map_shape = self.pipeline.config['rpn']['output_map_shape']
+        ratios = ((np.sqrt(ratio), 1/np.sqrt(ratio)),
+                  (1, 1),
+                  (1/np.sqrt(ratio), np.sqrt(ratio)))
+
+        self.anchors = []
+        for scale in scales:
+            for ratio in ratios:
+                ih, iw = img_shape
+                fh, fw = map_shape
+                n = fh * fw
+
+                j = np.array(list(range(fh)))
+                j = np.expand_dims(j, 1)
+                j = np.tile(j, (1, fw))
+                j = j.reshape((-1))
+
+                i = np.array(list(range(fw)))
+                i = np.expand_dims(i, 0)
+                i = np.tile(i, (fh, 1))
+                i = i.reshape((-1))
+
+                s = np.ones((n)) * scale
+                r0 = np.ones((n)) * ratio[0]
+                r1 = np.ones((n)) * ratio[1]
+
+                h = s * r0
+                w = s * r1
+                y = (j + 0.5) * ih / fh - h * 0.5
+                x = (i + 0.5) * iw / fw - w * 0.5
+
+                y = np.maximum(y, np.zeros((n)))
+                x = np.maximum(x, np.zeros((n)))
+                h = np.minimum(h, ih-y)
+                w = np.minimum(w, iw-x)
+
+                y = np.expand_dims(y, 1)
+                x = np.expand_dims(x, 1)
+                h = np.expand_dims(h, 1)
+                w = np.expand_dims(w, 1)
+                anchors = np.concatenate((y, x, h, w), axis=1)
+                self.anchors.append(np.array(anchors, np.int32))
+
+        self.anchors = np.array(self.anchors).transpose(1, 0, 2).reshape(-1, 4)
+        return self
 
     def post_func_bbox_batch(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
         if any_action_failed(list_of_res):
@@ -154,10 +187,8 @@ class DetectionMnist(ImagesBatch):
         #reg = param_bbox(reg, self.anchors)
         proposal_bboxes_labels = labels[best_gt_bbox_ids].reshape(-1)
         clsf = np.array(max_ious > IOU_TH, dtype=np.int32)
-        best_anchor_for_gt = np.argmax(ious, axis=0)
-        best_anchor_for_gt = np.argmax(ious, axis=0)[np.max(ious, axis=0) > 0.3]
-        clsf[best_anchor_for_gt] = 1
-        return reg, clsf, proposal_bboxes_labels
+        clsf[np.argmax(ious, axis=0)] = 1
+        return reg, clsf, reg_labels
 
     def post_func_reg_cls(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
         if any_action_failed(list_of_res):
@@ -169,6 +200,11 @@ class DetectionMnist(ImagesBatch):
             self.clsf = np.array(clsf)
             self.proposal_bboxes_labels = np.array(proposal_bboxes_labels)
             return self
+
+    @action
+    def create_anchor_batch_mask(self, minibatch_size):
+        positive_anchors = self.iou
+        np.random.choice(len(self.anchors, minibatch_size)
 
     @action
     def param_reg(self):
@@ -224,55 +260,6 @@ class DetectionMnist(ImagesBatch):
         print('ppl:', self.proposal_bboxes_labels.shape)
         self.fastrcnn_labels = self.proposal_bboxes_labels.reshape(-1)
         self.fastrcnn_reg = self.reg.reshape(-1, 4)
-        return self
-
-
-    @action
-    def create_anchors(self, img_shape, scales=(4, 8, 16), ratio=2):
-        map_shape = self.pipeline.config['rpn']['output_map_shape']
-        ratios = ((np.sqrt(ratio), 1/np.sqrt(ratio)),
-                  (1, 1),
-                  (1/np.sqrt(ratio), np.sqrt(ratio)))
-
-        self.anchors = []
-        for scale in scales:
-            for ratio in ratios:
-                ih, iw = img_shape
-                fh, fw = map_shape
-                n = fh * fw
-
-                j = np.array(list(range(fh)))
-                j = np.expand_dims(j, 1)
-                j = np.tile(j, (1, fw))
-                j = j.reshape((-1))
-
-                i = np.array(list(range(fw)))
-                i = np.expand_dims(i, 0)
-                i = np.tile(i, (fh, 1))
-                i = i.reshape((-1))
-
-                s = np.ones((n)) * scale
-                r0 = np.ones((n)) * ratio[0]
-                r1 = np.ones((n)) * ratio[1]
-
-                h = s * r0
-                w = s * r1
-                y = (j + 0.5) * ih / fh - h * 0.5
-                x = (i + 0.5) * iw / fw - w * 0.5
-
-                y = np.maximum(y, np.zeros((n)))
-                x = np.maximum(x, np.zeros((n)))
-                h = np.minimum(h, ih-y)
-                w = np.minimum(w, iw-x)
-
-                y = np.expand_dims(y, 1)
-                x = np.expand_dims(x, 1)
-                h = np.expand_dims(h, 1)
-                w = np.expand_dims(w, 1)
-                anchors = np.concatenate((y, x, h, w), axis=1)
-                self.anchors.append(np.array(anchors, np.int32))
-
-        self.anchors = np.array(self.anchors).transpose(1, 0, 2).reshape(-1, 4)
         return self
 
 def iou_bbox(bboxes1, bboxes2):
