@@ -3,16 +3,17 @@ import tensorflow as tf
 from dataset.dataset.models.tf.layers import conv_block
 from dataset.dataset.models.tf import TFModel
 
-class LinkNetModel(TFModel):
+class LinkNet(TFModel):
     """LinkNet as TFModel
 
     **Configuration**
     -----------------
     inputs : dict
-        input config with keys 'images' and 'masks'
+        dict with keys 'images' and 'masks' (see :meth:`._make_inputs`)
     b_norm : bool
         if True enable batch normalization layers
     """
+
     def _build(self):
         """Builds a LinkNet model."""
         names = ['images', 'masks']
@@ -33,19 +34,19 @@ class LinkNetModel(TFModel):
         with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
             layout = 'cpna' if b_norm else 'cpa'
 
-            net = conv_block(dim, inp, 64, 7, layout, 'input_conv', 2, pool_size=3)
+            net = conv_block(dim, inp, 64, 7, layout, 'input_conv', 2, pool_size=3, **kwargs)
 
             encoder_output = []
 
             for i, n_filters in enumerate([64, 128, 256, 512]):
-                net = self.encoder_block(dim, net, n_filters, 'encoder-'+str(i), b_norm, **kwargs)
+                net = self.downsampling_block(dim, net, n_filters, 'downsampling-'+str(i), b_norm, **kwargs)
                 encoder_output.append(net)
 
             for i, n_filters in enumerate([256, 128, 64]):
-                net = self.decoder_block(dim, net, n_filters, 'decoder-'+str(i), b_norm, **kwargs)
+                net = self.upsampling_block(dim, net, n_filters, 'upsampling-'+str(i), b_norm, **kwargs)
                 net = tf.add(net, encoder_output[-2-i])
 
-            net = self.decoder_block(dim, net, 64, 'decoder-3', b_norm, **kwargs)
+            net = self.upsampling_block(dim, net, 64, 'upsampling-3', b_norm, **kwargs)
 
             layout = 'cna' if b_norm else 'ca'
             layout_transpose = 'tna' if b_norm else 'ta'
@@ -59,7 +60,7 @@ class LinkNetModel(TFModel):
 
 
     @staticmethod
-    def encoder_block(dim, inp, out_filters, name, b_norm, **kwargs):
+    def downsampling_block(dim, inp, out_filters, name, b_norm, **kwargs):
         """LinkNet encoder block.
 
         Parameters
@@ -84,17 +85,16 @@ class LinkNetModel(TFModel):
         """
         with tf.variable_scope(name): # pylint: disable=not-context-manager
             layout = 'cna' if b_norm else 'ca'
-            net = conv_block(dim, inp, out_filters, 3, layout, 'encoder_conv_1', 2, **kwargs)
-            net = conv_block(dim, net, out_filters, 3, layout, 'encoder_conv_2', **kwargs)
-            shortcut = conv_block(dim, inp, out_filters, 1, layout, 'encoder_short_1', 2, **kwargs)
-            encoder_add = tf.add(net, shortcut, 'encoder_add_1')
+            net = conv_block(dim, inp, out_filters, 3, layout*2, 'conv-1', strides=[2, 1], **kwargs)
+            shortcut = conv_block(dim, inp, out_filters, 1, layout, 'conv-2', 2, **kwargs)
+            add = tf.add(net, shortcut, 'add-1')
 
-            net = conv_block(dim, encoder_add, out_filters, 3, 2*layout, 'encoder_conv_3', **kwargs)
-            outp = tf.add(net, encoder_add, 'encoder_add_2')
+            net = conv_block(dim, add, out_filters, 3, 2*layout, 'conv-3', **kwargs)
+            outp = tf.add(net, add, 'add-2')
         return outp
 
     @staticmethod
-    def decoder_block(dim, inp, out_filters, name, b_norm, **kwargs):
+    def upsampling_block(dim, inp, out_filters, name, b_norm, **kwargs):
         """LinkNet decoder block.
 
         Parameters
@@ -124,7 +124,7 @@ class LinkNetModel(TFModel):
 
             n_filters = inp.get_shape()[-1].value // 4
 
-            net = conv_block(dim, inp, n_filters, 1, layout, 'decoder_conv_1', **kwargs)
-            net = conv_block(dim, net, n_filters, 3, layout_transpose, 'decoder_conv_2', 2, **kwargs)
-            outp = conv_block(dim, net, out_filters, 1, layout, 'decoder_conv_3', **kwargs)
+            net = conv_block(dim, inp, n_filters, 1, layout, 'conv-1', **kwargs)
+            net = conv_block(dim, net, n_filters, 3, layout_transpose, 'conv-2', 2, **kwargs)
+            outp = conv_block(dim, net, out_filters, 1, layout, 'conv-3', **kwargs)
             return outp
