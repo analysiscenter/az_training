@@ -4,25 +4,25 @@ import tensorflow as tf
 
 sys.path.append('..')
 
-from dataset.models.tf.layers import conv_block
-from dataset.models.tf import TFModel
+from dataset.dataset.models.tf.layers import conv_block, global_average_pooling
+from dataset.dataset.models.tf import TFModel
 
 _ARCH = {'VGG16': [(2, 0, 64),
+                   (2, 0, 128),
+                   (2, 1, 256),
+                   (2, 1, 512),
+                   (2, 1, 512)],
+         'VGG19': [(2, 0, 64),
+                   (2, 0, 128),
+                   (4, 0, 256),
+                   (4, 0, 512),
+                   (4, 0, 512)],
+         'VGG7': [(2, 0, 64),
                   (2, 0, 128),
-                  (2, 1, 256),
-                  (2, 1, 512),
-                  (2, 1, 512)],
-        'VGG19': [(2, 0, 64),
-                  (2, 0, 128),
-                  (4, 0, 256),
-                  (4, 0, 512),
-                  (4, 0, 512)],
-        'VGG7': [(2, 0, 64),
-                 (2, 0, 128),
-                 (2, 1, 256)],
-        'VGG6': [(2, 0, 32),
-                 (2, 0, 64),
-                 (2, 0, 64)]}
+                  (2, 1, 256)],
+         'VGG6': [(2, 0, 32),
+                  (2, 0, 64),
+                  (2, 0, 64)]}
 
 class VGG(TFModel):
     """VGG as TFModel
@@ -35,7 +35,7 @@ class VGG(TFModel):
         if True enable batch normalization layers
 
     arch : str or list of tuple
-        if str, it 
+        if str, it is VGG16 (by default), VGG19, VGG7, VGG6
         tuple[0] : int
             depth of the block
         tuple[1] : int
@@ -62,13 +62,7 @@ class VGG(TFModel):
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
 
         net = self.body(dim, inputs['images'], b_norm, arch, **kwargs)
-
-        net = tf.contrib.layers.flatten(net)
-        net = tf.layers.dense(net, 100, name='fc1')
-        net = tf.nn.relu(net)
-        net = tf.layers.dense(net, 100, name='fc2')
-        net = tf.nn.relu(net)        
-        net = tf.layers.dense(net, n_classes, name='fc3')
+        net = self.head(dim, net, n_classes, data_format=data_format, is_training=self.is_training)
 
         logits = tf.identity(net, name='predictions')
         pred_proba = tf.nn.softmax(logits, name='predicted_prob')
@@ -79,7 +73,23 @@ class VGG(TFModel):
         tf.reduce_mean(equality, name='accuracy')
 
     @staticmethod
-    def block(dim, inp, depth_3, depth_1, filters, b_norm, name='block', **kwargs):
+    def head(dim, input_tensor, num_classes, head_type='dense', data_format='channels_last', is_training=True,\
+             dropout_rate=0):
+        with tf.variable_scope('head'):
+            if head_type == 'dense':
+                net = global_average_pooling(dim=dim, inputs=input_tensor, data_format=data_format)
+                net = tf.layers.dropout(net, 0.4, training=is_training)
+                net = tf.layers.dense(net, num_classes)
+            elif head_type == 'conv':
+                net = conv_block(dim=dim, input_tensor=input_tensor, filters=num_classes, kernel_size=1,\
+                                     layout='c', name='conv_1', data_format=data_format)
+                net = global_average_pooling(dim=dim, inputs=input_tensor, data_format=data_format)
+            else:
+                raise ValueError("Head_type should be dense or conv, but given %d" % head_type)
+        return net
+
+    @staticmethod
+    def block(dim, inputs, depth_3, depth_1, filters, b_norm, name='block', **kwargs):
         """VGG block.
 
         Parameters
@@ -87,7 +97,7 @@ class VGG(TFModel):
         dim : int
             spatial dimension of input without the number of channels
 
-        inp : tf.Tensor
+        inputs : tf.Tensor
 
         depth_3 : int
             the number of convolution layers with 3x3 kernel
@@ -104,7 +114,7 @@ class VGG(TFModel):
         ------
         outp : tf.Tensor
         """
-        net = inp
+        net = inputs
         with tf.variable_scope(name):  # pylint: disable=not-context-manager
             layout = 'cna' if b_norm else 'ca'
             layout = layout * (depth_3 + depth_1) + 'p'
@@ -114,7 +124,7 @@ class VGG(TFModel):
         return net
 
     @staticmethod
-    def body(dim, inp, b_norm, arch, *args, **kwargs):
+    def body(dim, inputs, b_norm, arch, **kwargs):
         """VGG convolution part.
 
         Parameters
@@ -122,7 +132,7 @@ class VGG(TFModel):
         dim : int
             spatial dimension of input without the number of channels
 
-        inp : tf.Tensor
+        inputs : tf.Tensor
 
         b_norm : bool
             if True enable batch normalization
@@ -133,17 +143,17 @@ class VGG(TFModel):
         ------
         outp : tf.Tensor
         """
-
+        print(arch)
         if isinstance(arch, list):
             pass
         elif isinstance(arch, str):
             arch = _ARCH[arch]
         else:
             raise TypeError("arch must be str or list but {} was given.".format(type(arch)))
-        net = inp
+        net = inputs
         with tf.variable_scope('body'):  # pylint: disable=not-context-manager
             for i, block_cfg in enumerate(arch):
-                net = VGG.block(dim, net, *block_cfg, b_norm, 'block-' + str(i), **kwargs)
+                net = VGG.block(dim, net, *block_cfg, b_norm, 'block-'+str(i), **kwargs)
         return net
 
 class VGG16(VGG):
@@ -151,14 +161,15 @@ class VGG16(VGG):
     Builds a VGG16 model.
     '''
     def _build(self, *args, **kwargs):
-        self.config['vgg_arch'] = 'VGG16'
+        self.config['arch'] = 'VGG16'
         super()._build(*args, **kwargs)
 
     @staticmethod
-    def body(dim, inp, b_norm, *args, **kwargs):
+    def body(dim, inputs, b_norm, *args, **kwargs): 
         """VGG16 convolution part.
         """
-        return VGG.body(dim, inp, b_norm, 'VGG16', *args, **kwargs)
+        _ = args
+        return VGG.body(dim, inputs, b_norm, 'VGG16', **kwargs)
 
 
 class VGG19Model(VGG):
@@ -166,25 +177,27 @@ class VGG19Model(VGG):
     Builds a VGG19 model.
     '''
     def _build(self, *args, **kwargs):
-        self.config['vgg_arch'] = 'VGG19'
+        self.config['arch'] = 'VGG19'
         super()._build(*args, **kwargs)
 
     @staticmethod
-    def body(dim, inp, b_norm, *args, **kwargs):
+    def body(dim, inputs, b_norm, *args, **kwargs):
         """VGG16 convolution part.
         """
-        return VGG.body(dim, inp, b_norm, 'VGG19', *args, **kwargs)
+        _ = args
+        return VGG.body(dim, inputs, b_norm, 'VGG19', **kwargs)
 
 class VGG7Model(VGG):
     '''
     Builds a VGG7 model.
     '''
     def _build(self, *args, **kwargs):
-        self.config['vgg_arch'] = 'VGG7'
+        self.config['arch'] = 'VGG7'
         super()._build(*args, **kwargs)
 
     @staticmethod
-    def body(dim, inp, b_norm, *args, **kwargs):
+    def body(dim, inputs, b_norm, *args, **kwargs):
         """VGG16 convolution part.
         """
-        return VGG.body(dim, inp, b_norm, 'VGG7', *args, **kwargs)
+        _ = args
+        return VGG.body(dim, inputs, b_norm, 'VGG7', **kwargs)

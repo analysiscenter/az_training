@@ -18,7 +18,7 @@ class FCN(TFModel):
         dict with keys 'images' and 'masks' (see :meth:`._make_inputs`)
     b_norm : bool
         if True enable batch normalization layers
-    arch : str 
+    arch : str
         'FCN32' (by default), 'FCN16' or 'FCN8'
     """
 
@@ -47,6 +47,7 @@ class FCN(TFModel):
         conv7 = net
         pool4 = tf.get_default_graph().get_tensor_by_name("body/block-3/output:0")
         pool3 = tf.get_default_graph().get_tensor_by_name("body/block-2/output:0")
+        print(arch)
         if arch == 'FCN32':
             net = conv_block(dim, conv7, n_classes, 64, 't', 'output', 32, **layers_dicts)
         else:

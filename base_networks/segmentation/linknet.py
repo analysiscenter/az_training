@@ -30,11 +30,10 @@ class LinkNet(TFModel):
 
         kwargs = {'conv': conv, 'batch_norm': batch_norm}
 
-        inp = inputs['images']
         with tf.variable_scope('LinkNet'): # pylint: disable=not-context-manager
             layout = 'cpna' if b_norm else 'cpa'
 
-            net = conv_block(dim, inp, 64, 7, layout, 'input_conv', 2, pool_size=3, **kwargs)
+            net = conv_block(dim, inputs['images'], 64, 7, layout, 'input_conv', 2, pool_size=3, **kwargs)
 
             encoder_output = []
 
@@ -60,7 +59,7 @@ class LinkNet(TFModel):
 
 
     @staticmethod
-    def downsampling_block(dim, inp, out_filters, name, b_norm, **kwargs):
+    def downsampling_block(dim, inputs, out_filters, name, b_norm, **kwargs):
         """LinkNet encoder block.
 
         Parameters
@@ -68,7 +67,7 @@ class LinkNet(TFModel):
         dim : int
             spatial dimension of input without the number of channels
 
-        inp : tf.Tensor
+        inputs : tf.Tensor
 
         out_filters : int
             number of output filters
@@ -85,8 +84,8 @@ class LinkNet(TFModel):
         """
         with tf.variable_scope(name): # pylint: disable=not-context-manager
             layout = 'cna' if b_norm else 'ca'
-            net = conv_block(dim, inp, out_filters, 3, 2*layout, 'conv-1', strides=[2, 1], **kwargs)
-            shortcut = conv_block(dim, inp, out_filters, 1, layout, 'conv-2', 2, **kwargs)
+            net = conv_block(dim, inputs, out_filters, 3, 2*layout, 'conv-1', strides=[2, 1], **kwargs)
+            shortcut = conv_block(dim, inputs, out_filters, 1, layout, 'conv-2', 2, **kwargs)
             add = tf.add(net, shortcut, 'add-1')
 
             net = conv_block(dim, add, out_filters, 3, 2*layout, 'conv-3', **kwargs)
@@ -94,7 +93,7 @@ class LinkNet(TFModel):
         return outp
 
     @staticmethod
-    def upsampling_block(dim, inp, out_filters, name, b_norm, **kwargs):
+    def upsampling_block(dim, inputs, out_filters, name, b_norm, **kwargs):
         """LinkNet decoder block.
 
         Parameters
@@ -102,7 +101,7 @@ class LinkNet(TFModel):
         dim : int
             spatial dimension of input without the number of channels
 
-        inp : tf.Tensor
+        inputs : tf.Tensor
 
         out_filters : int
             number of output filters
@@ -122,9 +121,9 @@ class LinkNet(TFModel):
             layout = 'cna' if b_norm else 'ca'
             layout_transpose = 'tna' if b_norm else 'ta'
 
-            n_filters = inp.get_shape()[-1].value // 4
+            n_filters = inputs.get_shape()[-1].value // 4
 
-            net = conv_block(dim, inp, n_filters, 1, layout, 'conv-1', **kwargs)
+            net = conv_block(dim, inputs, n_filters, 1, layout, 'conv-1', **kwargs)
             net = conv_block(dim, net, n_filters, 3, layout_transpose, 'conv-2', 2, **kwargs)
             outp = conv_block(dim, net, out_filters, 1, layout, 'conv-3', **kwargs)
             return outp
