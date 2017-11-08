@@ -1,70 +1,161 @@
-""" Contains GoogLeNet network: https://arxiv.org/abs/1409.4842 """
+""" Contains inception_v1 network: https://arxiv.org/abs/1409.4842 """
 import sys
 
 import tensorflow as tf
 sys.path.append('..')
 
-from dataset.dataset.models.tf import TFModel
-from dataset.dataset.models.tf.layers import conv_block
-from dataset.dataset.models.tf.layers.pooling import max_pooling, global_average_pooling
+from dataset.models.tf import TFModel
+from dataset.models.tf.layers import conv_block
+from dataset.models.tf.layers.pooling import max_pooling, global_average_pooling
+
+FILTERS = [
+           [[64, 96, 128, 16, 32, 32],
+           [128, 128, 192, 32, 96, 64]],
+
+           [[192, 96, 208, 16, 48, 64],
+           [160, 112, 224, 24, 64, 64],
+           [128, 128, 256, 24, 64, 64],
+           [112, 144, 288, 32, 64, 64],
+           [256, 160, 320, 32, 128, 128]],
+
+           [[256, 160, 320, 32, 128, 128],
+           [384, 192, 384, 48, 128, 128]]
+           ]
+
+NAMES = ['a', 'b', 'c', 'd', 'e']
 
 class InceptionV1(TFModel):
-    """ implementation GoogLeNet model
+    """ implementation of inception_v1 model
 
-    Parameters:
-    -----------
+    **Configuration**
+    -----------------
+    inputs : dict
+        dict with keys 'images' and 'labels' (see :meth:`._make_inputs`)
+    
+    dim: int {1, 2, 3}
+        spatial dimension of input without the number of channels
+
+    batch_norm : bool
+        if True enable batch normalization layers
+
     data_format: str {'channels_last', 'channels_first'}
 
-    dim : int
-    spacial dimension of input without the number of channels
+    dropout_rate: float
+
+    head_type: str {'dense', 'conv'}
+         determine head of model
+
+         'dense' - consist of GAP and dense layers
+
+         'conv' - consist of conv 1x1 and GAP layers
+
     """
-
     def _build(self, *args, **kwargs):
-        _ = args, kwargs
+        _ = args
 
-        data_format = self.get_from_config('data_format')
-        dim = self.get_from_config('dim')
-
+        dim = self.get_from_config('dim', 2)
+        b_norm = self.get_from_config('batch_norm', True)
+        dropout_rate = self.get_from_config('dropout_rate', 0)
+        head_type = self.get_from_config('head_type', 'dense')
         names = ['images', 'labels']
         _, transformed_placeholders = self._make_inputs(names)
 
+        num_classes = self.num_classes('labels')
+        data_format = self.data_format('images')
+
+        max_pool = {'pool_size': 3,
+                    'strides': 2,
+                    'padding': 'same',
+                    'data_format': data_format}
+
+        batch_norm = {'training': self.is_training}
+        conv = {'data_format': data_format}
+
+        kwargs = {'max_pooling': max_pool,
+                  'batch_norm': batch_norm,
+                  'conv': conv,
+                  'data_format': data_format,
+                  'is_training': self.is_training}
+
         with tf.variable_scope('inception'):
-            net = conv_block(dim=dim, input_tensor=transformed_placeholders['images'], filters=64, kernel_size=7,\
-                             strides=2, layout='cp', data_format=data_format, pool_size=3, pool_strides=2)
-            net = conv_block(dim=dim, input_tensor=net, filters=64, kernel_size=3, layout='c',\
-                             data_format=data_format)
-            net = conv_block(dim=dim, input_tensor=net, filters=192, kernel_size=3, layout='cp',\
-                             data_format=data_format, pool_size=3, strides=2)
-            net = self.googlenet_block(dim=dim, input_tensor=net, filters=[64, 96, 128, 16, 32, 32],\
-                                  data_format=data_format, name='3a', is_training=self.is_training)
-            net = self.googlenet_block(dim=dim, input_tensor=net, filters=[128, 128, 192, 32, 96, 64],\
-                                  data_format=data_format, name='3b', is_training=self.is_training)
-            net = max_pooling(dim=dim, inputs=net, pool_size=3, strides=2, padding='same', data_format=data_format)
-
-            net = self.googlenet_block(dim=dim, input_tensor=net, filters=[192, 96, 208, 16, 48, 64],\
-                                  data_format=data_format, name='4a', is_training=self.is_training)
-            net = self.googlenet_block(dim=dim, input_tensor=net, filters=[160, 112, 224, 24, 64, 64],\
-                                  data_format=data_format, name='4b', is_training=self.is_training)
-            net = self.googlenet_block(dim=dim, input_tensor=net, filters=[128, 128, 256, 24, 64, 64],\
-                                  data_format=data_format, name='4c', is_training=self.is_training)
-            net = self.googlenet_block(dim=dim, input_tensor=net, filters=[112, 144, 288, 32, 64, 64],\
-                                  data_format=data_format, name='4d', is_training=self.is_training)
-            net = self.googlenet_block(dim=dim, input_tensor=net, filters=[256, 160, 320, 32, 128, 128],\
-                                  data_format=data_format, name='4e', is_training=self.is_training)
-            net = max_pooling(dim=dim, inputs=net, pool_size=3, strides=2, padding='same', data_format=data_format)
-
-            net = self.googlenet_block(dim=dim, input_tensor=net, filters=[256, 160, 320, 32, 128, 128],\
-                                  data_format=data_format, name='5a', is_training=self.is_training)
-            net = self.googlenet_block(dim=dim, input_tensor=net, filters=[384, 192, 384, 48, 128, 128],\
-                                  data_format=data_format, name='5b', is_training=self.is_training)
-            net = global_average_pooling(dim=dim, inputs=net, data_format=data_format)
-            net = tf.layers.dropout(net, 0.4, training=self.is_training)
-            net = tf.contrib.layers.flatten(net)
-            net = tf.layers.dense(net, 10)
-
+            net = self.body(dim, transformed_placeholders['images'], b_norm, **kwargs)
+            net = self.head(dim, net, num_classes, head_type, data_format, self.is_training, dropout_rate)
+        
         self.statistic(tf.identity(net, name='predictions'), transformed_placeholders['labels'])
 
+    @staticmethod
+    def body(dim, inputs, b_norm, **kwargs):
+        """ Building block for inception_v1 network
 
+        Parameters
+        ----------
+        dim: int
+
+        inputs: tf.Tensor
+
+        b_norm: bool:
+            if True enable batch normalization
+
+        Returns
+        -------
+        net: tf.Tensor
+        """
+        layout = 'cnpcncnp' if b_norm else 'cpccp'
+        with tf.variable_scope('body'):
+            print(layout)
+            net = conv_block(dim=dim, inputs=inputs, filters=[64, 64, 192], kernel_size=[7, 3, 3], strides=[2, 1, 1],\
+                             layout=layout, name='conv', **kwargs)
+            for i in range(len(FILTERS)):
+                length = len(FILTERS[i])
+                for name, filt in zip(NAMES[:length], FILTERS[i]):
+                    net = InceptionV1.block(dim=dim, inputs=net, filters=filt, name=str(i+3)+name,\
+                                            b_norm=b_norm, **kwargs)
+                    print(name, filt, net)
+                if i != 2:
+                    net = max_pooling(dim=dim, inputs=net, **kwargs['max_pooling'])
+        return net
+
+    @staticmethod
+    def head(dim, inputs, n_outputs, head_type='dense', data_format='channels_last', is_training=True,\
+             dropout_rate=0):
+        """Head of network.
+        Consist of two kinds 'dense' and 'conv'.
+
+        Parameters
+        ----------
+        dim: int
+
+        input: tf.Tensor
+
+        n_outputs: int
+            number of outputs parameters
+
+        head_type: str {'dense', 'conv'}
+
+        data_format: str {'channels_last', 'channels_first'}
+
+        is_training: bool
+
+        dropout_rate: float
+
+        Returns
+        -------
+        net: tf.Tensor
+        """
+        with tf.variable_scope('head'):
+            if head_type == 'dense':
+                net = global_average_pooling(dim=dim, inputs=inputs, data_format=data_format)
+                if dropout_rate:
+                    net = tf.layers.dropout(net, dropout_rate, training=is_training)
+                net = tf.layers.dense(net, n_outputs)
+
+            elif head_type == 'conv':
+                net = conv_block(dim=dim, inputs=inputs, filters=n_outputs, kernel_size=1,\
+                                     layout='c', name='conv_1', data_format=data_format)
+                net = global_average_pooling(dim=dim, inputs=net, data_format=data_format)
+            else:
+                raise ValueError("Head_type should be dense or conv, but given %d" % head_type)
+        return net
 
     def statistic(self, net, targets):
         """Added to graph some useful funstion like accuracy or preidctions
@@ -78,28 +169,34 @@ class InceptionV1(TFModel):
         """
         prob = tf.nn.softmax(net, name='prob_predictions')
 
-        labels_hat = tf.cast(tf.argmax(prob, axis=1), tf.float32, name='labels_hat')
-        labels = tf.cast(tf.argmax(targets, axis=1), tf.float32, name='labels')
+        labels_hat = tf.cast(tf.argmax(prob, axis=1), tf.float32, name='predicted_labels')
+        labels = tf.cast(tf.argmax(targets, axis=1), tf.float32, name='target_labels')
         tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
 
     @staticmethod
-    def googlenet_block(dim, input_tensor, filters, data_format, name, batch_norm=False, is_training=True):
-        """ Function contains building block from googlenet achitecture
+    def block(dim, inputs, filters, data_format='channels_last', name=None, b_norm=True, is_training=True, **kwargs):
+        """ Function contains building block from inception_v1 achitecture
 
         Parameters:
         -----------
         dim: int
         spacial dimension of input without the number of channels
 
-        input_tensor: tf.Tensor
+        inputs: tf.Tensor
 
-        filters: list len 6
-        [number of filters in one conv 1x1,
-        -//- in conv 1x1 before conv 3x3,
-        -//- in conv 3x3,
-        -//- in conv 1x1 before conv 5x5,
-        -//- in conv 5x5,
-        -//- in conv 1x1 after max_pool]
+        filters: list with 6 items:
+
+        - number of filters in one conv 1x1
+
+        - number of filters in conv 1x1 going before conv 3x3
+
+        - number of filters in conv 3x3
+
+        - number of filters in conv 1x1 going before conv 5x5,
+        
+        - number of filters in conv 5x5,
+        
+        - number of filters in conv 1x1 going after max_pool
 
         data_format: str {'channels_last', 'channels_first'}
 
@@ -113,32 +210,20 @@ class InceptionV1(TFModel):
         --------
         tf.Tensor - output tf.Tensor
         """
-        if batch_norm:
-            layout = 'cn'
-        else:
-            layout = 'c'
+        layout = 'cn' if b_norm else 'c'
+        print(layout, is_training)
+        with tf.variable_scope("block-" + name):
+            block_1 = conv_block(dim=dim, inputs=inputs, filters=filters[0], kernel_size=1,\
+                                 layout=layout, name='conv_1', **kwargs)
 
-        with tf.variable_scope("block_" + name):
-            block_1 = conv_block(dim=dim, input_tensor=input_tensor, filters=filters[0], kernel_size=1,\
-                                 layout=layout, name='conv_1', data_format=data_format, is_training=is_training)
+            block_3 = conv_block(dim=dim, inputs=inputs, filters=[filters[1], filters[2]], \
+                                 kernel_size=[1, 3], layout=layout*2, name='conv_3', **kwargs)
 
-            block_1_3 = conv_block(dim=dim, input_tensor=input_tensor, filters=filters[1], kernel_size=1,\
-                                   layout=layout, name='conv_1_3', data_format=data_format, is_training=is_training)
-            block_3 = conv_block(dim=dim, input_tensor=block_1_3, filters=filters[2], kernel_size=1,\
-                                 layout=layout, name='conv_3', data_format=data_format, is_training=is_training)
+            block_5 = conv_block(dim=dim, inputs=inputs, filters=[filters[3], filters[4]], \
+                                 kernel_size=[1, 5], layout=layout*2, name='conv_5', **kwargs)
 
-            block_1_5 = conv_block(dim=dim, input_tensor=input_tensor, filters=filters[3], kernel_size=1,\
-                                   layout=layout, name='conv_1_5', data_format=data_format, is_training=is_training)
-            block_5 = conv_block(dim=dim, input_tensor=block_1_5, filters=filters[4], kernel_size=1,\
-                                 layout=layout, name='conv_5', data_format=data_format, is_training=is_training)
-
-            conv_pool = conv_block(dim=dim, input_tensor=input_tensor, filters=filters[5], kernel_size=1, \
-                                   layout='p'+layout, name='conv_pool', data_format=data_format, pool_size=1,\
+            conv_pool = conv_block(dim=dim, inputs=inputs, filters=filters[5], kernel_size=1,\
+                                   layout='p'+layout, name='c_pool', data_format=data_format, pool_size=3,\
                                    pool_strides=1, is_training=is_training)
-
-            if data_format == 'channels_last':
-                return tf.concat([block_1, block_3, block_5, conv_pool], -1, name='output')
-            elif data_format == 'channels_first':
-                return tf.concat([block_1, block_3, block_5, conv_pool], 0, name='output')
-            else:
-                raise ValueError("data_format can be 'last' or 'first' not %d"% data_format)
+            axis = -1 if data_format == 'channels_last' else 1
+        return tf.concat([block_1, block_3, block_5, conv_pool], axis, name='output')
