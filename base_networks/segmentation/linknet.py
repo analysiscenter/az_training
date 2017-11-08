@@ -66,7 +66,7 @@ class LinkNet(TFModel):
         Parameters
         ----------
         dim : int
-            spacial dimension of input without the number of channels
+            spatial dimension of input without the number of channels
 
         inp : tf.Tensor
 
@@ -85,7 +85,7 @@ class LinkNet(TFModel):
         """
         with tf.variable_scope(name): # pylint: disable=not-context-manager
             layout = 'cna' if b_norm else 'ca'
-            net = conv_block(dim, inp, out_filters, 3, layout*2, 'conv-1', strides=[2, 1], **kwargs)
+            net = conv_block(dim, inp, out_filters, 3, 2*layout, 'conv-1', strides=[2, 1], **kwargs)
             shortcut = conv_block(dim, inp, out_filters, 1, layout, 'conv-2', 2, **kwargs)
             add = tf.add(net, shortcut, 'add-1')
 
@@ -100,7 +100,7 @@ class LinkNet(TFModel):
         Parameters
         ----------
         dim : int
-            spacial dimension of input without the number of channels
+            spatial dimension of input without the number of channels
 
         inp : tf.Tensor
 
