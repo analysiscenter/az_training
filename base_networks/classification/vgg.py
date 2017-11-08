@@ -19,10 +19,7 @@ _ARCH = {'VGG16': [(2, 0, 64),
                    (4, 0, 512)],
          'VGG7': [(2, 0, 64),
                   (2, 0, 128),
-                  (2, 1, 256)],
-         'VGG6': [(2, 0, 32),
-                  (2, 0, 64),
-                  (2, 0, 64)]}
+                  (2, 1, 256)]}
 
 class VGG(TFModel):
     """VGG as TFModel
@@ -173,7 +170,7 @@ class VGG16(VGG):
         return VGG.body(dim, inputs, b_norm, 'VGG16', **kwargs)
 
 
-class VGG19Model(VGG):
+class VGG19(VGG):
     '''
     Builds a VGG19 model.
     '''
@@ -188,7 +185,7 @@ class VGG19Model(VGG):
         _ = args
         return VGG.body(dim, inputs, b_norm, 'VGG19', **kwargs)
 
-class VGG7Model(VGG):
+class VGG7(VGG):
     '''
     Builds a VGG7 model.
     '''
