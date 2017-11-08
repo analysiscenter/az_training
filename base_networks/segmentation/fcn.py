@@ -47,7 +47,6 @@ class FCN(TFModel):
         conv7 = net
         pool4 = tf.get_default_graph().get_tensor_by_name("body/block-3/output:0")
         pool3 = tf.get_default_graph().get_tensor_by_name("body/block-2/output:0")
-        print(arch)
         if arch == 'FCN32':
             net = conv_block(dim, conv7, n_classes, 64, 't', 'output', 32, **layers_dicts)
         else:

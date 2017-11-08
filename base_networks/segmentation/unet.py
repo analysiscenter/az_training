@@ -34,7 +34,7 @@ class UNet(TFModel):
         unet_filters = 2 ** np.arange(4) * n_filters * 2
         axis = dim + 1 if data_format == 'channels_last' else 1
 
-        layout = 'cnacna' if b_norm else 'caca'        
+        layout = 'cnacna' if b_norm else 'caca'
         net = conv_block(dim, inputs['images'], n_filters, 3, layout, 'input-block', **kwargs)
         encoder_outputs = [net]
 

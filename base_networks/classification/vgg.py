@@ -75,10 +75,12 @@ class VGG(TFModel):
     @staticmethod
     def head(dim, input_tensor, num_classes, head_type='dense', data_format='channels_last', is_training=True,\
              dropout_rate=0):
-        with tf.variable_scope('head'):
+        """Head for classification
+        """
+        with tf.variable_scope('head'): # pylint: disable=not-context-manager
             if head_type == 'dense':
                 net = global_average_pooling(dim=dim, inputs=input_tensor, data_format=data_format)
-                net = tf.layers.dropout(net, 0.4, training=is_training)
+                net = tf.layers.dropout(net, dropout_rate, training=is_training)
                 net = tf.layers.dense(net, num_classes)
             elif head_type == 'conv':
                 net = conv_block(dim=dim, input_tensor=input_tensor, filters=num_classes, kernel_size=1,\
@@ -143,7 +145,6 @@ class VGG(TFModel):
         ------
         outp : tf.Tensor
         """
-        print(arch)
         if isinstance(arch, list):
             pass
         elif isinstance(arch, str):
@@ -165,7 +166,7 @@ class VGG16(VGG):
         super()._build(*args, **kwargs)
 
     @staticmethod
-    def body(dim, inputs, b_norm, *args, **kwargs): 
+    def body(dim, inputs, b_norm, *args, **kwargs):
         """VGG16 convolution part.
         """
         _ = args
