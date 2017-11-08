@@ -59,93 +59,109 @@ class ResNet(TFModel):
         strides = self.get_from_config('strides', [2, 2, 2, 2])
         # check equal lengts else fail 
 
+        input_block_config = self.get_from_config('input_block_config', {'layout': 'cnap', 'filters': 64, 'kernel_size': 7, 
+                                                                         'strides': 2, 'pool_size': 3, 'pool_strides': 2})
         layout = self.get_from_config('layout', 'cna')
 
         bottleneck = self.get_from_config('bottleneck', False) # make a list or one int 
         bottelneck_factor = self.get_from_config('bottelneck_factor', 4) # make a list
-        
-        # убрать skip = self.get_from_config('skip', True)
-        
-        se_block = self.get_from_config('se_block', False)
-        if se_block:
-            if isinstance(se_block, dict):
-                if 'C' not in se_block:
-                    se_block['C'] = 128
-                if 'r' not in se_block:
-                    se_block['r'] = 8
-            elif isinstance(se_block, bool):
-                se_block = dict(C=128, r=8)
-            else:
-                raise ValueError('se_block must be dict or bool not {}'.format(type(se_block)))
+                
+        se_block = self.get_from_config('se_block', [0, 0, 0, 0])
+        head_type = self.get_from_config('head_type', 'dense')
 
-        max_pool = self.get_from_config('max_pool', False)
+        # if se_block:
+        #     if isinstance(se_block, dict):
+        #         if 'C' not in se_block:
+        #             se_block['C'] = 128
+        #         if 'r' not in se_block:
+        #             se_block['r'] = 8
+        #     elif isinstance(se_block, bool):
+        #         se_block = dict(C=128, r=8)
+        #     else:
+        #         raise ValueError('se_block must be dict or bool not {}'.format(type(se_block)))
+
         conv_params = self.get_from_config('conv_params', {'conv': {}})
         activation = self.get_from_config('activation', tf.nn.relu)
-
         dropout_rate = self.get_from_config('dropout_rate', 0.)
 
         is_training = self.is_training
-
-        with tf.variable_scope('resnet'):
-            if max_pool:
-                first_layout = layout + 'p'
-            else:
-                first_layout = layout
-
-            net = conv_block(dim, inputs['images'], filters[0], 7, first_layout, name='0', strides=2, \
-                             is_training=is_training, pool_size=3, pool_strides=2)
-
-            kwargs = {'conv': conv_params['conv'], 'is_training': is_training, 'data_format': data_format, 
+        kwargs = {'conv': conv_params['conv'], 'is_training': is_training, 'data_format': data_format, 
                       'dropout_rate': dropout_rate, 'activation': activation}
 
-            for index, block_length in enumerate(length_factor):
-                for block_number in range(block_length):
-                    net = self.block(dim, net, filters[index], layout, str(index), block_number, \
-                                          strides[index], bottleneck, bottelneck_factor, skip, \
-                                          se_block, **kwargs)
-                    
-            net = tf.identity(net, name='conv_output')
+        with tf.variable_scope('resnet'):
+            net = ResNet.body(dim, inputs['images'], filters, length_factor, strides, layout, se_block, \
+                              bottleneck, bottelneck_factor, input_block_config, **kwargs)
+            net = ResNet.head(dim, net, n_classes, head_type, data_format, is_training)
 
-            net = global_average_pooling(dim, net, data_format)
-            net = tf.contrib.layers.flatten(net)
-
-
-            net = tf.layers.dense(net, n_classes)
-            predictions = tf.identity(net, name='predictions')
-
-            probs = tf.nn.softmax(net, name='predicted_prob')
-            labels_hat = tf.cast(tf.argmax(predictions, axis=1), tf.float32, name='labels_hat')
-            labels = tf.cast(tf.argmax(inputs['labels'], axis=1), tf.float32, 'true_labels')
-
-            accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), \
-                                      tf.float32), name='accuracy')
+        predictions = tf.identity(net, name='predictions')
+        probs = tf.nn.softmax(net, name='predicted_prob')
+        labels_hat = tf.cast(tf.argmax(predictions, axis=1), tf.float32, name='labels_hat')
+        labels = tf.cast(tf.argmax(inputs['labels'], axis=1), tf.float32, 'true_labels')
+        accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), \
+                                  tf.float32), name='accuracy')
 
 
     @staticmethod
-    def block(dim, input_tensor, filters, layout, name, block_number, strides, 
-                   bottleneck=False, bottelneck_factor=4, skip=False, se_block=False, 
+    def body(dim, inputs, filters, length_factor, strides, layout, se_block, bottleneck, bottelneck_factor, input_block_config, **kwargs):
+        with tf.variable_scope('body'):
+            net = ResNet.input_block(dim, inputs, input_block_config=input_block_config)
+            for index, block_length in enumerate(length_factor):
+                print('index ', index)
+                for block_number in range(block_length):
+                    print('block_number ', block_number)
+                    net = ResNet.block(dim, net, filters[index], layout, 'block-'+str(index), block_number, \
+                                       strides[index], bottleneck, bottelneck_factor, \
+                                       se_block[index], **kwargs)
+            net = tf.identity(net, name='conv_output')
+        return net
+    
+
+    @staticmethod
+    def head(dim, inputs, n_outputs, head_type='dense', data_format='channels_last', is_training=True):
+        with tf.variable_scope('head'):
+            if head_type == 'dense':
+                net = global_average_pooling(dim=dim, inputs=inputs, data_format=data_format)
+                net = tf.layers.dense(net, n_outputs)
+
+            elif head_type == 'conv':
+                net = conv_block(dim=dim, input_tensor=inputs, filters=n_outputs, kernel_size=1,\
+                                     layout='c', name='con v_1', data_format=data_format)
+                net = global_average_pooling(dim=dim, inputs=inputs, data_format=data_format)
+            else:
+                raise ValueError("Head_type should be dense or conv, but given %d" % head_type)
+        return net
+
+
+    def input_block(dim, inputs, input_block_config, name='block-'+'input'):
+        with tf.variable_scope(name):
+            net = conv_block(dim, inputs, **input_block_config)
+        return net
+
+
+    @staticmethod
+    def block(dim, inputs, filters, layout, name, block_number, strides, 
+                   bottleneck=False, bottelneck_factor=4, se_block=0, 
                    **kwargs):
 
-        if block_number != 0:
-            strides = 1
+        strides = 1 if block_number != 0 else strides
 
-        name = name + '/' + str(block_number)
+        name = name + '-' + str(block_number)
 
         with tf.variable_scope(name):
             if bottleneck:
                 output_filters = filters * bottelneck_factor
-                x = ResNet.bottleneck_conv(dim, input_tensor, filters, layout, strides, bottelneck_factor
+                x = ResNet.bottleneck_conv(dim, inputs, filters, output_filters, layout, strides, 
                                            **kwargs)
             else:
                 output_filters = filters
-                x = ResNet.original_conv(dim, input_tensor, filters, layout, strides, **kwargs)
+                x = ResNet.original_conv(dim, inputs, filters, layout, strides, **kwargs)
 
-            if se_block:
+            if se_block > 0:
                 x = ResNet.se_block(x, se_block)
 
-            shortcut = input_tensor
+            shortcut = inputs
             if block_number == 0:
-                shortcut = conv_block(dim, input_tensor, output_filters, 1, 'c', strides=strides, 
+                shortcut = conv_block(dim, inputs, output_filters, 1, 'c', 'shortcut', strides=strides, 
                                       **kwargs)
 
             x = tf.add(x, shortcut)
@@ -154,59 +170,36 @@ class ResNet(TFModel):
 
 
     @staticmethod
-    def bottleneck_conv(dim, input_tensor, filters, layout, name, conv, strides, is_training,
-                        data_format, bottelneck_factor, activation):
-        # output_filters = filters * bottelneck_factor
-        x = conv_block(dim, input_tensor, [filters, filters, output_filters], [1, 3, 1], \
-                       layout*3, strides=[strides, 1, 1], data_format=data_format, activation=activation, \
-                       is_training=is_training, conv=conv)
+    def bottleneck_conv(dim, inputs, filters, output_filters, layout, strides, **kwargs):
+        x = conv_block(dim, inputs, [filters, filters, output_filters], [1, 3, 1], \
+                       layout*3, name='bottleneck_conv', strides=[strides, 1, 1], **kwargs)
         return x
 
 
     @staticmethod
-    def original_conv(dim, input_tensor, filters, layout, strides, **kwargs):
-        x = conv_block(dim, input_tensor, filters=[filters, filters], kernel_size=[3, 3], layout=layout+'d'+layout, \
+    def original_conv(dim, inputs, filters, layout, strides, **kwargs):
+        x = conv_block(dim, inputs, filters=[filters, filters], kernel_size=[3, 3], layout=layout+'d'+layout, \
                                strides=[strides, 1], **kwargs)
         return x
 
 
     @staticmethod
-    def se_block(self,dim, x, data_format, se_block):
+    def se_block(dim, inputs, data_format, se_block):
             """ create se block """
-            r = se_block['r']
-            C = se_block['C']
-            full = global_average_pooling(dim=dim, inputs=x, data_format=data_format)
+            full = global_average_pooling(dim=dim, inputs, data_format=data_format)
             if data_format == 'channels_last':
-                shape = [-1] + [1] * dim + [C]
+                shape = [-1] + [1] * dim + [original_filters]
             else:
+
                 shape = [C] + [-1] + [1] * dim
+                
             full = tf.reshape(full, shape)
-            full = tf.layers.dense(full, int(C/r), activation=tf.nn.relu, \
+            full = tf.layers.dense(full, int(original_filters/se_block), activation=tf.nn.relu, \
                 kernel_initializer=tf.contrib.layers.xavier_initializer(), name='first_dense_se_block')
-            full = tf.layers.dense(full, C, activation=tf.nn.sigmoid, \
+            full = tf.layers.dense(full, original_filters, activation=tf.nn.sigmoid, \
                 kernel_initializer=tf.contrib.layers.xavier_initializer(), name='second_dense_se_block')
-            return x * full
+            return inputs * full
 
-    
-    @staticmethod
-    def add_shortcut(dim, input_tensor, output_filters, strides, skip,
-                     **kwargs):
-            """ create shortcut connetion """
-            if kwargs['data_format'] == 'channels_last':
-                input_filters = input_tensor.get_shape()[-1]
-            else:
-                input_filters = input_tensor.get_shape()[0]
-            
-            if input_filters != output_filters:
-                return conv_block(dim, input_tensor, output_filters, 1, 'c', strides=strides, 
-                                  **kwargs)
-            else:
-                return input_tensor
-
-    def input_block
-        None - ничего 
-        kernel , filter, stride
-        pool_size, pool_stride
 
 class ResNet152(ResNet):
     ''' An original ResNet-101 architecture for ImageNet
@@ -215,31 +208,28 @@ class ResNet152(ResNet):
         self.config['length_factor'] = [3, 8, 36, 3]
         super()._build()
 
+
 class ResNet101(ResNet):
     ''' An original ResNet-101 architecture for ImageNet
     '''
     def _build(self, *args, **kwargs):
         self.config['length_factor'] = [3, 4, 23, 3]
-        self.config['layout'] = 'cna'
-        self.config['max_pool'] = True
         super()._build()
+
 
 class ResNet50(ResNet):
     ''' An original ResNet-50 architecture for ImageNet
     '''
     def _build(self, *args, **kwargs):
         self.config['length_factor'] = [3, 4, 6, 3]
-        self.config['layout'] = 'cna'
-        self.config['max_pool'] = True
         super()._build()
+
 
 class ResNet34(ResNet):
     ''' An original ResNet-34 architecture for ImageNet
     '''
     def _build(self, *args, **kwargs):
         self.config['length_factor'] = [3, 4, 6, 3]
-        self.config['layout'] = 'cna'
-        self.config['max_pool'] = True
         super()._build()
 
 
@@ -248,6 +238,4 @@ class ResNet18(ResNet):
     '''
     def _build(self, *args, **kwargs):
         self.config['length_factor'] = [2, 2, 2, 2]
-        self.config['layout'] = 'cna'
-        self.config['max_pool'] = True
         super()._build()
