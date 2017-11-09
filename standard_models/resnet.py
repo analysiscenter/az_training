@@ -12,39 +12,49 @@ from dataset.dataset.models.tf.layers.pooling import global_average_pooling
 
 
 class ResNet(TFModel):
-    ''' Universal Resnet model constructor
+    ''' Universal Residual network constructor
+    Read more about Residual networks: https://arxiv.org/abs/1512.03385
     Configuration:
-        d : int {1, 2, 3}
-            number of dimensions
+    dim : int {1, 2, 3}
+        number of dimensions
 
-        layout: str - a sequence of layers
-            c - convolution
-            n - batch normalization
-            a - activation
-            p - max pooling
-            Default is 'cna'.
+    layout: str - a sequence of layers
+        c - convolution
+        n - batch normalization
+        a - activation
+        p - max pooling
+        Default is 'cna'.
+    head_type: str {'dense', 'conv'}
+        Default is 'dense'.
+        Type of the classification layers in the end of the model.
+    conv : dict - parameters for convolution layers, like initializers, regularalizers, etc
+    activation: specifies activation to use. Default is tf.nn.relu.
+    dropout_rate: float in [0, 1]. Default is 0.
 
-        filters: list. Default is [64, 128, 256, 512].
-            Defines number of filters in the Reidual blocks output.
-        length_factor: list of length 4 with int elements
-            Specifies how many Reidual blocks
-            will be of the same feature maps dimension.
-            Recall that ResNet can have [64, 128, 256, 512] output feature maps so
-            there are 4 types of sequences of ResNet blocks with the same n_filters parameter.
-            So the length_factor = [1, 2, 3, 4] will make one block with 16 feature maps,
-            2 blocks with 32,
-            3 blocks with 64, 4 with 128.
-        bottleneck: bool
-            If True all residual blocks will have 1x1, 3x3, 1x1 convolutional layers.
-        bottelneck_factor: int
-            A multiplicative factor for restored dimension in bottleneck block.
-            Default is 4, e.g., for block with 64 input filters, there will be 256 filters
-            in the output tensor.
-        conv : dict - parameters for convolution layers, like initializers, regularalizers, etc
-        strides: list of length 4 with int elements
-            Default is [2, 1, 1, 1]
-        dropout_rate: float in [0, 1]. Default is 0.
-        '''
+    filters: list. Default is [64, 128, 256, 512].
+        Defines number of filters in the Reidual blocks output.
+    length_factor: int or list of ints of the same length as the filters list.
+        Default is  [1, 1, 1, 1].
+        Specifies how many Reidual blocks
+        will be of the same feature maps dimension.
+        Recall that ResNet can have [64, 128, 256, 512] output feature maps so
+        there are 4 types of ResNet blocks sequences with the same n_filters parameter.
+        E.g. the length_factor = [1, 2, 3, 4] will make one block with 16 feature maps,
+        2 blocks with 32, 3 blocks with 64, 4 with 128.
+    bottleneck: bool or list of bools of the same length as the filters list.
+        Default is [False, False, False, False] - all blocks without bottleneck.
+        If True then residual blocks will have 1x1, 3x3, 1x1 convolutional layers.
+    bottelneck_factor: int or list of ints of the same length as the filters list.
+        A multiplicative factor for restored dimension in bottleneck block.
+        Default is 4, i.e., for block with 64 input filters, there will be 256 filters
+        in the output tensor.
+    strides: int or list of ints of the same length as the filters list.
+        Default is [2, 2, 2, 2]
+    se_block: int or list of ints of the same length as the filters list.
+        If se_block != 0, squeeze and excitation (se) block with
+        corresponding squeezing factor will be added.
+        Read more about squeeze and excitation technique: https://arxiv.org/abs/1709.01507.
+    '''
     def _build(self, *args, **kwargs):
         names = ['images', 'labels']
         _, inputs = self._make_inputs(names)
@@ -58,7 +68,9 @@ class ResNet(TFModel):
 
         layout = self.get_from_config('layout', 'cna')
         head_type = self.get_from_config('head_type', 'dense')
-        conv_params = self.get_from_config('conv_params', {'conv': {}})
+        if head_type not in ['dense', 'conv']:
+            raise ValueError("Head_type should be dense or conv, but given %s" % head_type)
+        block_params = self.get_from_config('block_params', {})
         activation = self.get_from_config('activation', tf.nn.relu)
         dropout_rate = self.get_from_config('dropout_rate', 0.)
         input_block_config = self.get_from_config('input_block_config',
@@ -68,43 +80,42 @@ class ResNet(TFModel):
         filters = self.get_from_config('filters', [64, 128, 256, 512])
         length_factor = self.get_from_config('length_factor', [1, 1, 1, 1])
         if isinstance(length_factor, int):
-            length_factor = length_factor * len(filtlers)
+            length_factor = [length_factor] * len(filters)
         elif len(length_factor) != len(filters):
             raise ValueError("length_factor should be int or list of the same length as list\
                             of filters, but given length is %d" % len(length_factor))
 
         strides = self.get_from_config('strides', [2, 2, 2, 2])
         if isinstance(strides, int):
-            strides = strides * len(filtlers)
+            strides = [strides] * len(filters)
         elif len(strides) != len(filters):
             raise ValueError("strides should be int or list of the same length as list\
                             of filters, but given length is %d" % len(strides))
 
         bottleneck = self.get_from_config('bottleneck', [False, False, False, False])
         if isinstance(bottleneck, bool):
-            bottleneck = bottleneck * len(filtlers)
+            bottleneck = [bottleneck] * len(filters)
         elif len(bottleneck) != len(filters):
             raise ValueError("bottleneck should be bool or list of the same length as list\
                             of filters, but given length is %d" % len(bottleneck))
 
         bottelneck_factor = self.get_from_config('bottelneck_factor', [4, 4, 4, 4])
         if isinstance(bottelneck_factor, int):
-            bottelneck_factor = bottelneck_factor * len(filtlers)
+            bottelneck_factor = [bottelneck_factor] * len(filters)
         elif len(bottelneck_factor) != len(filters):
             raise ValueError("bottelneck_factor should be int or list of the same length as list\
                             of filters, but given length is %d" % len(bottelneck_factor))
 
         se_block = self.get_from_config('se_block', [0, 0, 0, 0])
         if isinstance(se_block, int):
-            se_block = se_block * len(filtlers)
+            se_block = [se_block] * len(filters)
         elif len(se_block) != len(filters):
             raise ValueError("se_block should be int or list of the same length as list\
                             of filters, but given length is %d" % len(se_block))
 
         is_training = self.is_training
-        kwargs = {'conv': conv_params['conv'], 'is_training': is_training,
-                  'data_format': data_format, 'dropout_rate': dropout_rate,
-                  'activation': activation}
+        kwargs = {'is_training': is_training, 'data_format': data_format,
+                  'dropout_rate': dropout_rate, 'activation': activation, **kwargs}
 
         with tf.variable_scope('resnet'):
             net = ResNet.body(dim, inputs['images'], filters, length_factor, strides, layout,
@@ -125,11 +136,10 @@ class ResNet(TFModel):
         with tf.variable_scope('body'):
             net = ResNet.input_block(dim, inputs, input_block_config=input_block_config)
             for index, block_length in enumerate(length_factor):
-                print('index ', index)
                 for block_number in range(block_length):
-                    print('block_number ', block_number)
                     net = ResNet.block(dim, net, filters[index], layout, 'block-'+str(index), \
-                                       block_number, strides[index], bottleneck[index], \
+                                       block_number, strides[index], \
+                                       bottleneck[index], \
                                        bottelneck_factor[index], se_block[index], **kwargs)
             net = tf.identity(net, name='conv_output')
         return net
@@ -144,19 +154,19 @@ class ResNet(TFModel):
             if head_type == 'dense':
                 net = global_average_pooling(dim=dim, inputs=inputs, data_format=data_format)
                 net = tf.layers.dense(net, n_outputs)
-
-            elif head_type == 'conv':
+            else:
                 net = conv_block(dim=dim, input_tensor=inputs, filters=n_outputs, kernel_size=1,\
                                      layout='c', name='con v_1', data_format=data_format)
                 net = global_average_pooling(dim=dim, inputs=net, data_format=data_format)
-            else:
-                raise ValueError("Head_type should be dense or conv, but given %d" % head_type)
         return net
 
 
     def input_block(dim, inputs, input_block_config, name='block-'+'input'):
         with tf.variable_scope(name):
-            net = conv_block(dim, inputs, **input_block_config)
+            if input_block_config == {}:
+                return inputs
+            else:
+                net = conv_block(dim, inputs, **input_block_config)
         return net
 
 
