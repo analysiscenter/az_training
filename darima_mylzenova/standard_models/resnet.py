@@ -27,7 +27,11 @@ class ResNet(TFModel):
     head_type: str {'dense', 'conv'}
         Default is 'dense'.
         Type of the classification layers in the end of the model.
-    conv : dict - parameters for convolution layers, like initializers, regularalizers, etc
+    block_params : dict of dicts: {'conv': {}, 'batch_norm': {}}
+        'conv' contains parameters for convolution layers, like initializers,
+        regularalizers, etc.
+        'batch_norm' contains parameters for batch normalization layers,
+        like momentum, intiializers, etc
     activation: specifies activation to use. Default is tf.nn.relu.
     dropout_rate: float in [0, 1]. Default is 0.
 
@@ -54,6 +58,14 @@ class ResNet(TFModel):
         If se_block != 0, squeeze and excitation (se) block with
         corresponding squeezing factor will be added.
         Read more about squeeze and excitation technique: https://arxiv.org/abs/1709.01507.
+    input_block_config: dict
+        parameters for the first layers applied to the input of the network before
+        residual blocks.
+        Default is {'layout': 'cnap', 'filters': 64,
+                    'kernel_size': 7, 'strides': 2,
+                    'pool_size': 3, 'pool_strides': 2})
+        i.e. input_block will consist of 64 7x7 convolutions with stride 2
+        and maxpooling of size 3 and pool_stride 2.
     '''
     def _build(self, *args, **kwargs):
         names = ['images', 'labels']
@@ -115,7 +127,7 @@ class ResNet(TFModel):
 
         is_training = self.is_training
         kwargs = {'is_training': is_training, 'data_format': data_format,
-                  'dropout_rate': dropout_rate, 'activation': activation, **kwargs}
+                  'dropout_rate': dropout_rate, 'activation': activation, **block_params}
 
         with tf.variable_scope('resnet'):
             net = ResNet.body(dim, inputs['images'], filters, length_factor, strides, layout,
@@ -146,8 +158,7 @@ class ResNet(TFModel):
 
 
     @staticmethod
-    def head(dim, inputs, n_outputs, head_type='dense', data_format='channels_last',
-             is_training=True):
+    def head(dim, inputs, n_outputs, head_type='dense', data_format='channels_last'):
         """ Head of the net for classification
         """
         with tf.variable_scope('head'):
@@ -160,8 +171,10 @@ class ResNet(TFModel):
                 net = global_average_pooling(dim=dim, inputs=net, data_format=data_format)
         return net
 
-
+    @staticmethod
     def input_block(dim, inputs, input_block_config, name='block-'+'input'):
+        ''' First block applied to the input of the network
+        '''
         with tf.variable_scope(name):
             if input_block_config == {}:
                 return inputs
