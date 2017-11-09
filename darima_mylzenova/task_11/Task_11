@@ -1,0 +1,7 @@
+Task_11
+Plan
+
+1 scenario. 
+Make 14 ouptputs, 2*2 for edges coordinates and 10 for classification. Loss  = CE + MSE(coordinates). Requires a lot of augmented data and a lot of maxpulling (large convolutions) and skipconnctions from early layers to the output.
+2. scenario.
+Make an intermidiate output with trainable loss for detecting 4 coordinates. This coordinates somehow interact with another classification

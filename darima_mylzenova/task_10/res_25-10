@@ -1,0 +1,55 @@
+1. Hi! Today I'm gonna talk about Convlolutional Neural Net architecture called ResNet which took the 1st place on the ImageNet classification challenge in 2015.
+
+\\nextslide
+It is very effective because of the proposed residual block with skipconnection that eased the training process and allowed to 
+train substantially deeper networks.
+
+\\nextslide
+2. Before ResNet there was a problem that adding more layers to an already deep network led to higher training error at the same number of iterations. In other words, deeper models were much harder to optimize.
+
+\\nextslide
+
+While ResNet was introduced in a number of depths varieties | with every deeper network| having lower test error that the shallower one.
+
+
+3. Actually you can make as many layers in your ResNet as you need | by stacking "residual blocks" of the same connecting shape.
+
+\\nextslide
+	- The residual block is a | building block of ResNet architectures:
+		It consists of 2 |3x3 convolutional layers | and its output is defined as |
+		a sum | of the input of the first layer | and the ouput of the second one.
+
+ 		4. This additive term of the input from the earlier layer| is also called skipconnection | and it is the | central idea of resnet.
+		
+		It has two benefits: |
+		First, |
+		Skipconnection creates a 'direct' path | for propagating information to deeper layers. |
+		Second,|
+		In a backpropagation mode | the gradients do not vanish even for extremely deep networks.
+
+
+\\nextslide
+ 		5. Let's have a look at the gradients formula to explain why:
+ 		
+ 		Denoting the loss function as E
+ 		In a backpropagation mode we have gradients [de/dx_k] from the deeper layers flowing to earlier layers looking like this
+
+ 		While in a plain network without skipconnection it will be like this:
+
+ 		As you can see the difference is the additive term of the unchanged gradient from the next layer [dE/dxK] that ensures the error is directly propagated to shallower layer. 
+
+\\nextslide
+	6. So constructing the residual block with the skipconnection eased gradients propagation and thefore made optimization of  very deep networks possible. (pic)
+
+ 	
+\\nextslide
+ 	7. - When making networks deeper one faces increased computational costs. 
+ 	Therefore in ResNets with more than 50 layers authors replaced two 3x3 convolutional layers with a stack of 1x1 ,3x3 and 1x1 convolutions. 1x1 layers are responsible for reducing and then restoring
+ 	dimensions, leaving the 3x3 layer a bottleneck with smaller input/output dimensions and fewer parameters to optimize.
+
+ 	8. So to sum it up: 
+	the ResNet architectures made it possible to train very deep networks due to an idea of skipconnections and bottleneck.
+	But later research showed that ResNet do not have to be extremely deep to show better results. 
+	For instance, the \Wide ResNet with 50 layers outperformes 152 original ResNet on ImageNet. 
+
+	

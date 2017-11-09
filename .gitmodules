@@ -1,6 +1,3 @@
 [submodule "dataset"]
 	path = dataset
 	url = https://github.com/analysiscenter/dataset.git
-[submodule "mnist_task/dataset"]
-	path = mnist_task/dataset
-	url = https://github.com/analysiscenter/dataset.git

@@ -1,1 +1,0 @@
-A simple convolutional neural net for MNIST dataset classification
