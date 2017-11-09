@@ -13,8 +13,6 @@ from dataset.dataset.models.tf.layers.pooling import global_average_pooling
 
 class ResNet(TFModel):
     ''' Universal Resnet model constructor
-    '''
-    '''
     Configuration:
         d : int {1, 2, 3}
             number of dimensions
@@ -40,10 +38,8 @@ class ResNet(TFModel):
             If True all residual blocks will have 1x1, 3x3, 1x1 convolutional layers.
         bottelneck_factor: int
             A multiplicative factor for restored dimension in bottleneck block.
-            Default is 4, e.g., for block with 64 input filters, there will be 256 filters 
+            Default is 4, e.g., for block with 64 input filters, there will be 256 filters
             in the output tensor.
-        max_pool: bool
-            Whether to do maxpulling with stride 2 after first convolutional layer.
         conv : dict - parameters for convolution layers, like initializers, regularalizers, etc
         strides: list of length 4 with int elements
             Default is [2, 1, 1, 1]
@@ -65,9 +61,10 @@ class ResNet(TFModel):
         conv_params = self.get_from_config('conv_params', {'conv': {}})
         activation = self.get_from_config('activation', tf.nn.relu)
         dropout_rate = self.get_from_config('dropout_rate', 0.)
-        input_block_config = self.get_from_config('input_block_config', 
-                                                 {'layout': 'cnap', 'filters': 64, 'kernel_size': 7, 
-                                                 'strides': 2, 'pool_size': 3, 'pool_strides': 2})
+        input_block_config = self.get_from_config('input_block_config',
+                                                  {'layout': 'cnap', 'filters': 64,
+                                                   'kernel_size': 7,
+                                                   'strides': 2, 'pool_size': 3, 'pool_strides': 2})
         filters = self.get_from_config('filters', [64, 128, 256, 512])
         length_factor = self.get_from_config('length_factor', [1, 1, 1, 1])
         if isinstance(length_factor, int):
@@ -105,11 +102,12 @@ class ResNet(TFModel):
                             of filters, but given length is %d" % len(se_block))
 
         is_training = self.is_training
-        kwargs = {'conv': conv_params['conv'], 'is_training': is_training, 'data_format': data_format, 
-                      'dropout_rate': dropout_rate, 'activation': activation}
+        kwargs = {'conv': conv_params['conv'], 'is_training': is_training,
+                  'data_format': data_format, 'dropout_rate': dropout_rate,
+                  'activation': activation}
 
         with tf.variable_scope('resnet'):
-            net = ResNet.body(dim, inputs['images'], filters, length_factor, strides, layout, 
+            net = ResNet.body(dim, inputs['images'], filters, length_factor, strides, layout,
                               se_block, bottleneck, bottelneck_factor, input_block_config, **kwargs)
             net = ResNet.head(dim, net, n_classes, head_type, data_format, is_training)
 
@@ -122,24 +120,25 @@ class ResNet(TFModel):
 
 
     @staticmethod
-    def body(dim, inputs, filters, length_factor, strides, layout, se_block, bottleneck, bottelneck_factor, input_block_config, **kwargs):
-        
+    def body(dim, inputs, filters, length_factor, strides, layout, se_block, bottleneck,
+             bottelneck_factor, input_block_config, **kwargs):
         with tf.variable_scope('body'):
             net = ResNet.input_block(dim, inputs, input_block_config=input_block_config)
             for index, block_length in enumerate(length_factor):
                 print('index ', index)
                 for block_number in range(block_length):
                     print('block_number ', block_number)
-                    net = ResNet.block(dim, net, filters[index], layout, 'block-'+str(index), block_number, \
-                                       strides[index], bottleneck[index], bottelneck_factor[index], \
-                                       se_block[index], **kwargs)
+                    net = ResNet.block(dim, net, filters[index], layout, 'block-'+str(index), \
+                                       block_number, strides[index], bottleneck[index], \
+                                       bottelneck_factor[index], se_block[index], **kwargs)
             net = tf.identity(net, name='conv_output')
         return net
-    
+
 
     @staticmethod
-    def head(dim, inputs, n_outputs, head_type='dense', data_format='channels_last', is_training=True):
-        """ Head for classification
+    def head(dim, inputs, n_outputs, head_type='dense', data_format='channels_last',
+             is_training=True):
+        """ Head of the net for classification
         """
         with tf.variable_scope('head'):
             if head_type == 'dense':
@@ -162,11 +161,10 @@ class ResNet(TFModel):
 
 
     @staticmethod
-    def block(dim, inputs, filters, layout, name, block_number, strides, 
-                   bottleneck=False, bottelneck_factor=4, se_block=0, 
-                   **kwargs):
-        ''' 
-        Residual block 
+    def block(dim, inputs, filters, layout, name, block_number, strides,
+              bottleneck=False, bottelneck_factor=4, se_block=0, **kwargs):
+        '''
+        Residual block
         Parameters:
         ----------
 
@@ -189,12 +187,12 @@ class ResNet(TFModel):
             name of the block that will be used as a scope.
 
         block_number: int
-            index number of the block in the sequence of residual 
-            blocks of the same number of filters. 
-        
+            index number of the block in the sequence of residual
+            blocks of the same number of filters.
+
         strides: int
-            if block_number != 0 strides is equal to 1 for in residual blocks 
-            downsampling is performed only paired with an enlargement 
+            if block_number != 0 strides is equal to 1 for in residual blocks
+            downsampling is performed only paired with an enlargement
             of number of filters' size.
 
         bottleneck: bool. Default is False.
@@ -202,17 +200,17 @@ class ResNet(TFModel):
             for networks with more than 50 layers.
 
         bottelneck_factor: int. Default is 4
-            enlargement factor for the last layer's number of filters in 
-            the bottleneck block. Recall that 1x1 convolutions are responsible 
+            enlargement factor for the last layer's number of filters in
+            the bottleneck block. Recall that 1x1 convolutions are responsible
             for reducing and then restoring filters' dimension.
 
         se_block: int.
             squezing factor for the Squeeze and excitation (se) block.
             Se block will be applyed if se_block > 0.
-        
+
         Returns
         -------
-        
+
         tf. tensor
         '''
 
@@ -223,7 +221,7 @@ class ResNet(TFModel):
         with tf.variable_scope(name):
             if bottleneck:
                 output_filters = filters * bottelneck_factor
-                x = ResNet.bottleneck_conv(dim, inputs, filters, output_filters, layout, strides, 
+                x = ResNet.bottleneck_conv(dim, inputs, filters, output_filters, layout, strides,
                                            **kwargs)
             else:
                 output_filters = filters
@@ -234,8 +232,8 @@ class ResNet(TFModel):
 
             shortcut = inputs
             if block_number == 0:
-                shortcut = conv_block(dim, inputs, output_filters, 1, 'c', 'shortcut', strides=strides, 
-                                      **kwargs)
+                shortcut = conv_block(dim, inputs, output_filters, 1, 'c', 'shortcut', \
+                                      strides=strides, **kwargs)
 
             x = tf.add(x, shortcut)
             x = tf.nn.relu(x, name='output')
@@ -253,29 +251,30 @@ class ResNet(TFModel):
     @staticmethod
     def original_conv(dim, inputs, filters, layout, strides, **kwargs):
         ''' A stack of 2 convolutions for residual block '''
-        x = conv_block(dim, inputs, filters=[filters, filters], kernel_size=[3, 3], layout=layout+'d'+layout, \
-                               strides=[strides, 1], **kwargs)
+        x = conv_block(dim, inputs, filters=[filters, filters], kernel_size=[3, 3], \
+                       layout=layout+'d'+layout, strides=[strides, 1], **kwargs)
         return x
 
 
     @staticmethod
     def se_block(dim, inputs, se_block, **kwargs):
-            """ Squeeze and excitation block """
-            data_format = kwargs['data_format']
-            full = global_average_pooling(dim=dim, inputs=inputs, data_format=data_format)
-            if data_format == 'channels_last':
-                original_filters = inputs.get_shape().as_list()[-1]
-                shape = [-1] + [1] * dim + [original_filters]
-            else:
-                original_filters = inputs.get_shape().as_list()[1]
-                shape = [original_filters] + [-1] + [1] * dim
-                
-            full = tf.reshape(full, shape)
-            full = tf.layers.dense(full, int(original_filters/se_block), activation=tf.nn.relu, \
-                kernel_initializer=tf.contrib.layers.xavier_initializer(), name='first_dense_se_block')
-            full = tf.layers.dense(full, original_filters, activation=tf.nn.sigmoid, \
-                kernel_initializer=tf.contrib.layers.xavier_initializer(), name='second_dense_se_block')
-            return inputs * full
+        """ Squeeze and excitation block """
+        data_format = kwargs['data_format']
+        full = global_average_pooling(dim=dim, inputs=inputs, data_format=data_format)
+        if data_format == 'channels_last':
+            original_filters = inputs.get_shape().as_list()[-1]
+            shape = [-1] + [1] * dim + [original_filters]
+        else:
+            original_filters = inputs.get_shape().as_list()[1]
+            shape = [original_filters] + [-1] + [1] * dim
+        full = tf.reshape(full, shape)
+        full = tf.layers.dense(full, int(original_filters/se_block), activation=tf.nn.relu, \
+                               kernel_initializer=tf.contrib.layers.xavier_initializer(), \
+                               name='first_dense_se_block')
+        full = tf.layers.dense(full, original_filters, activation=tf.nn.sigmoid, \
+                               kernel_initializer=tf.contrib.layers.xavier_initializer(), \
+                               name='second_dense_se_block')
+        return inputs * full
 
 
 class ResNet152(ResNet):
