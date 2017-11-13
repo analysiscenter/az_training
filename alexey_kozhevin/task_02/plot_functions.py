@@ -81,8 +81,7 @@ def plot_examples_highlighted(images, noise, masks, proba, n_examples=10, title=
 
     plt.subplots_adjust(bottom=0.1, right=0.8, top=0.9)
     cax = plt.axes([0.3, 0.92, 0.5, 0.01])
-    cb = plt.colorbar(cax=cax, orientation='horizontal')
-    cb.ax.xaxis.set_ticks_position('top')
+    plt.colorbar(cax=cax, orientation='horizontal').ax.xaxis.set_ticks_position('top')
     if title is not None:
         plt.suptitle(title, fontsize=26)
     plt.show()

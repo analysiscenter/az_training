@@ -1,7 +1,6 @@
 """
 LinkNet implementation as Batch class
 """
-import sys
 import pickle
 import numpy as np
 
