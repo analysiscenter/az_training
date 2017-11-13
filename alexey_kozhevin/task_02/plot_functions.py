@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ipywidgets import interactive
 
-def plot_examples(images, masks, proba):
+def plot_examples(images, masks, proba, n_examples):
     """Plot images, masks, and predicted probabilities.
 
     Parameters
@@ -13,8 +13,9 @@ def plot_examples(images, masks, proba):
     images, masks, proba : list with one element which is list of np.arrays
 
     """
-    images, masks = images[0], masks[0]
-    n_examples = len(images)
+    #images, masks = images[0], masks[0]
+    images = images[:, :, :, 0]
+    n_examples = min(len(images), n_examples)
     plt.figure(figsize=(15, 3.5*n_examples))
     for i in range(n_examples):
         plt.subplot(n_examples, 4, i*4 + 1)
@@ -50,8 +51,7 @@ def plot_noised_image(image, noise):
     """
     plt.imshow(get_rgb(image, noise))
     plt.show()
-
-def plot_examples_highlighted(images, noise, masks, proba):
+def plot_examples_highlighted(images, noise, masks, proba, n_examples=10, title=None):
     """Plot images, masks, and predicted probabilities.
 
     Parameters
@@ -60,8 +60,9 @@ def plot_examples_highlighted(images, noise, masks, proba):
     images, masks, proba : list with one element which is list of np.arrays
 
     """
-    images, noise, masks = images[0], noise[0], masks[0]
-    n_examples = len(images)
+    #images, noise, masks = images[0], noise[0], masks[0]
+    images = images[:, :, :, 0]
+    n_examples = min(len(images), n_examples)
     plt.figure(figsize=(15, 3.5*n_examples))
     for i in range(n_examples):
         plt.subplot(n_examples, 4, i*4 + 1)
@@ -80,7 +81,10 @@ def plot_examples_highlighted(images, noise, masks, proba):
 
     plt.subplots_adjust(bottom=0.1, right=0.8, top=0.9)
     cax = plt.axes([0.3, 0.92, 0.5, 0.01])
-    plt.colorbar(cax=cax, orientation='horizontal')
+    cb = plt.colorbar(cax=cax, orientation='horizontal')
+    cb.ax.xaxis.set_ticks_position('top')
+    if title is not None:
+        plt.suptitle(title, fontsize=26)
     plt.show()
 
 def plot_example_interactive(images, masks, proba, index):
@@ -95,7 +99,8 @@ def plot_example_interactive(images, masks, proba, index):
         inex of image to plot
 
     """
-    images, masks = images[0], masks[0]
+    #images, masks = images[0], masks[0]
+    images = images[:, :, :, 0]
     def interactive_f(threshold):
         """Function for interactive plot.
         """

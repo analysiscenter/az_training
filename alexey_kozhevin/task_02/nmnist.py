@@ -5,9 +5,7 @@ import sys
 import pickle
 import numpy as np
 
-sys.path.append('..')
-
-from dataset import Batch, action, inbatch_parallel, any_action_failed
+from dataset.dataset import Batch, action, inbatch_parallel, any_action_failed
 
 
 def uniform(image_size, fragment_size):
@@ -168,7 +166,7 @@ class NoisedMnist(Batch):
     def add_noise(self, ind):
         """Add noise at MNIST image.
         """
-        return np.max([self.images[ind], self.noise[ind]], axis=0)
+        return np.expand_dims(np.max([self.images[ind], self.noise[ind]], axis=0), axis=-1)
 
     def post_func_noise(self, list_of_res, *args, **kwargs): # pylint: disable=unused-argument
         """Concat outputs from add_noise.

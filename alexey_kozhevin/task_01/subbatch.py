@@ -4,9 +4,8 @@ import pickle
 from time import time
 import tensorflow as tf
 
-sys.path.append('../..')
 
-from dataset import Batch, model, action
+from dataset.dataset import Batch, model, action
 from networks import conv_net_layers
 
 def subbatch_static_model(sess, scope, n_subbatches, layers):
