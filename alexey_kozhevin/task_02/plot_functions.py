@@ -120,28 +120,32 @@ def plot_example_interactive(images, masks, proba, index):
     output.layout.height = '350px'
     return interactive_plot
 
-def get_plots(images, masks, proba, title=None):
+def get_plots(images, masks, proba, n_examples=10, title=None):
     images = np.squeeze(images)
     masks = np.squeeze(masks)
 
-    n_examples = 5
-    plt.figure(figsize=(10, 2*n_examples))
-    for i in range(n_examples):
-        plt.subplot(n_examples, 3, i*3 + 1)
-        if i == 0:
-            plt.title('Image')
-        plt.imshow(images[i]/255, vmin=0, vmax=1)
-        plt.subplot(n_examples, 3, i*3 + 2)
-        if i == 0:
-            plt.title('Mask')
-        plt.imshow(masks[i][:, :])
-        plt.subplot(n_examples, 3, i*3 + 3)
-        if i == 0:
-            plt.title('Prediction')
-        plt.imshow(proba[i][:, :, 1] > 0.5)
-
+    n_rows = 12
+    plt.figure(figsize=(25, 2*n_examples))
     if title is not None:
         plt.suptitle(title, fontsize=26)
+    for i in range(n_examples):
+        plt.subplot(n_examples, n_rows, i*n_rows + 1)
+        if i == 0:
+            plt.title('Image')
+        plt.imshow(images[i]/255, vmin=0, vmax=1, cmap='Greys')
+        plt.axis('off')
+        for j in range(10):
+            plt.subplot(n_examples, n_rows, i*n_rows + 2 + j)
+            if i == 0:
+                plt.title('Mask {}'.format(j))
+            plt.imshow(proba[i][:, :, j], cmap='Greys')
+            plt.axis('off')
+
+        plt.subplot(n_examples, n_rows, i*n_rows + 12)
+        if i == 0:
+            plt.title('Not a digit')
+        plt.imshow(proba[i][:, :, -1], cmap='Greys')
+        plt.axis('off')
     
     plt.subplots_adjust(bottom=0.2, right=0.8, top=0.9)
     cax = plt.axes([0.15, 0.15, 0.65, 0.01])
