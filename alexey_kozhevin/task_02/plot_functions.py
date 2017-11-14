@@ -121,6 +121,8 @@ def plot_example_interactive(images, masks, proba, index):
     return interactive_plot
 
 def get_plots(images, masks, proba, n_examples=10, title=None):
+    """Show results of segmentation networks
+    """
     images = np.squeeze(images)
     masks = np.squeeze(masks)
 
@@ -146,7 +148,6 @@ def get_plots(images, masks, proba, n_examples=10, title=None):
             plt.title('Not a digit')
         plt.imshow(proba[i][:, :, -1], cmap='Greys')
         plt.axis('off')
-    
     plt.subplots_adjust(bottom=0.2, right=0.8, top=0.9)
     cax = plt.axes([0.15, 0.15, 0.65, 0.01])
     plt.colorbar(cax=cax, orientation='horizontal')
