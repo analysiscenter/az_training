@@ -59,17 +59,20 @@ class NoisedMnist(Batch):
         self.masks = None
         self.coordinates = None
         self.noise = None
+        self.labels = None
 
     @property
     def components(self):
         """Define components."""
-        return 'images', 'masks', 'coordinates', 'noise'
+        return 'images', 'masks', 'coordinates', 'noise', 'labels'
 
     @action
     def load_images(self):
         """Load MNIST images from file."""
         with open('../mnist/mnist_pics.pkl', 'rb') as file:
             self.images = pickle.load(file)[self.indices].reshape(-1, 28, 28)
+        with open('../mnist/mnist_labels.pkl', 'rb') as file:
+            self.labels = pickle.load(file)[self.indices]
         return self
 
     def init_func(self, *args, **kwargs): # pylint: disable=unused-argument
@@ -108,10 +111,11 @@ class NoisedMnist(Batch):
     @inbatch_parallel(init='init_func', post='post_func_mask', target='threads')
     def create_mask(self, ind):
         """Get mask of MNIST image"""
-        new_x, new_y = self.coordinates[ind]
-        image_size = self.images.shape[1]
-        mask = np.zeros((image_size, image_size))
-        mask[new_x:new_x+28, new_y:new_y+28] += 1
+        # new_x, new_y = self.coordinates[ind]
+        # image_size = self.images.shape[1]
+        # mask = np.zeros((image_size, image_size))
+        # mask[new_x:new_x+28, new_y:new_y+28] += 1
+        mask = np.array((self.images[ind] > 0.1), dtype=np.int32)
         mask = np.stack([1-mask, mask], axis=2)
         return mask
 
