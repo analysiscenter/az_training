@@ -10,7 +10,7 @@ from dataset.opensets import MNIST
 from dataset.dataset import ImagesBatch, Pipeline, B, C, F, V, action, inbatch_parallel, any_action_failed
 
 class MultiMNIST(ImagesBatch):
-	"""Batch class for multiple MNIST images in random locations of image
+    """Batch class for multiple MNIST images in random locations of image
 	"""
     @property
     def components(self):
@@ -47,9 +47,9 @@ class MultiMNIST(ImagesBatch):
         return [i for i in range(self.images.shape[0])]
 
     def post_func(self, list_of_res, *args, **kwargs):
-    	"""Create resulting batch
-    	"""
-    	_ = args, kwargs
+        """Create resulting batch
+        """
+        _ = args, kwargs
         if any_action_failed(list_of_res):
             print(list_of_res)
             raise Exception("Something bad happened")
