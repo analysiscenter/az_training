@@ -1,4 +1,4 @@
-# pylint: attribute-defined-outside-init
+#pylint:disable=attribute-defined-outside-init
 
 """Auxilary module to demonstrate segmentation networks
 """
