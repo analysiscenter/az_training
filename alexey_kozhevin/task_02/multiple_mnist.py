@@ -13,9 +13,9 @@ class MultiMNIST(ImagesBatch):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.masks = None
-        self.images = None
-        self.labels = None
+        self.masks = []
+        self.images = []
+        self.labels = []
 
     @property
     def components(self):
@@ -38,9 +38,9 @@ class MultiMNIST(ImagesBatch):
         for i in digits:
             image = self.images[i].reshape(28, 28)
             coord0 = np.random.randint(0, image_shape[0]-image.shape[0])
-            coord1 = np.random.randint(0, image_shape[1]-image.shape[1])
-            coord2 = coord0 + image.shape[0]
-            coord3 = coord1 + image.shape[1]
+            coord1 = coord0 + image.shape[0]
+            coord2 = np.random.randint(0, image_shape[1]-image.shape[1])
+            coord3 = coord2 + image.shape[1]
             mask_region = mask[coord0:coord1, coord2:coord3]
             mask[coord0:coord1, coord2:coord3] = np.max([mask_region, (self.labels[i]+1)*(image > 0.1)], axis=0)
             old_region = large_image[coord0:coord1, coord2:coord3]
@@ -98,17 +98,19 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
                       .init_variable('loss_history', init_on_each_run=list)
                       .init_variable('current_loss', init_on_each_run=0)
                       .init_model('dynamic', model, 'conv', config=model_config)
-                      .train_model('conv', fetches='loss', feed_dict={'images': B('images'),
-                                   'masks': F(make_masks)}, save_to=V('current_loss'))
+                      .train_model('conv', fetches='loss', 
+                      	           feed_dict={'images': B('images'),
+                                              'masks': F(make_masks)}, 
+                                   save_to=V('current_loss'))
                       .update_variable('loss_history', V('current_loss'), mode='a'))
 
     train_pp = (train_template << mnist.train)
 
     print("Start training...")
-    t = time()
+    start = time()
     for _ in range(max_iter):
         train_pp.next_batch(batch_size, shuffle=True, n_epochs=None, drop_last=True, prefetch=0)
-    print("Training time: {:4.2f} min".format((time() - t)/60))
+    print("Training time: {:4.2f} min".format((time() - start)/60))
 
     plt.title('Train loss')
     plt.plot(train_pp.get_variable('loss_history'))
@@ -122,18 +124,18 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
                          .init_variable('predicted_proba', init_on_each_run=list)
                          .init_variable('predicted_labels', init_on_each_run=list)
                          .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'],
-                                       feed_dict={'images': B('images'),
+                                        feed_dict={'images': B('images'),
                                                   'masks': B('masks')},
-                                       save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
+                                        save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
     elif mode == 'mnist':
         test_template = (Pipeline()
                          .import_model('conv', train_pp)
                          .init_variable('predicted_proba', init_on_each_run=list)
                          .init_variable('predicted_labels', init_on_each_run=list)
                          .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'],
-                                       feed_dict={'images': B('images'),
+                                        feed_dict={'images': B('images'),
                                                   'masks': F(make_masks)},
-                                       save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
+                                        save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
 
     test_ppl = (test_template << mnist.test)
     get_plots(test_ppl, mode='c', inverse=True, n_examples=10)
