@@ -1,15 +1,17 @@
-from dataset.opensets import MNIST
-import pickle
-from dataset import ImagesBatch, Pipeline, B, C, F, V, action, inbatch_parallel, any_action_failed
+"""Auxilary module to demonstrate segmentation networks
+"""
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import colors
 from time import time
 from skimage.transform import resize
-import matplotlib.pyplot as plt
-import scipy.ndimage
-from matplotlib import colors
+
+from dataset.opensets import MNIST
+from dataset.dataset import ImagesBatch, Pipeline, B, C, F, V, action, inbatch_parallel, any_action_failed
 
 class MultiMNIST(ImagesBatch):
-
+	"""Batch class for multiple MNIST images in random locations of image
+	"""
     @property
     def components(self):
         """Define components."""
@@ -17,9 +19,10 @@ class MultiMNIST(ImagesBatch):
 
     @action
     @inbatch_parallel(init='init_func', post='post_func', target='threads')
-    def create_multi(self, ind, *args, **kwargs):
+    def create_multi(self, *args, **kwargs):
         """Create multimnist image
         """
+        _ = args
         image_shape = kwargs['image_shape']
         max_digits = kwargs['max_digits']
         n_digits = np.random.randint(1, max_digits+1)
@@ -28,7 +31,7 @@ class MultiMNIST(ImagesBatch):
         mask = np.zeros(image_shape)
 
         for i in digits:
-            image = self.images[i].reshape(28,28)
+            image = self.images[i].reshape(28, 28)
             x1 = np.random.randint(0, image_shape[0]-image.shape[0])
             y1 = np.random.randint(0, image_shape[1]-image.shape[1])
             x2 = x1 + image.shape[0]
@@ -44,6 +47,9 @@ class MultiMNIST(ImagesBatch):
         return [i for i in range(self.images.shape[0])]
 
     def post_func(self, list_of_res, *args, **kwargs):
+    	"""Create resulting batch
+    	"""
+    	_ = args, kwargs
         if any_action_failed(list_of_res):
             print(list_of_res)
             raise Exception("Something bad happened")
@@ -64,33 +70,33 @@ def make_masks(batch, *args):
 def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100, 100), mode='mnist'):
     mnist = MNIST(batch_class=MultiMNIST)
     print('Demonstarate {}'.format(model.__name__))
-    model_config = {'loss': 'softmax_cross_entropy',        
-                'optimizer': {'name':'Adam', 
-                              'use_locking': True},
-                # inputs is a config dict to create placeholders
-                'inputs':    {'images': {'shape': (None, None, 1), 'data_format': 'channels_last'},  # shape of the input images
-                              'masks':  {'shape': (None, None),      # shape of masks
-                                         'classes': 11,           # number of segmantation classes
-                                         'transform': 'ohe',     # apply one-hot encoding to masks
-                                         'name': 'targets'}},    # name of the tf.Tensor after transformation
-                'filters': filters,                                   # number of filters before the first downsampling block
-                'num_blocks': 3,
-                'output': {'ops': ['proba', 'labels']}                     # compute probability from logit output
-                }
+    model_config = {'loss': 'softmax_cross_entropy',
+                    'optimizer': {'name':'Adam', 
+                                  'use_locking': True},
+                    # inputs is a config dict to create placeholders
+                    'inputs':    {'images': {'shape': (None, None, 1), 'data_format': 'channels_last'},  # shape of the input images
+                                  'masks':  {'shape': (None, None),      # shape of masks
+                                             'classes': 11,           # number of segmantation classes
+                                             'transform': 'ohe',     # apply one-hot encoding to masks
+                                             'name': 'targets'}},    # name of the tf.Tensor after transformation
+                    'filters': filters,                                   # number of filters before the first downsampling block
+                    'num_blocks': 3,
+                    'output': {'ops': ['proba', 'labels']}}                     # compute probability from logit output
+
 
     train_template = (Pipeline()
-            .init_variable('loss_history', init_on_each_run=list)             # pipeline variable to save loss hostory
-            .init_variable('current_loss', init_on_each_run=0)                # pipeline variable for loss on batch    
-            .init_model('dynamic',                                            # model type
-                        model,                                                 # model class
-                        'conv',                                               # model name in pipeline
-                        config=model_config)
-            .train_model('conv', 
-                         fetches='loss',
-                         feed_dict={'images': B('images'),
-                                    'masks': F(make_masks)},
-                         save_to=V('current_loss'))
-            .update_variable('loss_history', V('current_loss'), mode='a'))
+                      .init_variable('loss_history', init_on_each_run=list)             # pipeline variable to save loss hostory
+                      .init_variable('current_loss', init_on_each_run=0)                # pipeline variable for loss on batch    
+                      .init_model('dynamic',                                            # model type
+                                  model,                                                 # model class
+                                  'conv',                                               # model name in pipeline
+                                  config=model_config)
+                      .train_model('conv', 
+                                   fetches='loss',
+                                   feed_dict={'images': B('images'),
+                                              'masks': F(make_masks)},
+                                   save_to=V('current_loss'))
+                      .update_variable('loss_history', V('current_loss'), mode='a'))
 
     train_pp = (train_template << mnist.train)
 
@@ -107,23 +113,23 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
 
     if mode == 'multimnist':
         test_template = (Pipeline()
-                   .create_multi(image_shape=shape, max_digits=5)
-                   .import_model('conv', train_pp)
-                   .init_variable('predicted_proba', init_on_each_run=list)
-                   .init_variable('predicted_labels', init_on_each_run=list)
-                   .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'], 
-                                           feed_dict={'images': B('images'),
-                                                      'masks': B('masks')},
-                                   save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
+                        .create_multi(image_shape=shape, max_digits=5)
+                        .import_model('conv', train_pp)
+                        .init_variable('predicted_proba', init_on_each_run=list)
+                        .init_variable('predicted_labels', init_on_each_run=list)
+                        .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'], 
+                                       feed_dict={'images': B('images'),
+                                                  'masks': B('masks')},
+                                       save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
     elif mode == 'mnist':
         test_template = (Pipeline()
-                   .import_model('conv', train_pp)
-                   .init_variable('predicted_proba', init_on_each_run=list)
-                   .init_variable('predicted_labels', init_on_each_run=list)
-                   .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'], 
-                                           feed_dict={'images': B('images'),
-                                                      'masks': F(make_masks)},
-                                   save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))    	
+                        .import_model('conv', train_pp)
+                        .init_variable('predicted_proba', init_on_each_run=list)
+                        .init_variable('predicted_labels', init_on_each_run=list)
+                        .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'], 
+                                       feed_dict={'images': B('images'),
+                                                  'masks': F(make_masks)},
+                                       save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
 
     test_ppl = (test_template << mnist.test)
     get_plots(test_ppl, mode='c', inverse=True, n_examples=10)
@@ -142,7 +148,7 @@ def get_separate_masks(images, proba, inverse, title):
     """Show results of segmentation networks
     """
     n_examples = len(images)
-    grey_cmap ='Greys' + ('_r' if inverse else '')
+    grey_cmap = 'Greys' + ('_r' if inverse else '')
 
     n_rows = 12
     plt.figure(figsize=(25, 2*n_examples))
@@ -174,10 +180,10 @@ def get_masks(images, predicted_masks, inverse, title):
     """Show results of segmentation networks
     """
     n_examples = len(images)
-    grey_cmap ='Greys' + ('_r' if inverse else '')
-    
-    cmap = colors.ListedColormap(['purple', 'r', 'green', 'blue', 'y', 'w', 'grey', 'magenta', 'orange', 'pink', 'black'])
-    bounds=np.arange(-0.5, 11.5, 1)
+    grey_cmap = 'Greys' + ('_r' if inverse else '')
+    cmap = colors.ListedColormap(['purple', 'r', 'green', 'blue', 'y', 'w', 
+    	                          'grey', 'magenta', 'orange', 'pink', 'black'])
+    bounds = np.arange(-0.5, 11.5, 1)
     norm = colors.BoundaryNorm(bounds, cmap.N)
 
     n_rows = 2
