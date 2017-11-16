@@ -15,11 +15,11 @@ class MultiMNIST(ImagesBatch):
     @property
     def components(self):
         """Define components."""
-        return ('images', 'labels', 'masks')
+        return 'images', 'labels', 'masks'
 
     @action
     @inbatch_parallel(init='init_func', post='post_func', target='threads')
-    def create_multi(self, *args, **kwargs):
+    def mix_mnist(self, *args, **kwargs):
         """Create multimnist image
         """
         _ = args
@@ -42,8 +42,9 @@ class MultiMNIST(ImagesBatch):
             large_image[coord0:coord1, coord2:coord3] = np.max([image, old_region], axis=0)
         return large_image, mask
 
-    def init_func(self, *args, **kwargs): # pylint: disable=unused-argument
+    def init_func(self, *args, **kwargs):
         """Create tasks."""
+        _ = args, kwargs
         return [i for i in range(self.images.shape[0])]
 
     def post_func(self, list_of_res, *args, **kwargs):
@@ -55,10 +56,9 @@ class MultiMNIST(ImagesBatch):
             raise Exception("Something bad happened")
         else:
             images, masks = list(zip(*list_of_res))
-            self.images = np.expand_dims(np.array(images), axis=-1)
-            self.masks = np.array(masks) - 1
+            self.images = np.expand_dims(np.array(images), axis=-1) # pylint: attribute-defined-outside-init 
+            self.masks = np.array(masks) - 1 # pylint: attribute-defined-outside-init
             self.masks[self.masks == -1] = 10
-            #new_batch = MultiMNIST(self.index, preloaded=[images, None, masks])
             return self
 
 def make_masks(batch, *args):
@@ -94,8 +94,8 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
                       .init_variable('current_loss', init_on_each_run=0)
                       .init_model('dynamic', model, 'conv', config=model_config)
                       .train_model('conv', fetches='loss',
-                      	            feed_dict={'images': B('images'),
-                                               'masks': F(make_masks)},
+                                   feed_dict={'images': B('images'),
+                                              'masks': F(make_masks)},
                                     save_to=V('current_loss'))
                       .update_variable('loss_history', V('current_loss'), mode='a'))
 
@@ -114,7 +114,7 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
 
     if mode == 'multimnist':
         test_template = (Pipeline()
-                         .create_multi(image_shape=shape, max_digits=5)
+                         .mix_mnist(image_shape=shape, max_digits=5)
                          .import_model('conv', train_pp)
                          .init_variable('predicted_proba', init_on_each_run=list)
                          .init_variable('predicted_labels', init_on_each_run=list)
