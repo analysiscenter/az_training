@@ -1,17 +1,22 @@
 """Auxilary module to demonstrate segmentation networks
 """
+from time import time
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
-from time import time
-from skimage.transform import resize
 
-from dataset.opensets import MNIST
-from dataset.dataset import ImagesBatch, Pipeline, B, C, F, V, action, inbatch_parallel, any_action_failed
+from dataset.dataset.opensets import MNIST
+from dataset.dataset import ImagesBatch, Pipeline, B, F, V, action, inbatch_parallel, any_action_failed
 
 class MultiMNIST(ImagesBatch):
     """Batch class for multiple MNIST images in random locations of image
-	"""
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.masks = None
+        self.images = None
+        self.labels = None
+
     @property
     def components(self):
         """Define components."""
@@ -32,14 +37,14 @@ class MultiMNIST(ImagesBatch):
 
         for i in digits:
             image = self.images[i].reshape(28, 28)
-            x1 = np.random.randint(0, image_shape[0]-image.shape[0])
-            y1 = np.random.randint(0, image_shape[1]-image.shape[1])
-            x2 = x1 + image.shape[0]
-            y2 = y1 + image.shape[1]
-            mask_region = mask[x1:x2, y1:y2]
-            mask[x1:x2, y1:y2] = np.max([mask_region, (self.labels[i]+1)*(image > 0.1)], axis=0)
-            old_region = large_image[x1:x2, y1:y2]
-            large_image[x1:x2, y1:y2] = np.max([image, old_region], axis=0)
+            coord0 = np.random.randint(0, image_shape[0]-image.shape[0])
+            coord1 = np.random.randint(0, image_shape[1]-image.shape[1])
+            coord2 = coord0 + image.shape[0]
+            coord3 = coord1 + image.shape[1]
+            mask_region = mask[coord0:coord1, coord2:coord3]
+            mask[coord0:coord1, coord2:coord3] = np.max([mask_region, (self.labels[i]+1)*(image > 0.1)], axis=0)
+            old_region = large_image[coord0:coord1, coord2:coord3]
+            large_image[coord0:coord1, coord2:coord3] = np.max([image, old_region], axis=0)
         return large_image, mask
 
     def init_func(self, *args, **kwargs): # pylint: disable=unused-argument
@@ -58,51 +63,50 @@ class MultiMNIST(ImagesBatch):
             self.images = np.expand_dims(np.array(images), axis=-1)
             self.masks = np.array(masks) - 1
             self.masks[self.masks == -1] = 10
-            b = MultiMNIST(self.index, preloaded=[self.images, None, self.masks])
+            #new_batch = MultiMNIST(self.index, preloaded=[images, None, masks])
             return self
 
 def make_masks(batch, *args):
+    """Create masks for images in batch
+    """
+    _ = args
     masks = np.ones_like(batch.images) * 10
     coords = np.where(batch.images > 0)
     masks[coords] = batch.labels[coords[0]]
     return np.squeeze(masks)
 
 def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100, 100), mode='mnist'):
+    """Train model and show plots to demonstrate result
+    """
     mnist = MNIST(batch_class=MultiMNIST)
     print('Demonstarate {}'.format(model.__name__))
     model_config = {'loss': 'softmax_cross_entropy',
-                    'optimizer': {'name':'Adam', 
+                    'optimizer': {'name':'Adam',
                                   'use_locking': True},
                     # inputs is a config dict to create placeholders
-                    'inputs':    {'images': {'shape': (None, None, 1), 'data_format': 'channels_last'},  # shape of the input images
-                                  'masks':  {'shape': (None, None),      # shape of masks
-                                             'classes': 11,           # number of segmantation classes
-                                             'transform': 'ohe',     # apply one-hot encoding to masks
-                                             'name': 'targets'}},    # name of the tf.Tensor after transformation
-                    'filters': filters,                                   # number of filters before the first downsampling block
+                    'inputs':    {'images': {'shape': (None, None, 1)},
+                                  'masks':  {'shape': (None, None),
+                                             'classes': 11,
+                                             'transform': 'ohe',
+                                             'name': 'targets'}},
+                    'filters': filters,
                     'num_blocks': 3,
-                    'output': {'ops': ['proba', 'labels']}}                     # compute probability from logit output
+                    'output': {'ops': ['proba', 'labels']}}
 
 
     train_template = (Pipeline()
-                      .init_variable('loss_history', init_on_each_run=list)             # pipeline variable to save loss hostory
-                      .init_variable('current_loss', init_on_each_run=0)                # pipeline variable for loss on batch    
-                      .init_model('dynamic',                                            # model type
-                                  model,                                                 # model class
-                                  'conv',                                               # model name in pipeline
-                                  config=model_config)
-                      .train_model('conv', 
-                                   fetches='loss',
-                                   feed_dict={'images': B('images'),
-                                              'masks': F(make_masks)},
-                                   save_to=V('current_loss'))
+                      .init_variable('loss_history', init_on_each_run=list)
+                      .init_variable('current_loss', init_on_each_run=0)
+                      .init_model('dynamic', model, 'conv', config=model_config)
+                      .train_model('conv', fetches='loss', feed_dict={'images': B('images'),
+                                   'masks': F(make_masks)}, save_to=V('current_loss'))
                       .update_variable('loss_history', V('current_loss'), mode='a'))
 
     train_pp = (train_template << mnist.train)
 
     print("Start training...")
     t = time()
-    for i in range(max_iter):
+    for _ in range(max_iter):
         train_pp.next_batch(batch_size, shuffle=True, n_epochs=None, drop_last=True, prefetch=0)
     print("Training time: {:4.2f} min".format((time() - t)/60))
 
@@ -113,20 +117,20 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
 
     if mode == 'multimnist':
         test_template = (Pipeline()
-                        .create_multi(image_shape=shape, max_digits=5)
-                        .import_model('conv', train_pp)
-                        .init_variable('predicted_proba', init_on_each_run=list)
-                        .init_variable('predicted_labels', init_on_each_run=list)
-                        .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'], 
+                         .create_multi(image_shape=shape, max_digits=5)
+                         .import_model('conv', train_pp)
+                         .init_variable('predicted_proba', init_on_each_run=list)
+                         .init_variable('predicted_labels', init_on_each_run=list)
+                         .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'],
                                        feed_dict={'images': B('images'),
                                                   'masks': B('masks')},
                                        save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
     elif mode == 'mnist':
         test_template = (Pipeline()
-                        .import_model('conv', train_pp)
-                        .init_variable('predicted_proba', init_on_each_run=list)
-                        .init_variable('predicted_labels', init_on_each_run=list)
-                        .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'], 
+                         .import_model('conv', train_pp)
+                         .init_variable('predicted_proba', init_on_each_run=list)
+                         .init_variable('predicted_labels', init_on_each_run=list)
+                         .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'],
                                        feed_dict={'images': B('images'),
                                                   'masks': F(make_masks)},
                                        save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
@@ -135,18 +139,18 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
     get_plots(test_ppl, mode='c', inverse=True, n_examples=10)
 
 def get_plots(pipeline, n_examples=10, mode='sc', inverse=True, title=None, batch_size=100):
+    """Show results of segmentation networks.
+    """
     batch = pipeline.next_batch(batch_size, shuffle=True)
     images = np.squeeze(batch.data.images)[:n_examples]
     if 's' in mode:
         proba = np.squeeze(pipeline.get_variable('predicted_proba')[-1])
-        get_separate_masks(images, proba, inverse, title)
+        _get_separate_masks(images, proba, inverse, title)
     if 'c' in mode:
         predicted_masks = np.squeeze(pipeline.get_variable('predicted_labels')[-1])
-        get_masks(images, predicted_masks, inverse, title)
+        _get_masks(images, predicted_masks, inverse, title)
 
-def get_separate_masks(images, proba, inverse, title):
-    """Show results of segmentation networks
-    """
+def _get_separate_masks(images, proba, inverse, title):
     n_examples = len(images)
     grey_cmap = 'Greys' + ('_r' if inverse else '')
 
@@ -176,13 +180,11 @@ def get_separate_masks(images, proba, inverse, title):
     plt.colorbar(cax=cax, orientation='horizontal')
     plt.show()
 
-def get_masks(images, predicted_masks, inverse, title):
-    """Show results of segmentation networks
-    """
+def _get_masks(images, predicted_masks, inverse, title):
     n_examples = len(images)
     grey_cmap = 'Greys' + ('_r' if inverse else '')
-    cmap = colors.ListedColormap(['purple', 'r', 'green', 'blue', 'y', 'w', 
-    	                          'grey', 'magenta', 'orange', 'pink', 'black'])
+    cmap = colors.ListedColormap(['purple', 'r', 'green', 'blue', 'y', 'w',
+                                  'grey', 'magenta', 'orange', 'pink', 'black'])
     bounds = np.arange(-0.5, 11.5, 1)
     norm = colors.BoundaryNorm(bounds, cmap.N)
 
