@@ -1,3 +1,5 @@
+# pylint: attribute-defined-outside-init
+
 """Auxilary module to demonstrate segmentation networks
 """
 from time import time
@@ -56,8 +58,8 @@ class MultiMNIST(ImagesBatch):
             raise Exception("Something bad happened")
         else:
             images, masks = list(zip(*list_of_res))
-            self.images = np.expand_dims(np.array(images), axis=-1) # pylint: attribute-defined-outside-init 
-            self.masks = np.array(masks) - 1 # pylint: attribute-defined-outside-init
+            self.images = np.expand_dims(np.array(images), axis=-1)
+            self.masks = np.array(masks) - 1
             self.masks[self.masks == -1] = 10
             return self
 
@@ -96,7 +98,7 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
                       .train_model('conv', fetches='loss',
                                    feed_dict={'images': B('images'),
                                               'masks': F(make_masks)},
-                                    save_to=V('current_loss'))
+                                   save_to=V('current_loss'))
                       .update_variable('loss_history', V('current_loss'), mode='a'))
 
     train_pp = (train_template << mnist.train)
