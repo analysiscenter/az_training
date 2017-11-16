@@ -11,11 +11,6 @@ from dataset.dataset import ImagesBatch, Pipeline, B, F, V, action, inbatch_para
 class MultiMNIST(ImagesBatch):
     """Batch class for multiple MNIST images in random locations of image
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.masks = []
-        self.images = []
-        self.labels = []
 
     @property
     def components(self):
@@ -98,10 +93,10 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
                       .init_variable('loss_history', init_on_each_run=list)
                       .init_variable('current_loss', init_on_each_run=0)
                       .init_model('dynamic', model, 'conv', config=model_config)
-                      .train_model('conv', fetches='loss', 
-                      	           feed_dict={'images': B('images'),
-                                              'masks': F(make_masks)}, 
-                                   save_to=V('current_loss'))
+                      .train_model('conv', fetches='loss',
+                      	            feed_dict={'images': B('images'),
+                                               'masks': F(make_masks)},
+                                    save_to=V('current_loss'))
                       .update_variable('loss_history', V('current_loss'), mode='a'))
 
     train_pp = (train_template << mnist.train)
@@ -125,7 +120,7 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
                          .init_variable('predicted_labels', init_on_each_run=list)
                          .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'],
                                         feed_dict={'images': B('images'),
-                                                  'masks': B('masks')},
+                                                   'masks': B('masks')},
                                         save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
     elif mode == 'mnist':
         test_template = (Pipeline()
@@ -134,7 +129,7 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
                          .init_variable('predicted_labels', init_on_each_run=list)
                          .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'],
                                         feed_dict={'images': B('images'),
-                                                  'masks': F(make_masks)},
+                                                   'masks': F(make_masks)},
                                         save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
 
     test_ppl = (test_template << mnist.test)
