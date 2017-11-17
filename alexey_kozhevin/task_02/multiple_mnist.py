@@ -20,7 +20,12 @@ class MultiMNIST(ImagesBatch):
         return 'images', 'labels', 'masks'
 
     @action
-    @inbatch_parallel(init='init_func', post='post_func', target='threads')
+    @inbatch_parallel(init='init_func', post='post_func_norm', target='threads')
+    def normalize_images(self):
+        return self.images[ind] / 255
+
+    @action
+    @inbatch_parallel(init='init_func', post='post_func_mix', target='threads')
     def mix_mnist(self, *args, **kwargs):
         """Create multimnist image
         """
@@ -49,7 +54,7 @@ class MultiMNIST(ImagesBatch):
         _ = args, kwargs
         return [i for i in range(self.images.shape[0])]
 
-    def post_func(self, list_of_res, *args, **kwargs):
+    def post_func_mix(self, list_of_res, *args, **kwargs):
         """Create resulting batch
         """
         _ = args, kwargs
@@ -61,6 +66,18 @@ class MultiMNIST(ImagesBatch):
             self.images = np.expand_dims(np.array(images), axis=-1)
             self.masks = np.array(masks) - 1
             self.masks[self.masks == -1] = 10
+            return self
+
+    def post_func_norm(self, list_of_res, *args, **kwargs):
+        """Create resulting batch
+        """
+        _ = args, kwargs
+        if any_action_failed(list_of_res):
+            print(list_of_res)
+            raise Exception("Something bad happened")
+        else:
+            images = np.stack(list_of_res)
+            self.images = images
             return self
 
 def make_masks(batch, *args):

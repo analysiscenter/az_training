@@ -40,7 +40,10 @@ def plot_examples(images, masks, proba, n_examples):
 def get_rgb(image, noise):
     """Get RGB image from greyscale image and noise.
     """
-    rgb_noise = np.dstack([noise] * 3)
+    den = 255 if image.max() > 1 else 1
+    image = image / den
+    noise = noise / den
+    rgb_noise = np.dstack([noise] * 3) / den
     rgb_image = np.zeros((*image.shape, 3))
     rgb_image[:, :, 1] = image
     rgb_image[:, :, 0] = image
@@ -51,6 +54,7 @@ def plot_noised_image(image, noise):
     """
     plt.imshow(get_rgb(image, noise))
     plt.show()
+
 def plot_examples_highlighted(images, noise, masks, proba, n_examples=10, title=None):
     """Plot images, masks, and predicted probabilities.
 
