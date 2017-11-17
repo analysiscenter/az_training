@@ -7,8 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
-from dataset.dataset.opensets import MNIST
-from dataset.dataset import ImagesBatch, Pipeline, B, F, V, action, inbatch_parallel, any_action_failed
+from dataset.opensets import MNIST
+from dataset import ImagesBatch, Pipeline, B, F, V, action, inbatch_parallel, any_action_failed
 
 class MultiMNIST(ImagesBatch):
     """Batch class for multiple MNIST images in random locations of image
