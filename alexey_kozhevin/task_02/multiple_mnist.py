@@ -24,7 +24,10 @@ class MultiMNIST(ImagesBatch):
     @action
     @inbatch_parallel(init='indices', post='post_func_mix', target='threads')
     def mix_digits(self, *args, **kwargs):
-        """Creates image of image_shape with random number (not greater than max_digits) of MNIST digits in random places"""
+        """
+        Creates image of image_shape with random number (not greater than max_digits) 
+        of MNIST digits in random places.
+        """
         _ = args
         image_shape = kwargs['image_shape']
         max_digits = kwargs['max_digits']
@@ -109,7 +112,7 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
         test_template = Pipeline().mix_digits(image_shape=shape, max_digits=5)
     elif mode == 'mnist':
         test_template = Pipeline()
-    
+
     test_template = (test_template
                      .import_model('conv', train_pp)
                      .init_variable('predicted_proba', init_on_each_run=list)

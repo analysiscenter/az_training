@@ -48,7 +48,7 @@ class NoisedMnist(ImagesBatch):
 
     @action
     @inbatch_parallel(init='indices', post='assemble', target='threads', component='masks')
-    def create_mask(self, ind, **kwargs):
+    def create_mask(self, ind):
         """Get mask of MNIST image"""
         mask = np.array((self.get(ind, 'images') > 0.1), dtype=np.int32)
         mask = np.stack([1-mask, mask], axis=2)
