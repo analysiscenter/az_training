@@ -40,10 +40,10 @@ def plot_examples(images, masks, proba, n_examples):
 def get_rgb(image, noise):
     """Get RGB image from greyscale image and noise.
     """
-    den = 255 if image.max() > 1 else 1
+    den = 255 if image.max() > 2 else 1
     image = image / den
     noise = noise / den
-    rgb_noise = np.dstack([noise] * 3) / den
+    rgb_noise = np.dstack([noise] * 3)
     rgb_image = np.zeros((*image.shape, 3))
     rgb_image[:, :, 1] = image
     rgb_image[:, :, 0] = image

@@ -1,7 +1,8 @@
+#pylint:disable=attribute-defined-outside-init
+
 """
 LinkNet implementation as Batch class
 """
-import pickle
 import numpy as np
 
 from dataset.dataset import ImagesBatch, action, inbatch_parallel, any_action_failed
@@ -64,7 +65,8 @@ class NoisedMnist(ImagesBatch):
 
     @action
     @inbatch_parallel(init='init_func', post='post_func_norm', target='threads')
-    def normalize_images(self, ind, *args):
+    def normalize_images(self, ind):
+        """Normalize pixel values to (0, 1)"""
         return self.images[ind] / 255
 
     def post_func_norm(self, list_of_res, *args, **kwargs):
@@ -83,7 +85,7 @@ class NoisedMnist(ImagesBatch):
     def random_location(self, ind, *args):
         """Put MNIST image in random location"""
         image_size = args[0]
-        pure_mnist = self.images[ind].reshape(28,28)
+        pure_mnist = self.images[ind].reshape(28, 28)
         new_x, new_y = np.random.randint(0, image_size-28, 2)
         large_mnist = np.zeros((image_size, image_size))
         large_mnist[new_x:new_x+28, new_y:new_y+28] = pure_mnist
@@ -179,39 +181,3 @@ class NoisedMnist(ImagesBatch):
         else:
             self.images = np.stack(list_of_res)
             return self
-
-    @action
-    def get_images(self, images):
-        """Get images from batch.
-
-        Parameters
-        ----------
-        images : list of np.array
-        """
-
-        images.append(self.images)
-        return self
-
-    @action
-    def get_masks(self, masks):
-        """Get images from batch.
-
-        Parameters
-        ----------
-        masks : list of np.array
-        """
-
-        masks.append(self.masks)
-        return self
-
-    @action
-    def get_noise(self, noise):
-        """Get noise from batch.
-
-        Parameters
-        ----------
-        masks : list of np.array
-        """
-
-        noise.append(self.noise)
-        return self
