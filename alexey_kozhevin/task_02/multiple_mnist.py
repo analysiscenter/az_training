@@ -22,6 +22,7 @@ class MultiMNIST(ImagesBatch):
     @action
     @inbatch_parallel(init='init_func', post='post_func_norm', target='threads')
     def normalize_images(self, ind):
+        """Normalize pixel values to (0, 1)"""
         return self.images[ind] / 255
 
     @action
