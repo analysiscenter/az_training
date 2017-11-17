@@ -38,8 +38,7 @@ def plot_examples(images, masks, proba, n_examples):
     plt.show()
 
 def get_rgb(image, noise):
-    """Get RGB image from greyscale image and noise.
-    """
+    """Get RGB image from greyscale image and noise."""
     den = 255 if image.max() > 2 else 1
     image = image / den
     noise = noise / den
@@ -50,8 +49,7 @@ def get_rgb(image, noise):
     return np.max([rgb_noise, rgb_image], axis=0)
 
 def plot_noised_image(image, noise):
-    """Plot RGB image with highlighted MNIST digit.
-    """
+    """Plot RGB image with highlighted MNIST digit."""
     plt.imshow(get_rgb(image, noise))
     plt.show()
 
@@ -64,7 +62,6 @@ def plot_examples_highlighted(images, noise, masks, proba, n_examples=10, title=
     images, masks, proba : list with one element which is list of np.arrays
 
     """
-    #images, noise, masks = images[0], noise[0], masks[0]
     images = images[:, :, :, 0]
     n_examples = min(len(images), n_examples)
     plt.figure(figsize=(15, 3.5*n_examples))
@@ -102,7 +99,6 @@ def plot_example_interactive(images, masks, proba, index):
         inex of image to plot
 
     """
-    #images, masks = images[0], masks[0]
     images = images[:, :, :, 0]
     def interactive_f(threshold):
         """Function for interactive plot.
@@ -125,8 +121,7 @@ def plot_example_interactive(images, masks, proba, index):
     return interactive_plot
 
 def get_plots(images, masks, proba, n_examples=10, title=None):
-    """Show results of segmentation networks
-    """
+    """Show results of segmentation networks."""
     images = np.squeeze(images)
     masks = np.squeeze(masks)
 
