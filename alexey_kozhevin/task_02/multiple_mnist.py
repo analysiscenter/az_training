@@ -25,7 +25,7 @@ class MultiMNIST(ImagesBatch):
     @inbatch_parallel(init='indices', post='post_func_mix', target='threads')
     def mix_digits(self, *args, **kwargs):
         """
-        Creates image of image_shape with random number (not greater than max_digits) 
+        Creates image of image_shape with random number (not greater than max_digits)
         of MNIST digits in random places.
         """
         _ = args
