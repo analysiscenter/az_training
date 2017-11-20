@@ -5,7 +5,7 @@ LinkNet implementation as Batch class
 """
 import numpy as np
 
-from dataset.dataset import ImagesBatch, action, inbatch_parallel, any_action_failed
+from dataset.dataset import ImagesBatch, action, inbatch_parallel
 
 
 class NoisedMnist(ImagesBatch):
