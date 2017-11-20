@@ -1,10 +1,10 @@
 """Contains dense layer and convolutional layer with max_pool and batch normalization"""
 import tensorflow as tf
 
-def conv_mpool_bnorm_activation(scope, input_layer, n_channels=2, mpool=False, bnorm=True,
+def conv_mpool_bnorm_activation(scope, input_layer, n_channels=2, mpool=False, bnorm=True, #pylint: disable=too-many-arguments
                                 training=None, kernel_conv=(5, 5), stride_conv=(1, 1),
                                 kernel_pool=(2, 2), stride_pool=(2, 2),
-                                activation=tf.nn.relu): #pylint: disable=too-many-arguments
+                                activation=tf.nn.relu):
     """ Conv -> mpooling (optional) -> activation layer
     """
     with tf.variable_scope(scope):
@@ -13,14 +13,16 @@ def conv_mpool_bnorm_activation(scope, input_layer, n_channels=2, mpool=False, b
 
         # define var for conv-filter
         filter_shape = tuple(kernel_conv) + (inp_channels, ) + (n_channels, )
-        filter_weights = tf.Variable(tf.truncated_normal(shape=filter_shape, stddev=0.01), name='weights')
+        filter_weights = tf.Variable(tf.truncated_normal(shape=filter_shape, stddev=0.01),
+                                     name='weights')
 
         # bias
         bias = tf.Variable(tf.zeros(shape=[n_channels]), name='bias')
 
         # apply the filter
         strides = (1, ) + tuple(stride_conv) + (1, )
-        output = tf.nn.conv2d(input=input_layer, filter=filter_weights, strides=strides, padding='SAME')
+        output = tf.nn.conv2d(input=input_layer, filter=filter_weights, strides=strides,
+                              padding='SAME')
 
         # bias
         output = output + bias
