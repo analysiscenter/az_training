@@ -10,7 +10,7 @@ import tensorflow as tf
 
 sys.path.append("..")
 
-from dataset import Batch, action, model, inbatch_parallel
+from dataset import Batch, action, model, inbatch_parallel #pylint: disable=import-error
 from layers import conv_mpool_bnorm_activation, fc_layer
 
 
@@ -185,7 +185,8 @@ class MnistBatch(Batch):
         _, _, accuracy = model[1]
         x, y_target, _, _, training, keep_prob = model[0]
 
-        accs.append(sess.run(accuracy, feed_dict={x: self.images, y_target: self.labels, training: False, keep_prob: 1.0}))
+        accs.append(sess.run(accuracy, feed_dict={x: self.images, y_target: self.labels,
+                             training: False, keep_prob: 1.0}))
         return self
 
 def draw_stats(all_stats, labels, title):
