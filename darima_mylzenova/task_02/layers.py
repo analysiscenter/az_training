@@ -3,7 +3,8 @@ import tensorflow as tf
 
 def conv_mpool_bnorm_activation(scope, input_layer, n_channels=2, mpool=False, bnorm=True,
                                 training=None, kernel_conv=(5, 5), stride_conv=(1, 1),
-                                kernel_pool=(2, 2), stride_pool=(2, 2), activation=tf.nn.relu): #pylint: disable-msg=too-many-arguments
+                                kernel_pool=(2, 2), stride_pool=(2, 2),
+                                activation=tf.nn.relu): #pylint: disable=too-many-arguments
     """ Conv -> mpooling (optional) -> activation layer
     """
     with tf.variable_scope(scope):
