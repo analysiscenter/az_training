@@ -16,13 +16,13 @@ class MultiMNIST(ImagesBatch):
     components = 'images', 'labels', 'masks'
 
     @action
-    @inbatch_parallel(init='indices', post='assemble', target='threads')
-    def normalize_images(self, ind):
+    def normalize_images(self):
         """Normalize pixel values to (0, 1)"""
-        return self.images[ind] / 255
+        self.images = self.images / 255
+        return self
 
     @action
-    @inbatch_parallel(init='indices', post='post_func_mix', target='threads')
+    @inbatch_parallel(init='indices', post='assemble', components=('images', 'masks'))
     def mix_digits(self, *args, **kwargs):
         """
         Creates image of image_shape with random number (not greater than max_digits)
@@ -37,7 +37,7 @@ class MultiMNIST(ImagesBatch):
         mask = np.zeros(image_shape)
 
         for i in digits:
-            image = self.images[i].reshape(28, 28)
+            image = np.squeeze(self.images[i])
             coord0 = np.random.randint(0, image_shape[0]-image.shape[0])
             coord1 = coord0 + image.shape[0]
             coord2 = np.random.randint(0, image_shape[1]-image.shape[1])
@@ -46,27 +46,19 @@ class MultiMNIST(ImagesBatch):
             mask[coord0:coord1, coord2:coord3] = np.max([mask_region, (self.labels[i]+1)*(image > 0.1)], axis=0)
             old_region = large_image[coord0:coord1, coord2:coord3]
             large_image[coord0:coord1, coord2:coord3] = np.max([image, old_region], axis=0)
+        large_image = np.expand_dims(np.array(large_image), axis=-1)
+        mask = np.array(mask) - 1
+        mask[mask == -1] = 10
         return large_image, mask
 
-    def post_func_mix(self, list_of_res, *args, **kwargs):
-        """Create resulting batch"""
-        _ = args, kwargs
-        if any_action_failed(list_of_res):
-            raise Exception("Something bad happened")
-        else:
-            images, masks = list(zip(*list_of_res))
-            self.images = np.expand_dims(np.array(images), axis=-1)
-            self.masks = np.array(masks) - 1
-            self.masks[self.masks == -1] = 10
-            return self
-
-    def make_masks(self, *args):
+    @action
+    def make_masks(self):
         """Create masks for images in batch"""
-        _ = args
         masks = np.ones_like(self.images) * 10
         coords = np.where(self.images > 0)
         masks[coords] = self.labels[coords[0]]
-        return np.squeeze(masks)
+        self.masks = np.squeeze(masks)
+        return self
 
 def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100, 100), mode='mnist'):
     """Train model and show plots to demonstrate result"""
@@ -86,12 +78,13 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
 
 
     train_template = (Pipeline()
+                      .make_masks()
                       .init_variable('loss_history', init_on_each_run=list)
                       .init_variable('current_loss', init_on_each_run=0)
                       .init_model('dynamic', model, 'conv', config=model_config)
                       .train_model('conv', fetches='loss',
                                    feed_dict={'images': B('images'),
-                                              'masks': F(MultiMNIST.make_masks)},
+                                              'masks': B('masks')},
                                    save_to=V('current_loss'))
                       .update_variable('loss_history', V('current_loss'), mode='a'))
 
@@ -111,7 +104,7 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
     if mode == 'multimnist':
         test_template = Pipeline().mix_digits(image_shape=shape, max_digits=5)
     elif mode == 'mnist':
-        test_template = Pipeline()
+        test_template = Pipeline().make_masks()
 
     test_template = (test_template
                      .import_model('conv', train_pp)
@@ -119,7 +112,7 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
                      .init_variable('predicted_labels', init_on_each_run=list)
                      .predict_model('conv', fetches=['predicted_proba', 'predicted_labels'],
                                     feed_dict={'images': B('images'),
-                                               'masks': F(MultiMNIST.make_masks)},
+                                               'masks': B('masks')},
                                     save_to=[V('predicted_proba'), V('predicted_labels')], mode='a'))
 
     test_ppl = (test_template << mnist.test)

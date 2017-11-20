@@ -14,53 +14,36 @@ class NoisedMnist(ImagesBatch):
     components = 'images', 'labels', 'masks', 'coordinates', 'noise'
 
     @action
-    @inbatch_parallel(init='indices', post='assemble', target='threads')
-    def normalize_images(self, ind):
+    def normalize_images(self):
         """Normalize pixel values to (0, 1)"""
-        return self.get(ind, 'images') / 255
+        self.images = self.images / 255
+        return self
 
     @action
-    @inbatch_parallel(init='indices', post='post_func_image', target='threads')
-    def random_location(self, ind, *args):
+    @inbatch_parallel(init='images', post='assemble', components=('images', 'coordinates'))
+    def random_location(self, image, *args):
         """Put MNIST image in random location"""
         image_size = args[0]
-        pure_mnist = self.get(ind, 'images').reshape(28, 28)
+        pure_mnist = np.squeeze(image)
         new_x, new_y = np.random.randint(0, image_size-28, 2)
         large_mnist = np.zeros((image_size, image_size))
         large_mnist[new_x:new_x+28, new_y:new_y+28] = pure_mnist
-        return large_mnist, new_x, new_y
-
-    def post_func_image(self, list_of_res, *args, **kwargs):
-        """Concat outputs from random_location.
-
-        Parameters
-        ----------
-        list_of_res : list of tuples of np.arrays and two ints
-        """
-        _ = args, kwargs
-        if any_action_failed(list_of_res):
-            raise Exception("Something bad happened")
-        else:
-            images, new_x, new_y = list(zip(*list_of_res))
-            self.images = np.stack(images)
-            self.coordinates = list(zip(new_x, new_y))
-            return self
+        return large_mnist, [new_x, new_y]
 
     @action
-    @inbatch_parallel(init='indices', post='assemble', target='threads', component='masks')
-    def create_mask(self, ind):
+    @inbatch_parallel(init='images', post='assemble', components='masks')
+    def make_masks(self, image):
         """Get mask of MNIST image"""
-        mask = np.array((self.get(ind, 'images') > 0.1), dtype=np.int32)
-        mask = np.stack([1-mask, mask], axis=2)
+        mask = np.array((image > 0.1), dtype=np.int32)
         return mask
 
     @action
-    @inbatch_parallel(init='indices', post='assemble', target='threads', component='noise')
-    def create_noise(self, ind, *args):
+    @inbatch_parallel(init='images', post='assemble', components='noise')
+    def create_noise(self, image, *args):
         """Create noise at MNIST image"""
         image_size = self.images.shape[1]
         if args[0] == 'random_noise':
-            noise = args[1] * np.random.random((image_size, image_size))
+            noise = args[1] * np.random.random((image_size, image_size)) * image.max()
         elif args[0] == 'mnist_noise':
             level, n_fragments, size, distr = args[1:]
 
@@ -71,11 +54,11 @@ class NoisedMnist(ImagesBatch):
             fragments = self.create_fragments(images_for_noise, size)
             noise = self.arrange_fragments(image_size, fragments, distr, level)
         else:
-            noise = np.zeros_like(self.get(ind, 'images'))
+            noise = np.zeros_like(image)
         return noise
 
     @action
-    @inbatch_parallel(init='indices', post='assemble', target='threads')
+    @inbatch_parallel(init='indices', post='assemble')
     def add_noise(self, ind):
         """Add noise at MNIST image."""
         return np.expand_dims(np.max([self.get(ind, 'images'), self.get(ind, 'noise')], axis=0), axis=-1)
