@@ -4,8 +4,8 @@ import sys
 
 import tensorflow as tf
 
-sys.path.append("../..")
-from dataset.dataset.models.tf import TFModel
+sys.path.append("..//..")
+from dataset.models.tf import TFModel
 
 class RegressionModel(TFModel):
     """ Regression model
@@ -24,12 +24,25 @@ class RegressionModel(TFModel):
     """
     @classmethod
     def default_config(cls):
+        """ Specify default value for model_type"""
         config = TFModel.default_config()
         config['body']['model_type'] = 'linear'
         return config
 
     @classmethod
-    def body(cls, inputs, name='body', **kwargs):
+    def body(cls, inputs, **kwargs):
+        """ Regression model
+
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            input tensor
+
+        Returns
+        -------
+        wx_b : tf.Tensor
+            linear combination of inputs tensor and weight plus bias
+        """
         kwargs = cls.fill_params('body', **kwargs)
         model_type = cls.pop('model_type', kwargs)
         print('model_type = {}'.format(model_type))
@@ -52,7 +65,7 @@ class RegressionModel(TFModel):
             y_cup_int = tf.cast(y_cup, tf.int32)
             y_target_int = tf.cast(y_target, tf.int32)
             accy = tf.contrib.metrics.accuracy(y_cup_int, y_target_int, name='accuracy_0')
-            accuracy = tf.identity(accy, name='accuracy')
+            tf.identity(accy, name='accuracy')
 
         elif model_type == 'poisson':
             pass
@@ -61,7 +74,7 @@ class RegressionModel(TFModel):
             logit = tf.identity(wx_b, name='predictions')
             y_cup = tf.identity(logit, name='predicted_value')
             y_target = tf.get_default_graph().get_tensor_by_name('RegressionModel/inputs/targets:0')
-            mse = tf.reduce_mean(tf.square(y_cup - y_target), name='mse')
+            tf.reduce_mean(tf.square(y_cup - y_target), name='mse')
 
 
         else:
