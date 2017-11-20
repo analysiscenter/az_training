@@ -2,7 +2,7 @@
 import sys
 import numpy as np
 sys.path.append("../..")
-from dataset import Batch, action
+from dataset.dataset import Batch, action
 
 from sklearn.preprocessing import scale
 

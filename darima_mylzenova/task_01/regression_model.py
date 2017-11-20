@@ -5,7 +5,7 @@ import sys
 import tensorflow as tf
 
 sys.path.append("..//..")
-from dataset.models.tf import TFModel
+from dataset.dataset.models.tf import TFModel
 
 class RegressionModel(TFModel):
     """ Regression model
