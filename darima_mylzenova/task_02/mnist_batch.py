@@ -42,7 +42,7 @@ class MnistBatch(Batch):
     @inbatch_parallel(init='init_function', post='post_function', target='threads')
     def shift_flattened_pic(self, idx, max_margin=8):
         """ Apply random shift to a flattened pic
-        
+
         Args:
             idx: index in the self.images of a pic to be flattened
         Return:
@@ -52,7 +52,7 @@ class MnistBatch(Batch):
         pic = self.images[idx]
 
         squared = pic.reshape(28, 28)
-        padded = np.pad(squared, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
+        padded = np.pad(squared, pad_width=[[max_margin, max_margin], [max_margin, max_margin]],
                         mode='minimum')
         left_lower = np.random.randint(2 * max_margin, size=2)
         slicing = (slice(left_lower[0], left_lower[0] + 28),
@@ -81,7 +81,7 @@ class MnistBatch(Batch):
         Return:
             self
         """
-        if fmt == 'blosc':     
+        if fmt == 'blosc':
             # read blosc images, labels
             with open(os.path.join(src, 'mnist_pics.blk'), 'rb') as file:
                 self.images = blosc.unpack_array(file.read())[self.indices]
@@ -109,15 +109,18 @@ class MnistBatch(Batch):
         training = tf.placeholder(tf.bool, shape=[], name='mode')
         x = tf.placeholder(tf.float32, [None, 784])
         x_as_pics = tf.reshape(x, shape=[-1, 28, 28, 1])
-        net = conv_mpool_bnorm_activation('conv_first', x_as_pics, n_channels=4, mpool=True, bnorm=False, training=training,
+        net = conv_mpool_bnorm_activation('conv_first', x_as_pics, n_channels=4, mpool=True,
+                                          bnorm=False, training=training,
                                           kernel_conv=(7, 7), kernel_pool=(6, 6), stride_pool=(2, 2))
-        net = conv_mpool_bnorm_activation('conv_second', net, n_channels=16, kernel_conv=(5, 5), bnorm=False, training=training,
+        net = conv_mpool_bnorm_activation('conv_second', net, n_channels=16, kernel_conv=(5, 5),
+                                          bnorm=False, training=training,
                                           mpool=True, kernel_pool=(5, 5), stride_pool=(2, 2))
-        net = conv_mpool_bnorm_activation('conv_third', net, n_channels=32, kernel_conv=(3, 3), bnorm=False, training=training,
+        net = conv_mpool_bnorm_activation('conv_third', net, n_channels=32, kernel_conv=(3, 3),
+                                          bnorm=False, training=training,
                                           mpool=True, kernel_pool=(2, 2), stride_pool=(2, 2))
         net = tf.contrib.layers.flatten(net)
 
-        # dropout 
+        # dropout
         keep_prob = tf.placeholder(tf.float32)
         net = tf.nn.dropout(net, keep_prob)
 
@@ -129,10 +132,10 @@ class MnistBatch(Batch):
         probs = tf.nn.softmax(logits=net)
         # placeholder for correct labels
 
-        y_ = tf.placeholder(tf.float32, [None, 10])
+        y_target = tf.placeholder(tf.float32, [None, 10])
 
         # loss
-        loss = tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y_, name='loss')
+        loss = tf.nn.softmax_cross_entropy_with_logits(logits=net, labels=y_target, name='loss')
 
         # optimization step
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -141,20 +144,20 @@ class MnistBatch(Batch):
 
         # stats
         labels_hat = tf.cast(tf.argmax(net, axis=1), tf.float32, name='labels_hat')
-        labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, name='labels')
+        labels = tf.cast(tf.argmax(y_target, axis=1), tf.float32, name='labels')
         accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
 
-        return [[x, y_, loss, train_step, training, keep_prob], [labels, labels_hat, accuracy], [probs]]
+        return [[x, y_target, loss, train_step, training, keep_prob], [labels, labels_hat, accuracy], [probs]]
 
     @action(model='convy')
     def predict(self, model, sess, pics, y_true, y_predict, probabilities):
         ''' Predict labels '''
-        x, y_, _, _, training, keep_prob = model[0]
+        x, y_target, _, _, training, keep_prob = model[0]
         labels, labels_hat, _ = model[1]
         probs = model[2][0]
         probabilities.append(sess.run(probs, feed_dict={x: self.images, training: False, keep_prob: 1.0}))
         y_predict.append(sess.run(labels_hat, feed_dict={x: self.images, training: False, keep_prob: 1.0}))
-        y_true.append(sess.run(labels, feed_dict={y_: self.labels}))
+        y_true.append(sess.run(labels, feed_dict={y_target: self.labels}))
         pics.append(self.images)
         return self
 
@@ -166,8 +169,8 @@ class MnistBatch(Batch):
             model: do not supply this arg, always the output of convy-model defined above
             sess: tf-session in which learning variables are to be updated
         """
-        x, y_, _, train_step, training, keep_prob = model[0]
-        sess.run(train_step, feed_dict={x: self.images, y_: self.labels, training: True, keep_prob: 0.7})
+        x, y_target, _, train_step, training, keep_prob = model[0]
+        sess.run(train_step, feed_dict={x: self.images, y_target: self.labels, training: True, keep_prob: 0.7})
         return self
 
     @action(model='convy')
@@ -180,9 +183,9 @@ class MnistBatch(Batch):
             accs: list with accuracies
         """
         _, _, accuracy = model[1]
-        x, y_, _, _, training, keep_prob = model[0]
+        x, y_target, _, _, training, keep_prob = model[0]
 
-        accs.append(sess.run(accuracy, feed_dict={x: self.images, y_: self.labels, training: False, keep_prob: 1.0}))
+        accs.append(sess.run(accuracy, feed_dict={x: self.images, y_target: self.labels, training: False, keep_prob: 1.0}))
         return self
 
 def draw_stats(all_stats, labels, title):
@@ -195,7 +198,7 @@ def draw_stats(all_stats, labels, title):
     plt.ylabel('aaccuracy')
     plt.legend()
     plt.show()
-  
+
 def draw_digit(pics, y_predict, y_true, probs, answer):
     ''' Draw a random digit '''
     if answer:
