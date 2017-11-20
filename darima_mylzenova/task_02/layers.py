@@ -1,8 +1,9 @@
+"""Contains dense layer and convolutional layer with max_pool and batch normalization"""
 import tensorflow as tf
 
 def conv_mpool_bnorm_activation(scope, input_layer, n_channels=2, mpool=False, bnorm=True,
                                 training=None, kernel_conv=(5, 5), stride_conv=(1, 1),
-                                kernel_pool=(2, 2), stride_pool=(2, 2),  activation=tf.nn.relu):
+                                kernel_pool=(2, 2), stride_pool=(2, 2), activation=tf.nn.relu): #pylint: disable-msg=too-many-arguments
     """ Conv -> mpooling (optional) -> activation layer
     """
     with tf.variable_scope(scope):
@@ -37,7 +38,6 @@ def conv_mpool_bnorm_activation(scope, input_layer, n_channels=2, mpool=False, b
 
 def fc_layer(scope, input_layer, n_outs):
     """ Build fully-connected layer with n_outs outputs
-    
     Args:
         input_layer: input layer
         n_outs: dim of output tensor
@@ -46,7 +46,7 @@ def fc_layer(scope, input_layer, n_outs):
     """
     with tf.variable_scope(scope):
         n_ins = input_layer.shape.as_list()[-1]
-        W = tf.Variable(tf.random_normal([n_ins, n_outs]), name='weights')
-        b = tf.Variable(tf.zeros([n_outs]), name='bias')
-        output = tf.nn.xw_plus_b(input_layer, W, b, name='output')
+        weights = tf.Variable(tf.random_normal([n_ins, n_outs]), name='weights')
+        bias = tf.Variable(tf.zeros([n_outs]), name='bias')
+        output = tf.nn.xw_plus_b(input_layer, weights, bias, name='output')
         return output
