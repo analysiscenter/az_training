@@ -1,15 +1,10 @@
 """ Custom class for MNIST classifier CNN
 """
 import sys
-import os
 
-import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
 
 sys.path.append("..")
-from dataset import Batch, action, model, inbatch_parallel
-from dataset import ImagesBatch
 from dataset.dataset.models.tf import TFModel
 
 class MyMnistModel(TFModel):

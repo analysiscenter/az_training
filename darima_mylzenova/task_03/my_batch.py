@@ -3,34 +3,15 @@
 import sys
 
 import numpy as np
-import os
-import blosc
-
-import tensorflow as tf
 import matplotlib.pyplot as plt
 
 sys.path.append("..")
-from dataset import Batch, action, model, inbatch_parallel, ImagesBatch, any_action_failed
+from dataset import action, inbatch_parallel, ImagesBatch, any_action_failed
 
 
 class MnistBatch(ImagesBatch):
     """ Mnist batch and models  """
     components = 'images', 'labels'
-
-    # def __init__(self, index, *args, **kwargs):
-    #     """ Init func, inherited from base batch
-    #     """
-    #     super().__init__(index, *args, **kwargs)
-    #     self.images = None
-    #     self.labels = None
-
-
-    # @property
-    # def components(self):
-    #     """ Components of mnist-batch
-    #     """
-    #     return 'images', 'labels'
-
 
     def post_function(self, list_results):
         '''Post function for parallel shift, gathers results of every worker'''
