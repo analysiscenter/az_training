@@ -10,39 +10,47 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 sys.path.append("..")
-from dataset import Batch, action, model, inbatch_parallel
-from dataset.dataset.image import ImagesBatch
+from dataset import Batch, action, model, inbatch_parallel, ImagesBatch, any_action_failed
 
 
 class MnistBatch(ImagesBatch):
-    """ Mnist batch and models
-    """
-    def __init__(self, index, *args, **kwargs):
-        """ Init func, inherited from base batch
-        """
-        super().__init__(index, *args, **kwargs)
-        self.images = None
-        self.labels = None
+    """ Mnist batch and models  """
+    components = 'images', 'labels'
+
+    # def __init__(self, index, *args, **kwargs):
+    #     """ Init func, inherited from base batch
+    #     """
+    #     super().__init__(index, *args, **kwargs)
+    #     self.images = None
+    #     self.labels = None
 
 
-    @property
-    def components(self):
-        """ Components of mnist-batch
-        """
-        return 'images', 'labels'
+    # @property
+    # def components(self):
+    #     """ Components of mnist-batch
+    #     """
+    #     return 'images', 'labels'
 
 
     def post_function(self, list_results):
         '''Post function for parallel shift, gathers results of every worker'''
+        if any_action_failed(list_results):
+            raise ValueError('Some workers have failed')
+
         result_batch = np.array(list_results)
         self.images = result_batch
         return self
 
     def init_function(self):
         '''Init function for parallel shift
-        returns list of indices, each of them will be sent to the worker separately
+
+        Returns
+        -------
+        list of indices
+            each of them will be sent to the worker separately
         '''
         return [{'idx': i}  for i in range(self.images.shape[0])]
+
 
     @action
     @inbatch_parallel(init='init_function', post='post_function', target='threads')
@@ -54,44 +62,45 @@ class MnistBatch(ImagesBatch):
         Return:
             flattened shifted pic
         """
-        
-        pic = self.images[idx]
+        pic = self.images[idx].reshape(28, 28)
+        # print('pic', pic)
         padded = np.pad(pic, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
-                        mode='minimum')
+                        mode='constant')
         left_lower = np.random.randint(2 * max_margin, size=2)
         slicing = (slice(left_lower[0], left_lower[0] + 28),
                    slice(left_lower[1], left_lower[1] + 28))
         res = padded[slicing]
+        res = res.reshape((28, 28, 1))
         return res
 
 
-    @action
-    def load(self, src, fmt='blosc'):
-        """ Load mnist pics with specifed indices
+    # @action
+    # def load(self, src, fmt='blosc'):
+    #     """ Load mnist pics with specifed indices
 
-        Args:
-            fmt: format of source. Can be either 'blosc' or 'ndarray'
-            src: if fmt='blosc', then src is a path to dir with blosc-packed
-                mnist images and labels are stored.
-                if fmt='ndarray' - this is a tuple with arrays of images and labels
+    #     Args:
+    #         fmt: format of source. Can be either 'blosc' or 'ndarray'
+    #         src: if fmt='blosc', then src is a path to dir with blosc-packed
+    #             mnist images and labels are stored.
+    #             if fmt='ndarray' - this is a tuple with arrays of images and labels
 
-        Return:
-            self
-        """
-        if fmt == 'blosc':     
-            # read blosc images, labels
-            with open('mnist_pics.blk', 'rb') as file:
-                self.images = blosc.unpack_array(file.read())[self.indices]
-                self.images = np.reshape(self.images, (65000, 28, 28))
+    #     Return:
+    #         self
+    #     """
+    #     if fmt == 'blosc':     
+    #         # read blosc images, labels
+    #         with open('mnist_pics.blk', 'rb') as file:
+    #             self.images = blosc.unpack_array(file.read())[self.indices]
+    #             self.images = np.reshape(self.images, (65000, 28, 28, 1))
 
-            with open('mnist_labels.blk', 'rb') as file:
-                self.labels = blosc.unpack_array(file.read())[self.indices]
-        elif fmt == 'ndarray':
-            all_images, all_labels = src
-            self.images = all_images[self.indices]
-            self.labels = all_labels[self.indices]
+    #         with open('mnist_labels.blk', 'rb') as file:
+    #             self.labels = blosc.unpack_array(file.read())[self.indices]
+    #     elif fmt == 'ndarray':
+    #         all_images, all_labels = src
+    #         self.images = all_images[self.indices]
+    #         self.labels = all_labels[self.indices]
 
-        return self
+    #     return self
 
 
 def draw_stats(all_stats, labels, title):
