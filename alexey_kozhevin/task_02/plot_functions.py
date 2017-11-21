@@ -48,12 +48,15 @@ def get_rgb(image, noise):
     rgb_image[:, :, 0] = image
     return np.max([rgb_noise, rgb_image], axis=0)
 
-def plot_noised_image(image, noise):
+def plot_noised_image(ppl):
     """Plot RGB image with highlighted MNIST digit."""
-    plt.imshow(get_rgb(image, noise))
+    batch = ppl.next_batch(10, shuffle=True)
+    images = batch.data.images
+    noise = batch.data.noise
+    plt.imshow(get_rgb(images[0], noise[0]))
     plt.show()
 
-def plot_examples_highlighted(images, noise, masks, proba, n_examples=10, title=None):
+def plot_examples_highlighted(ppl, n_examples=10, title=None):
     """Plot images, masks, and predicted probabilities.
 
     Parameters
@@ -62,6 +65,12 @@ def plot_examples_highlighted(images, noise, masks, proba, n_examples=10, title=
     images, masks, proba : list with one element which is list of np.arrays
 
     """
+    batch = ppl.next_batch(10, n_epochs=None)
+    images = batch.data.images
+    masks = batch.data.masks
+    noise = batch.data.noise
+    proba = ppl.get_variable('predictions')[-1]
+
     images = images[:, :, :, 0]
     n_examples = min(len(images), n_examples)
     plt.figure(figsize=(15, 3.5*n_examples))

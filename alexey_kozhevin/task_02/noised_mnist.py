@@ -1,8 +1,6 @@
 #pylint:disable=attribute-defined-outside-init
 
-"""
-LinkNet implementation as Batch class
-"""
+"""Batch class for generating images with noised MNIST digits."""
 import numpy as np
 
 from dataset.dataset import ImagesBatch, action, inbatch_parallel
@@ -15,14 +13,14 @@ class NoisedMnist(ImagesBatch):
 
     @action
     def normalize_images(self):
-        """Normalize pixel values to (0, 1)"""
+        """Normalize pixel values to (0, 1)."""
         self.images = self.images / 255
         return self
 
     @action
     @inbatch_parallel(init='images', post='assemble', components=('images', 'coordinates'))
     def random_location(self, image, *args):
-        """Put MNIST image in random location"""
+        """Put MNIST image in random location."""
         image_size = args[0]
         pure_mnist = np.squeeze(image)
         new_x, new_y = np.random.randint(0, image_size-28, 2)
@@ -33,14 +31,14 @@ class NoisedMnist(ImagesBatch):
     @action
     @inbatch_parallel(init='images', post='assemble', components='masks')
     def make_masks(self, image):
-        """Get mask of MNIST image"""
+        """Get mask of MNIST image."""
         mask = np.array((image > 0.1), dtype=np.int32)
         return mask
 
     @action
     @inbatch_parallel(init='images', post='assemble', components='noise')
     def create_noise(self, image, *args):
-        """Create noise at MNIST image"""
+        """Create noise at MNIST image."""
         image_size = self.images.shape[1]
         if args[0] == 'random_noise':
             noise = args[1] * np.random.random((image_size, image_size)) * image.max()
@@ -66,7 +64,6 @@ class NoisedMnist(ImagesBatch):
     def uniform(self, image_size, fragment_size):
         """Uniform distribution of fragmnents on image."""
         return np.random.randint(0, image_size-fragment_size, 2)
-
 
     def normal(self, image_size, fragment_size):
         """Normal distribution of fragmnents on image."""

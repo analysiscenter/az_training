@@ -1,7 +1,6 @@
 #pylint:disable=attribute-defined-outside-init
 
-"""Auxilary module to demonstrate segmentation networks
-"""
+"""Auxilary module to demonstrate segmentation networks"""
 from time import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,13 +10,13 @@ from dataset.dataset.opensets import MNIST
 from dataset.dataset import ImagesBatch, Pipeline, B, V, action, inbatch_parallel
 
 class MultiMNIST(ImagesBatch):
-    """Batch class for multiple MNIST images in random locations of image"""
+    """Batch class for multiple MNIST images in random locations of image."""
 
     components = 'images', 'labels', 'masks'
 
     @action
     def normalize_images(self):
-        """Normalize pixel values to (0, 1)"""
+        """Normalize pixel values to (0, 1)."""
         self.images = self.images / 255
         return self
 
@@ -53,7 +52,7 @@ class MultiMNIST(ImagesBatch):
 
     @action
     def make_masks(self):
-        """Create masks for images in batch"""
+        """Create masks for images in batch."""
         masks = np.ones_like(self.images) * 10
         coords = np.where(self.images > 0)
         masks[coords] = self.labels[coords[0]]
@@ -61,10 +60,11 @@ class MultiMNIST(ImagesBatch):
         return self
 
 def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100, 100), mode='mnist'):
-    """Train model and show plots to demonstrate result"""
+    """Train model and show plots to demonstrate result."""
     mnist = MNIST(batch_class=MultiMNIST)
     print('Demonstarate {}'.format(model.__name__))
     model_config = {'loss': 'softmax_cross_entropy',
+                    'input_block/inputs': 'images',
                     'optimizer': {'name':'Adam',
                                   'use_locking': True},
                     'inputs':    {'images': {'shape': (None, None, 1)},
@@ -119,7 +119,7 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
     get_plots(test_ppl, mode='c', inverse=True, n_examples=10)
 
 def get_plots(pipeline, n_examples=10, mode='sc', inverse=True, title=None, batch_size=100):
-    """Show results of segmentation networks"""
+    """Show results of segmentation networks."""
     batch = pipeline.next_batch(batch_size, shuffle=True)
     images = np.squeeze(batch.data.images)[:n_examples]
     if 's' in mode:
