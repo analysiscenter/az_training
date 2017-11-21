@@ -56,15 +56,14 @@ class MnistBatch(ImagesBatch):
     @inbatch_parallel(init='init_function', post='post_function', target='threads')
     def shift_flattened_pic(self, idx, max_margin=8):
         """ Apply random shift to a flattened pic
-        
+
         Args:
             idx: index in the self.images of a pic to be flattened
         Return:
             flattened shifted pic
         """
         pic = self.images[idx].reshape(28, 28)
-        # print('pic', pic)
-        padded = np.pad(pic, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
+        padded = np.pad(pic, pad_width=[[max_margin, max_margin], [max_margin, max_margin]],
                         mode='constant')
         left_lower = np.random.randint(2 * max_margin, size=2)
         slicing = (slice(left_lower[0], left_lower[0] + 28),
@@ -72,36 +71,6 @@ class MnistBatch(ImagesBatch):
         res = padded[slicing]
         res = res.reshape((28, 28, 1))
         return res
-
-
-    # @action
-    # def load(self, src, fmt='blosc'):
-    #     """ Load mnist pics with specifed indices
-
-    #     Args:
-    #         fmt: format of source. Can be either 'blosc' or 'ndarray'
-    #         src: if fmt='blosc', then src is a path to dir with blosc-packed
-    #             mnist images and labels are stored.
-    #             if fmt='ndarray' - this is a tuple with arrays of images and labels
-
-    #     Return:
-    #         self
-    #     """
-    #     if fmt == 'blosc':     
-    #         # read blosc images, labels
-    #         with open('mnist_pics.blk', 'rb') as file:
-    #             self.images = blosc.unpack_array(file.read())[self.indices]
-    #             self.images = np.reshape(self.images, (65000, 28, 28, 1))
-
-    #         with open('mnist_labels.blk', 'rb') as file:
-    #             self.labels = blosc.unpack_array(file.read())[self.indices]
-    #     elif fmt == 'ndarray':
-    #         all_images, all_labels = src
-    #         self.images = all_images[self.indices]
-    #         self.labels = all_labels[self.indices]
-
-    #     return self
-
 
 def draw_stats(all_stats, labels, title):
     ''' Draw accuracy/iterations plot '''
@@ -116,7 +85,7 @@ def draw_stats(all_stats, labels, title):
     plt.ylabel('accuracy')
     plt.legend()
     plt.show()
-  
+
 
 def draw_digit(pics, y_predict, y_true, probs, answer):
     ''' Draw a random digit '''

@@ -76,15 +76,11 @@ class MyMnistModel(TFModel):
         global_step = tf.Variable(0, trainable=False)
         starter_learning_rate = 0.001
         learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
-                                            150, 0.85, staircase=True)
+                                                   150, 0.85, staircase=True)
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         with tf.control_dependencies(update_ops):
-            cls.train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
-
+            cls.train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss,
+                                                                                       global_step=global_step)
         labels_hat = tf.cast(tf.argmax(net, axis=1), tf.int64)
         tf.identity(labels_hat, name='predicted_labels')
-
-        # labels = tf.cast(tf.argmax(y_target, axis=1), tf.float32)
-        # tf.identity(labels, name='true_labels')
-        # tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
         return net
