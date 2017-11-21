@@ -1,0 +1,30 @@
+"""File contains classes with main regression alghoritms"""
+import sys
+
+import tensorflow as tf
+
+sys.path.append('../..')
+from dataset.models.tf import TFModel
+from dataset.models.tf.layers import conv_block
+
+class Regressions(TFModel):
+    """ Class with logistic regression model """
+
+    @classmethod
+    def body(cls, inputs, name='body', **kwargs):
+        """ Body of our model
+        
+        Parameters
+        ----------
+        inputs : tf.Tensor
+            input tensor
+        name : str
+            scope name
+
+        """
+        dense = tf.layers.dense(inputs, kwargs['units'], name='dense')
+
+        tf.nn.sigmoid(dense, name='sigmoid')
+        tf.cast(tf.exp(dense), tf.int32, name='predicted_poisson_answer')
+
+        return dense
