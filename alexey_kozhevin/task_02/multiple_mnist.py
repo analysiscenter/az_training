@@ -1,7 +1,7 @@
 #pylint:disable=attribute-defined-outside-init
 
 """Auxilary module to demonstrate segmentation networks"""
-from time import time
+from time import time              
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors
