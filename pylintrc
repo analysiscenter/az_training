@@ -1,5 +1,6 @@
 [MASTER]
 extension-pkg-whitelist=numpy
+init-hook='import os, sys; sys.path.extend([os.path.join('.', dirs) for dirs in list(os.walk('.'))[0][1]])'
 
 [FORMAT]
 max-line-length=120
@@ -8,8 +9,10 @@ max-args=8
 max-locals=20
 
 [BASIC]
-good-names=_,x,y,z,i,j,k,l,m,n,p,r,u
+good-names=_,x,y,z,i,j,k,l,m,n,p,r,u,b,w,y_,it
 
+[MESSAGE CONTROL]
+disable=no-self-use, no-method-argument, duplicate-code
 [TYPECHECK]
 ignored-modules=numpy
 
