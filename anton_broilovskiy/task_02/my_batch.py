@@ -4,9 +4,9 @@ import sys
 
 import numpy as np
 
-sys.path.append('..')
+sys.path.append('../..')
 from dataset import action, inbatch_parallel, any_action_failed
-from dataset.dataset.image import ImagesBatch
+from dataset.dataset import ImagesBatch
 
 class MnistBatch(ImagesBatch):
     """ Mnist batch and models
@@ -17,17 +17,6 @@ class MnistBatch(ImagesBatch):
 
     labels: numpy array
     Array with answers """
-
-    def __init__(self, index, *args, **kwargs):
-        super().__init__(index, *args, **kwargs)
-        self.images = None
-        self.labels = None
-        _, _ = args, kwargs
-
-    @property
-    def components(self):
-        """ Components of mnist-batch """
-        return 'images', 'labels'
 
     @action
     @inbatch_parallel(init='init_func', post='post_func', target='threads')
@@ -53,7 +42,7 @@ class MnistBatch(ImagesBatch):
         left_lower = np.random.randint(2 * max_margin, size=2)
         slicing = (slice(left_lower[0], left_lower[0] + 28),
                    slice(left_lower[1], left_lower[1] + 28))
-        return padded[slicing].reshape(-1, 28, 28)
+        return padded[slicing].reshape(-1, 28, 28, 1)
 
     def post_func(self, list_of_res):
         """ Concat outputs from shift_flattened_pic
@@ -64,7 +53,7 @@ class MnistBatch(ImagesBatch):
         if any_action_failed(list_of_res):
             raise Exception("Something bad happend")
         else:
-            self.images = np.stack(list_of_res).reshape(-1, 28, 28)
+            self.images = np.stack(list_of_res).reshape(-1, 28, 28, 1)
             return self
 
     def init_func(self):
