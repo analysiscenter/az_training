@@ -3,9 +3,8 @@ import sys
 
 import tensorflow as tf
 
-sys.path.append('../..')
+sys.path.append('../../dataset')
 from dataset.models.tf import TFModel
-from dataset.models.tf.layers import conv_block
 
 class Regressions(TFModel):
     """ Class with logistic regression model """
@@ -13,7 +12,7 @@ class Regressions(TFModel):
     @classmethod
     def body(cls, inputs, name='body', **kwargs):
         """ Body of our model
-        
+
         Parameters
         ----------
         inputs : tf.Tensor
@@ -22,7 +21,8 @@ class Regressions(TFModel):
             scope name
 
         """
-        dense = tf.layers.dense(inputs, kwargs['units'], name='dense')
+        with tf.variable_scope(name):
+            dense = tf.layers.dense(inputs, kwargs['units'], name='dense')
 
         tf.nn.sigmoid(dense, name='sigmoid')
         tf.cast(tf.exp(dense), tf.int32, name='predicted_poisson_answer')
