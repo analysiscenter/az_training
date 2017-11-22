@@ -1,10 +1,10 @@
 * task_01 - using dataset and tensorflow libraries write logistic, linear and poisson regressions.
-* task_02 - Create CNN for recognition MNIST imgaes with parallel augmentation.
+* task_02 - Create CNN for recognition MNIST imgaes with parallel augmentation. May not be supported by the latest version of dataset.
 * task_03 - Write CNN (with batch_norm, dropout, changing learning rate) for recognition MNIST images with augmentation and early stopping.
 * task_04 - Git-notebooks including:
   - git branch, git checkout, git stash, git log, git show
   - git merge, git mergetool, git reset, git rebase
-* task_06 - Compare ResNet with FreezeOut method and without.
+* task_06 - Compare ResNet with FreezeOut method and without. May not be supported by the latest version of dataset.
 * task_07 - Experiments with weights:
   - Testing how many weights we can nullify without loss of quality.
   - Сlusters weightss and check, how many clasters need to model, for predict without loss of quality.
