@@ -22,32 +22,7 @@ class ConvModel(TFModel):
             default parameters to network
         """
         config = TFModel.default_config()
-        config['body'].update(dict(filters=[16, 32, 64], kernel_size=[7, 5, 3],
-                              pool_size=2, pool_strides=[3, 3, 2], layout='cpna'))
+        config['body'].update(dict(layout='cpna'*3, filters=[16, 32, 64], kernel_size=[7, 5, 3],
+                              pool_size=2, pool_strides=[3, 3, 2]))
         config['head'].update(dict(layout='fafa'))
         return config
-
-    @classmethod
-    def body(cls, inputs, layout, filters, name='body', **kwargs):
-        """ Base layers.
-
-        Parameters
-        ----------
-        inputs : tf.Tensor
-            input tensor
-        layout : str
-            a sequence of blocks
-        filters: list
-            number of filters in convolutions
-        arch : dict
-            parameters for each block
-        name : str
-            scope name
-
-        Returns
-        -------
-        tf.Tensor
-        """
-        with tf.variable_scope(name):
-            x = conv_block(inputs, layout*3, filters, **kwargs)
-        return x
