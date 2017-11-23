@@ -1,3 +1,4 @@
+# pylint: skip-file
 def master():
 	print('master')
 def square(a):
