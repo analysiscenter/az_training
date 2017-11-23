@@ -5,7 +5,7 @@ import sys
 import numpy as np
 
 sys.path.append('../..')
-from dataset import action, inbatch_parallel, any_action_failed
+from dataset.dataset import action, inbatch_parallel, any_action_failed
 from dataset.dataset import ImagesBatch
 
 class MnistBatch(ImagesBatch):
@@ -17,6 +17,12 @@ class MnistBatch(ImagesBatch):
 
     labels: numpy array
     Array with answers """
+
+    # def __init__(self, index, *args, **kwargs):
+    #     _ = args, kwargs
+    #     super().__init__(index, *args, **kwargs)
+    #     self.images = None
+    #     self.labels = None
 
     @action
     @inbatch_parallel(init='init_func', post='post_func', target='threads')
@@ -53,7 +59,7 @@ class MnistBatch(ImagesBatch):
         if any_action_failed(list_of_res):
             raise Exception("Something bad happend")
         else:
-            self.images = np.stack(list_of_res).reshape(-1, 28, 28, 1)
+            self.images = np.stack(list_of_res).reshape(-1, 28, 28, 1) # pylint: disable=attribute-defined-outside-init
             return self
 
     def init_func(self):

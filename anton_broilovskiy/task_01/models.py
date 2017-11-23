@@ -3,8 +3,8 @@ import sys
 
 import tensorflow as tf
 
-sys.path.append('../../dataset')
-from dataset.models.tf import TFModel
+sys.path.append('../..')
+from dataset.dataset.models.tf import TFModel
 
 class Regressions(TFModel):
     """ Class with logistic regression model """

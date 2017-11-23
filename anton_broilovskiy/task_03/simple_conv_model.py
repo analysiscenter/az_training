@@ -1,12 +1,9 @@
 """ File with convolution network """
-
 import sys
 
-import tensorflow as tf
+sys.path.append('../..')
 
-sys.path.append('../../dataset')
-from dataset.models.tf import TFModel
-from dataset.models.tf.layers import conv_block
+from dataset.dataset.models.tf import TFModel
 
 
 class ConvModel(TFModel):
@@ -23,6 +20,6 @@ class ConvModel(TFModel):
         """
         config = TFModel.default_config()
         config['body'].update(dict(layout='cpna'*3, filters=[16, 32, 64], kernel_size=[7, 5, 3],
-                              pool_size=2, pool_strides=[3, 3, 2]))
+                                   pool_size=2, pool_strides=[3, 3, 2]))
         config['head'].update(dict(layout='fafa'))
         return config

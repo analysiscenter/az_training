@@ -5,9 +5,9 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.layers import xavier_initializer_conv2d as xavier
 
-sys.path.append('..')
+sys.path.append('../..')
 from batch import conv_block, identity_block
-from dataset import action, model, Batch
+from dataset.dataset import action, model, Batch
 
 def create_train(opt, src, global_step, it, global_it, learn, scaled):
     """ Function for create optimizer to each layer.

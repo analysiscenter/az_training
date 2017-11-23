@@ -1,8 +1,8 @@
 """File contains main class named myBatch and function to generate data."""
 import sys
 
-sys.path.append('../../dataset')
-from dataset import action, Batch
+sys.path.append('../..')
+from dataset.dataset import action, Batch
 
 class MyBatch(Batch):
     """ Class for load data into regression models
