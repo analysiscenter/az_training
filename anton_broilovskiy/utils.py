@@ -1,18 +1,15 @@
 """ File with some useful functions"""
-import time
 import matplotlib
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 from pandas import ewma
-import tensorflow as tf
-from tensorflow.contrib.layers import xavier_initializer_conv2d as Xavier
 
 
 plt.style.use('seaborn-poster')
 plt.style.use('ggplot')
 
 def draw(first, first_label, second=None, second_label=None, type_data='loss', window=50, bound=None, axis=None):
-
     """ Draw on graph first and second data.
 
     The graph shows a comparison of the average values calculated with a 'window'. You can draw one graph
@@ -20,30 +17,22 @@ def draw(first, first_label, second=None, second_label=None, type_data='loss', w
 
     Parameters
     ----------
-    first: list or numpy array
-    Have a values to show
-
-    first_label: str
-    Name of first data
-
-    second: list or numpy array, optional
-    Have a values to show
-
-
-    second_label: str, optional
-    Name of second data
-
-    type_data: str, optional
-    Type of data. Example 'loss', 'accuracy'
-
-    window: int, optional
-    window width for calculate average value
-
-    bound: list or None
-    Bounds to limit graph: [min x, maxis x, min y, maxis y]
-
-    axis: None or element of subplot
-    If you want to draw more subplots give the element of subplot """
+    first : list or numpy array
+        Have a values to show
+    first_label : str
+        Name of first data
+    second : list or numpy array, optional
+        Have a values to show
+    second_label : str, optional
+        Name of second data
+    type_data : str, optional
+        Type of data. Example 'loss', 'accuracy'
+    window : int, optional
+        window width for calculate average value
+    bound : list or None
+        Bounds to limit graph: [min x, maxis x, min y, maxis y]
+    axis : None or element of subplot
+        If you want to draw more subplots give the element of subplot """
 
     firt_ewma = ewma(np.array(first), span=window, adjust=False)
     second_ewma = ewma(np.array(second), span=window, adjust=False) if second else None
@@ -64,122 +53,91 @@ def draw(first, first_label, second=None, second_label=None, type_data='loss', w
     if bound:
         plot.axis(bound)
 
-def bottle_conv_block(input_tensor, kernel, filters, name=None, \
- strides=(2, 2)):
-    """ Function to create block bottleneck of ResNet network which incluce \
-    three convolution layers and one skip-connetion layer.
+def separate(layers_names, weights, num_params, bottle):
+    """Support fuction that allows yield the data about layer.
 
     Parameters
     ----------
-    input_tensor: tf.layer
-    input tensorflow layer
+    layers_names : list of str
+        names of layers
+    weights : list of str
+        weights of layers
+    num_params : list or tuple
+        number of parameters in each layer
+    bottle : bool
+        use bottleneck
 
-    kernel: tuple
-    Kernel size in convolution layer
+    Yields
+    ------
+    names : str
+         name of layer
+    weights : list
+        weights of layer
+    num_params : list
+        number of parameters in layer
+    """
+    def _create(layers_names, weights, name, num_params):
+        indices = [i for i in range(len(layers_names)) if name in layers_names[i][:8]]
+        if name == 'shortcut':
+            return np.hstack((weights[indices], [0, 0])), np.hstack((layers_names[indices], [0, 0])), \
+                                np.hstack((num_params[indices], [0, 0]))
+        return weights[indices], layers_names[indices], num_params[indices]
 
-    filters:list
-    Nums filters in convolution layers with len = 3
+    if not bottle:
+        name = ['layer-0', 'layer-3', 'shortcut']
+    else:
+        name = ['layer-0', 'layer-3', 'layer-6', 'shortcut']
 
-    name:str
-    Name of blocks
+    data = np.array(_create(layers_names, weights, name[0], num_params))
+    for i in name[1:]:
+        data = np.vstack((data, _create(layers_names, weights, i, num_params)))
+    names, weights, num_params = data[1::3], data[::3], data[2::3]
+    for i in range(4):
+        yield names[:, i], weights[:, i], num_params[:, i]
 
-    strides: typle
-    Strides in convolution layers
+def plot_weights(model_names, model_weights, model_params, colors, num_axis, bottleneck=True):
+    """Plot distribution of weights
 
-    Returns:
-    ----------
-
-    X: tf.layer
-    Block output layer """
-    if name is None:
-        name = str(sum(np.random.random(100)))
-    filters1, filters2, filters3 = filters
-    X = tf.layers.conv2d(input_tensor, filters1, (1, 1), strides, name='first_conv_1X1_of_' + name, \
-        activation=tf.nn.relu, kernel_initializer=Xavier(uniform=True))
-
-    X = tf.layers.conv2d(X, filters2, kernel, name='conv_3X3_of_' + name, activation=tf.nn.relu, \
-        padding='SAME', kernel_initializer=Xavier(uniform=True))
-
-    X = tf.layers.conv2d(X, filters3, (1, 1), name='second_conv_1X1_of_' + name,\
-        kernel_initializer=Xavier(uniform=True))
-
-    shortcut = tf.layers.conv2d(input_tensor, filters3, (1, 1), strides, \
-               name='shortcut_conv_1X1_of_' + name, kernel_initializer=Xavier(uniform=True))
-
-    X = tf.add(X, shortcut)
-    X = tf.nn.relu(X)
-    return X
-
-def bottle_identity_block(input_tensor, kernel, filters, name=None):
-    """ Function to create bottleneck-identity block of ResNet network.
     Parameters
     ----------
-    input_tensor: tf.layer
-    input tensorflow layer
-
-    kernel: tuple
-    Kernel size in convolution layer
-
-    filters:list
-    Nums filters in convolution layers with len = 3
-
-    name:str
-    Name of blocks
-
-    Returns:
-    ----------
-
-    X: tf.layer
-    Block output layer """
-    if name is None:
-        name = str(sum(np.random.random(100)))
-    filters1, filters2, filters3 = filters
-    X = tf.layers.conv2d(input_tensor, filters1, (1, 1), name='first_conv_1X1_of_' + name, \
-        activation=tf.nn.relu, kernel_initializer=Xavier(uniform=True))
-
-    X = tf.layers.conv2d(X, filters2, kernel, name='conv_3X3_of_' + name, activation=tf.nn.relu, \
-        padding='SAME', kernel_initializer=Xavier(uniform=True))
-
-    X = tf.layers.conv2d(X, filters3, (1, 1), name='second_conv_1X1_of_' + name,\
-                         kernel_initializer=Xavier(uniform=True))
-
-    X = tf.add(X, input_tensor)
-    X = tf.nn.relu(X)
-    return X
-
-def accum_accuracy(ind, models, data):
-    """ Function to calculate accuracy.
-    Args:
-        ind: indices elements of this batch.
-        model: what model to u use.
-        data: all data.
-    Output:
-        acc: accuracy after one iteration.
-        loss: loss after one iteration. """
-    indices, all_images, all_labels, loss, _ = models[0]
-    acc, sess = models[1]
-    loss, acc = sess.run([loss, acc], feed_dict={indices:ind.reshape(-1, 1), all_images:data[0], \
-                                                 all_labels:data[1]})
-    return acc, loss
-
-def training(ind, models, data, all_time):
-    """ Function to calculate accuracy.
-    Args:
-        ind: indices elements of this batch.
-        model: what model to u use.
-        data: all data.
-        all_time: list with len=1, calculate time for training model.
-    Output:
-        loss: loss after one iteration. """
-    indices, all_images, all_labels, loss, train = models[0]
-    sess = models[1][1]
-    timer = time.time()
-    _, loss = sess.run([train, loss], feed_dict={indices:ind.reshape(-1, 1), all_images:data[0], \
-                                                 all_labels:data[1]})
-    all_time[0] += time.time() - timer
-    return loss
-
-
+    model_names : list or str
+        name layers of model
+    model_weights : list
+        all weights of model
+    model_params : list
+        number of parameters in layers
+    colors : list
+        names of colors
+    num_axis : list with two elements
+        [nrows, ncols] in plt.subplots
+    bottleneck : bool
+        use bottleneck
+        """
+    nrows, ncols = num_axis
+    _, subplot = plt.subplots(nrows, ncols, sharex='all', figsize=(23, 24))
+    subplot = subplot.reshape(-1)
+    num_plot = 0
+    dict_names = {'bottleneck': {'layer-0': 'first conv 1x1',
+                                 'layer-3': 'conv 3x3',
+                                 'layer-6': 'second conv 1x1'},
+                  'no_bottle': {'layer-0': 'first conv 3x3',
+                                'layer-3': 'second conv 3x3'}}
+    bottle = 'bottleneck' if bottleneck else 'no_bottle'
+    for names, weights, num_params in separate(model_names, model_weights, model_params, bottleneck):
+        for name, weight, num in zip(names, weights, num_params):
+            if name != 'shortcut' and name != '0':
+                name = dict_names[bottle][name]
+            subplot[num_plot].set_title('Number of parameners={}\n{}'.format(num, name), fontsize=18)
+            if not isinstance(weight, int):
+                sns.distplot(weight.reshape(-1), ax=subplot[num_plot], color=colors[int(num_plot % ncols)])
+                if num_plot % 1 == 0:
+                    dis = (6. / ((weight.shape[2] + weight.shape[3]) * weight.shape[0] * weight.shape[1])) ** 0.5
+                    subplot[num_plot].axvline(x=dis, ymax=10, color='k')
+                    subplot[num_plot].axvline(x=-dis, ymax=10, color='k')
+            subplot[num_plot].set_xlabel('value', fontsize=20)
+            subplot[num_plot].set_ylabel('quantity', fontsize=20)
+            num_plot += 1
+    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
 
 def axis_draw(freeze_loss, res_loss, src, axis):
     """ Draw graphs to compare models. Theaxis graph shows a comparison of the average
