@@ -1,12 +1,13 @@
 """ File with simple model example of convolution network """
 import sys
 
-sys.path.append('../..')
+sys.path.append('..')
 
 from dataset.dataset.models.tf import TFModel
 
 class ConvModel(TFModel):
     """ Class to build conv model """
+
     @classmethod
     def default_config(cls):
         """ Default parameters for conv model.

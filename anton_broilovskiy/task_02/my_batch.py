@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 
-sys.path.append('../..')
+sys.path.append('..')
 from dataset.dataset import action, inbatch_parallel, any_action_failed
 from dataset.dataset import ImagesBatch
 
