@@ -139,6 +139,33 @@ def plot_weights(model_names, model_weights, model_params, colors, num_axis, bot
             num_plot += 1
     plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
 
+def draw_avgpooling(maps, answers, model=True):
+    """ Draw maps from GAP
+
+    Parameters
+    ----------
+    maps : np.array
+        all maps from GAP layers
+    answers : np.array
+        answers to all maps
+    model : bool
+        se resnet or simple resnet
+    """
+    col = sns.color_palette("Set2", 8) + sns.color_palette(["#9b59b6", "#3498db"])
+
+    indices = np.array([np.where(answers == i)[0] for i in range(10)])
+
+    filters = np.array([np.mean(maps[indices[i]], axis=0).reshape(-1) for i in range(10)])
+    for i in range(10):
+        plt.plot(ewma(filters[i], span=350, adjust=False), color=col[i], label=str(i))
+
+    plt.title("Distribution of average pooling in "+("SE ResNet" if model else 'simple ResNet'))
+    plt.legend(fontsize=16, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    plt.ylabel('Activation', fontsize=18)
+    plt.xlabel('Filter index', fontsize=18)
+    plt.axis([0, 2060, 0, 1.])
+    plt.show()
+
 def axis_draw(freeze_loss, res_loss, src, axis):
     """ Draw graphs to compare models. Theaxis graph shows a comparison of the average
         values calculated with a window in 10 values.
