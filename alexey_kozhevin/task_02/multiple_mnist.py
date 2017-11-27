@@ -78,6 +78,7 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
 
 
     train_template = (Pipeline()
+                      .normalize_images()
                       .make_masks()
                       .init_variable('loss_history', init_on_each_run=list)
                       .init_variable('current_loss', init_on_each_run=0)
@@ -102,9 +103,9 @@ def demonstrate_model(model, filters=64, max_iter=100, batch_size=64, shape=(100
     plt.show()
 
     if mode == 'multimnist':
-        test_template = Pipeline().mix_digits(image_shape=shape, max_digits=5)
+        test_template = Pipeline().normalize_images().mix_digits(image_shape=shape, max_digits=5)
     elif mode == 'mnist':
-        test_template = Pipeline().make_masks()
+        test_template = Pipeline().normalize_images().make_masks()
 
     test_template = (test_template
                      .import_model('conv', train_pp)
