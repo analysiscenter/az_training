@@ -45,5 +45,5 @@ class MyBatch(Batch):
         """
         _ = args, kwargs, fmt, components
         self.input_data = src[0][self.indices].reshape(-1, src[0].shape[1])
-        self.labels = src[1][self.indices].reshape(-1, 1)
+        self.labels = src[1][self.indices]
         return self

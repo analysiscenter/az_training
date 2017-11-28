@@ -58,7 +58,7 @@ def generate_logistic_data(size, first_params, second_params):
     second = np.random.multivariate_normal(second_params[0], second_params[1], size)
 
     x = np.vstack((first, second))
-    y = np.hstack((np.zeros(size), np.ones(size))).reshape(-1, 1)
+    y = np.hstack((np.zeros(size), np.ones(size)))
     shuffle = np.arange(len(x))
     np.random.shuffle(shuffle)
     x = x[shuffle]
@@ -92,4 +92,4 @@ def generate_poisson_data(lam, size=10):
     x = x[shuffle]
     y = y_obs[shuffle]
 
-    return x, y
+    return x, y.reshape(-1, 1)

@@ -21,7 +21,6 @@ class Regressions(TFModel):
         with tf.variable_scope(name):
             dense = tf.layers.dense(inputs, kwargs['units'], name='dense')
 
-        tf.nn.sigmoid(dense, name='sigmoid')
         tf.cast(tf.exp(dense), tf.int32, name='predicted_poisson_answer')
 
         return dense
