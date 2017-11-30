@@ -1,4 +1,4 @@
 [submodule "dataset"]
-	path = dataset
+	path = gregory_ivanov/dataset
 	url = https://github.com/analysiscenter/dataset.git
 	branch = conv
