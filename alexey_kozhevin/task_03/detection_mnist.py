@@ -1,14 +1,13 @@
+#pylint:disable=attribute-defined-outside-init
+
 """
 Generate images with MNIST in random positions
 """
 import sys
-import pickle
 import numpy as np
-import time
-from scipy.special import expit
 import scipy.ndimage
-import itertools
-from skimage.transform import resize
+
+sys.path.append('..')
 
 from dataset import action, inbatch_parallel, any_action_failed
 from dataset import ImagesBatch
@@ -21,6 +20,7 @@ class DetectionMnist(ImagesBatch):
     @action
     @inbatch_parallel(init='indices', post='post_func_multi')
     def generate_images(self, ind, *args, **kwargs):
+        _ = ind, args
         """ Create image with 'image_shape' and put MNIST digits in random locations resized to 'resize_to'. """
         image_shape = kwargs.get('image_shape', (64, 64))
         n_digits = kwargs.get('n_digits', (10, 20))
