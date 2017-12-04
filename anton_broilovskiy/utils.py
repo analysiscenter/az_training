@@ -53,7 +53,40 @@ def draw(first, first_label, second=None, second_label=None, type_data='loss', w
     if bound:
         plot.axis(bound)
 
-def separate(layers_names, weights, num_params, bottle):
+def get_weights(session):
+    """ Get weigths from model
+
+    Parameters
+    ----------
+    graph : tf.Graph
+        your model graph
+    session : tf.Session
+
+    Returns
+    -------
+    names : list with str
+        names of all layers
+    weights : np.array
+        weights of all layers
+    biases : np.array
+        biases of all layers
+    """
+    weights, biases = [], []
+    graph = session.graph
+    variables = graph.get_collection('trainable_variables')
+    variables = [var for var in variables if 'batch_normalization' not in var.name][2:]
+    names = np.array([layer.name.split('/')[5] if 'shortcut' not in layer.name else 'shortcut'\
+                      for layer in variables[:-2:2]])
+
+    weights_variables = [var for var in variables[:-2] if 'bias:0' not in var.name]
+    biases_variables = [var for var in variables[:-2] if 'kernel:0' not in var.name]
+    weights.append(session.run(weights_variables))
+    biases.append(session.run(biases_variables))
+
+    return names, np.array(weights[0]), np.array(biases[0])
+
+
+def separate(layers_names, weights, num_params, bottle, num_blocks): # pylint: disable=too-many-locals
     """Support fuction that allows yield the data about layer.
 
     Parameters
@@ -66,36 +99,47 @@ def separate(layers_names, weights, num_params, bottle):
         number of parameters in each layer
     bottle : bool
         use bottleneck
+    num_blocks : list
+        numbers of blocks to draw
 
     Yields
     ------
-    names : str
+    layer_names : str
          name of layer
-    weights : list
+    layer_weights : list
         weights of layer
-    num_params : list
+    layer_params : list
         number of parameters in layer
     """
-    def _create(layers_names, weights, name, num_params):
-        indices = [i for i in range(len(layers_names)) if name in layers_names[i][:8]]
-        if name == 'shortcut':
-            return np.hstack((weights[indices], [0, 0])), np.hstack((layers_names[indices], [0, 0])), \
-                                np.hstack((num_params[indices], [0, 0]))
-        return weights[indices], layers_names[indices], num_params[indices]
+    blocks = np.where(layers_names == 'layer-0')[0]
+    main_name = ['layer-0', 'layer-3']
+    len_block = 3
+    for num in num_blocks:
+        data = None
+        names = main_name.copy()
+        if bottle:
+            names.append('layer-6')
+            len_block += 1
+        names.append('shortcut' if blocks[num+1] - blocks[num] == len_block else 'zeros')
+        for name in names:
+            indices = np.where(layers_names == name)[0]
+            if name == 'shortcut':
+                indices = blocks[num+1] - 1
+                zipp = np.array(['shortcut', weights[indices], num_params[indices], None])[:-1]
+            elif name == 'zeros':
+                zipp = np.array([0, 0, 0])
+            else:
+                zipp = np.array([layers_names[indices][num], weights[indices][num],
+                                 num_params[indices][num], None])[:-1]
 
-    if not bottle:
-        name = ['layer-0', 'layer-3', 'shortcut']
-    else:
-        name = ['layer-0', 'layer-3', 'layer-6', 'shortcut']
+            if data is not None:
+                data = np.hstack((data, zipp))
+            else:
+                data = zipp
+        layer_names, layer_weights, layer_params = data[::3], data[1::3], data[2::3]
+        yield layer_names, layer_weights, layer_params
 
-    data = np.array(_create(layers_names, weights, name[0], num_params))
-    for i in name[1:]:
-        data = np.vstack((data, _create(layers_names, weights, i, num_params)))
-    names, weights, num_params = data[1::3], data[::3], data[2::3]
-    for i in range(4):
-        yield names[:, i], weights[:, i], num_params[:, i]
-
-def plot_weights(model_names, model_weights, model_params, colors, num_axis, bottleneck=True):
+def plot_weights(model_names, model_weights, model_params, colors, num_axis, num_blocks, bottleneck=True): # pylint: disable=too-many-locals
     """Plot distribution of weights
 
     Parameters
@@ -112,6 +156,8 @@ def plot_weights(model_names, model_weights, model_params, colors, num_axis, bot
         [nrows, ncols] in plt.subplots
     bottleneck : bool
         use bottleneck
+    num_blocks : list
+        numbers of blocks to draw
         """
     nrows, ncols = num_axis
     _, subplot = plt.subplots(nrows, ncols, sharex='all', figsize=(23, 24))
@@ -122,18 +168,25 @@ def plot_weights(model_names, model_weights, model_params, colors, num_axis, bot
                                  'layer-6': 'second conv 1x1'},
                   'no_bottle': {'layer-0': 'first conv 3x3',
                                 'layer-3': 'second conv 3x3'}}
+
     bottle = 'bottleneck' if bottleneck else 'no_bottle'
-    for names, weights, num_params in separate(model_names, model_weights, model_params, bottleneck):
+
+    for names, weights, num_params in separate(model_names, model_weights, model_params, bottleneck, num_blocks):
         for name, weight, num in zip(names, weights, num_params):
-            if name != 'shortcut' and name != '0':
+
+            if name != 'shortcut' and name != 0:
                 name = dict_names[bottle][name]
+
             subplot[num_plot].set_title('Number of parameners={}\n{}'.format(num, name), fontsize=18)
+
             if not isinstance(weight, int):
                 sns.distplot(weight.reshape(-1), ax=subplot[num_plot], color=colors[int(num_plot % ncols)])
+
                 if num_plot % 1 == 0:
                     dis = (6. / ((weight.shape[2] + weight.shape[3]) * weight.shape[0] * weight.shape[1])) ** 0.5
                     subplot[num_plot].axvline(x=dis, ymax=10, color='k')
                     subplot[num_plot].axvline(x=-dis, ymax=10, color='k')
+
             subplot[num_plot].set_xlabel('value', fontsize=20)
             subplot[num_plot].set_ylabel('quantity', fontsize=20)
             num_plot += 1
