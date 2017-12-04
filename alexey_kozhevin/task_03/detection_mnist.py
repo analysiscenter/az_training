@@ -9,8 +9,7 @@ import scipy.ndimage
 
 sys.path.append('..')
 
-from dataset import action, inbatch_parallel, any_action_failed
-from dataset import ImagesBatch
+from dataset.dataset import ImagesBatch, action, inbatch_parallel, any_action_failed
 
 class DetectionMnist(ImagesBatch):
     """Batch class for multiple MNIST."""
@@ -20,8 +19,8 @@ class DetectionMnist(ImagesBatch):
     @action
     @inbatch_parallel(init='indices', post='post_func_multi')
     def generate_images(self, ind, *args, **kwargs):
-        _ = ind, args
         """ Create image with 'image_shape' and put MNIST digits in random locations resized to 'resize_to'. """
+        _ = ind, args
         image_shape = kwargs.get('image_shape', (64, 64))
         n_digits = kwargs.get('n_digits', (10, 20))
         resize_to = kwargs.get('resize_to', (28, 28))
