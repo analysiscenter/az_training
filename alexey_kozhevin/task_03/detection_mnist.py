@@ -17,6 +17,11 @@ class DetectionMnist(ImagesBatch):
     components = ('images', 'labels', 'bboxes')
 
     @action
+    def swap_axis(self):
+        self.images = np.transpose(self.images, [0, 3, 1, 2])
+        return self
+
+    @action
     @inbatch_parallel(init='indices', post='post_func_multi')
     def generate_images(self, ind, *args, **kwargs):
         """ Create image with 'image_shape' and put MNIST digits in random locations resized to 'resize_to'. """
