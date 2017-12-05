@@ -9,7 +9,7 @@ from pandas import ewma
 plt.style.use('seaborn-poster')
 plt.style.use('ggplot')
 
-def draw(first, first_label, second=None, second_label=None, type_data='loss', window=50, bound=None, axis=None):
+def draw(first, first_label, second=None, second_label=None, type_data='loss', window=5, bound=None, axis=None):
     """ Draw on graph first and second data.
 
     The graph shows a comparison of the average values calculated with a 'window'. You can draw one graph
@@ -30,7 +30,7 @@ def draw(first, first_label, second=None, second_label=None, type_data='loss', w
     window : int, optional
         window width for calculate average value
     bound : list or None
-        Bounds to limit graph: [min x, maxis x, min y, maxis y]
+        Bounds to limit graph: [min x, max x, min y, max y]
     axis : None or element of subplot
         If you want to draw more subplots give the element of subplot """
 
@@ -113,14 +113,15 @@ def separate(layers_names, weights, num_params, bottle, num_blocks): # pylint: d
     """
     blocks = np.where(layers_names == 'layer-0')[0]
     main_name = ['layer-0', 'layer-3']
-    len_block = 3
+    len_block = 4 if bottle else 3
     for num in num_blocks:
         data = None
         names = main_name.copy()
         if bottle:
             names.append('layer-6')
-            len_block += 1
-        names.append('shortcut' if blocks[num+1] - blocks[num] == len_block else 'zeros')
+
+        div = blocks[num+1] - blocks[num] if len(blocks) < num+1 else blocks[num] - blocks[num-1]
+        names.append('shortcut' if div == len_block else 'zeros')
         for name in names:
             indices = np.where(layers_names == name)[0]
             if name == 'shortcut':
