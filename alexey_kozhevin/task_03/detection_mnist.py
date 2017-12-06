@@ -18,6 +18,7 @@ class DetectionMnist(ImagesBatch):
 
     @action
     def swap_axis(self):
+        """ Convert from channels_last to channels_first. """
         self.images = np.transpose(self.images, [0, 3, 1, 2])
         return self
 
