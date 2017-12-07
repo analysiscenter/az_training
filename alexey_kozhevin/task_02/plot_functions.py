@@ -37,16 +37,22 @@ def plot_examples(images, masks, proba, n_examples):
     plt.colorbar(cax=cax, orientation='horizontal')
     plt.show()
 
-def get_rgb(image, noise):
+def get_rgb(image, noise, data_format='channels_last'):
     """Get RGB image from greyscale image and noise."""
     den = 255 if image.max() > 2 else 1
     image = image / den
     noise = noise / den
     rgb_noise = np.dstack([noise] * 3)
     rgb_image = np.zeros((*image.shape, 3))
-    rgb_image[:, :, 1] = image
-    rgb_image[:, :, 0] = image
-    return np.max([rgb_noise, rgb_image], axis=0)
+    if data_format == 'channels_last':
+        rgb_image[:, :, 1] = image
+        rgb_image[:, :, 0] = image
+        axis=-1
+    else:
+        rgb_image[1, :, :] = image
+        rgb_image[0, :, :] = image
+        axis=0       
+    return np.max([rgb_noise, rgb_image], axis=axis)
 
 def plot_noised_image(ppl):
     """Plot RGB image with highlighted MNIST digit."""
@@ -56,7 +62,7 @@ def plot_noised_image(ppl):
     plt.imshow(get_rgb(images[0], noise[0]))
     plt.show()
 
-def plot_examples_highlighted(ppl, n_examples=10, title=None):
+def plot_examples_highlighted(ppl, n_examples=10, title=None, data_format='channels_last'):
     """Plot images, masks, and predicted probabilities.
 
     Parameters
@@ -71,7 +77,8 @@ def plot_examples_highlighted(ppl, n_examples=10, title=None):
     noise = batch.data.noise
     proba = ppl.get_variable('predictions')[-1]
 
-    images = images[:, :, :, 0]
+    ind = np.index_exp[:, :, 0] if data_format == 'channels_last' else np.index_exp[0, :, :]
+    images = images[np.index_exp[:]+ind]
     n_examples = min(len(images), n_examples)
     plt.figure(figsize=(15, 3.5*n_examples))
     for i in range(n_examples):
@@ -83,10 +90,10 @@ def plot_examples_highlighted(ppl, n_examples=10, title=None):
         plt.imshow(masks[i])
         plt.subplot(n_examples, 4, i*4 + 3)
         plt.title('Prediction')
-        plt.imshow(proba[i][:, :, 1] > 0.5)
+        plt.imshow(proba[i][ind] < 0.5)
         plt.subplot(n_examples, 4, i*4 + 4)
         plt.title('Predicted probability')
-        plt.imshow(proba[i][:, :, 1], vmin=0, vmax=1)
+        plt.imshow(1-proba[i][ind], vmin=0, vmax=1)
 
 
     plt.subplots_adjust(bottom=0.1, right=0.8, top=0.9)

@@ -18,6 +18,12 @@ class NoisedMnist(ImagesBatch):
         return self
 
     @action
+    def swap_axis(self):
+        """ Convert from channels_last to channels_first. """
+        self.images = np.transpose(self.images, [0, 3, 1, 2])
+        return self
+
+    @action
     @inbatch_parallel(init='images', post='assemble', components=('images', 'coordinates'))
     def random_location(self, image, *args):
         """Put MNIST image in random location."""
