@@ -1,20 +1,11 @@
-* task_01 - using dataset and tensorflow libraries write logistic, linear and poisson regressions.
-* task_02 - Create CNN for recognition MNIST imgaes with parallel augmentation. May not be supported by the latest version of dataset.
-* task_03 - Write CNN (with batch_norm, dropout, changing learning rate) for recognition MNIST images with augmentation and early stopping.
-* task_04 - Git-notebooks including:
-  - git branch, git checkout, git stash, git log, git show
-  - git merge, git mergetool, git reset, git rebase
-* task_06 - Compare ResNet with FreezeOut method and without. May not be supported by the latest version of dataset.
-* task_07 - Experiments with weights:
-  - Testing how many weights we can nullify without loss of quality.
-  - Сlusters weightss and check, how many clasters need to model, for predict without loss of quality.
-* task_08 - Build different ResNet varians:
-  - Compare simple ResNet vs ResNet with Bottleneck blocks.
-  - Compare ResNet with Bottleneck blocks and Stochastic ResNet.
-* task_09 - Implementation of squeeze and excitation block on ResNet blocks.
-* task_10 - implementation of architectures such as:
-  - VGG
-  - Inception-v1 or GoogLeNet
-  - Unet
-  - SSD
-* task_11 - Specific NN, which recognize two numbers in the image and their colors.
+### Tutorials
+* [I.](https://github.com/analysiscenter/az_training/tree/master/anton_broilovskiy/tutorials/I.Dataset/I.Dataset.ipynb) First acquaintance with the Dataset.
+* [II.](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/tutorials/II.CNN/II.CNN.ipynb) How to write convolutional networks using a dataset.
+* [III.](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/tutorials/III.Models/III.Models.ipynb) Use of ready models from the dataset.
+
+### Researches
+* [Zeroing of weights.](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/researches/zeroing_of_weights/zeroing_of_weights.ipynb) 
+* [ResNet with stochastic depth](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/researches/stochastic_depth/stochastic_depth.ipynb)
+* [Squeeze and excitation block](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/researches/squeeze_and_excitation/squeeze_and_excitation.ipynb) in ResNet.
+* [FreezeOut](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/researches/freezeout/freezeout.ipynb) ResNet.
+* The impact of [augmentation](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/researches/augmentation/augmentation.ipynb) on network quality.

@@ -7,30 +7,6 @@ from tensorflow.contrib.layers import xavier_initializer_conv2d as xavier
 
 sys.path.append('..')
 from dataset.dataset import action, model, Batch
-def ax_draw(freeze_loss, res_loss, src, ax):
-
-
-    """ Draw graphs to compare models. The graph shows a comparison of the average 
-        values calculated with a window in 10 values.
-    Args:
-        freeze_loss: List with loss value in resnet and freezeout model
-        res_loss: List with loss value in clear resnet
-        src: List with parameters of model with FreezeOut
-        ax: Plt sublot """
-    fr_loss = []
-    n_loss = []
-
-    for i in range(10, len(res_loss) - 10):
-        fr_loss.append(np.mean(freeze_loss[i-10:i+10]))
-        n_loss.append(np.mean(res_loss[i-10:i+10]))
-    
-    
-    ax.set_title('Freeze model with:  LR={} Degree={} It={} Scaled={}'.format(*src))
-    ax.plot(fr_loss, label='freeze loss')
-    ax.plot(n_loss, label='no freeze loss')
-    ax.set_xlabel('Iteration', fontsize=16)
-    ax.set_ylabel('Loss', fontsize=16)
-    ax.legend(fontsize=14, loc=3)
 
 def conv_block(input_tensor, kernel, filters, name, strides=(2, 2)):
     """ Function to create block of ResNet network which include
