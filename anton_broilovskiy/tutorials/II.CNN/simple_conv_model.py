@@ -1,7 +1,7 @@
 """ File with convolution network """
 import sys
 
-sys.path.append('..')
+sys.path.append('../..')
 
 from dataset.dataset.models.tf import TFModel
 

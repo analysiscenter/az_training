@@ -1,7 +1,7 @@
 """File contains main class named myBatch and function to generate data."""
 import sys
 
-sys.path.append('..')
+sys.path.append('../..')
 from dataset.dataset import action, Batch
 
 class MyBatch(Batch):
