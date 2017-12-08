@@ -111,14 +111,14 @@ def separate(layers_names, weights, num_params, bottle, num_blocks): # pylint: d
     layer_params : list
         number of parameters in layer
     """
-    blocks = np.where(layers_names == 'layer-0')[0]
-    main_name = ['layer-0', 'layer-3']
+    blocks = np.where(layers_names == 'layer-1')[0]
+    main_name = ['layer-1', 'layer-4']
     len_block = 4 if bottle else 3
     for num in num_blocks:
         data = None
         names = main_name.copy()
         if bottle:
-            names.append('layer-6')
+            names.append('layer-7')
 
         div = blocks[num+1] - blocks[num] if len(blocks) < num+1 else blocks[num] - blocks[num-1]
         names.append('shortcut' if div == len_block else 'zeros')
@@ -164,11 +164,11 @@ def plot_weights(model_names, model_weights, model_params, colors, num_axis, num
     _, subplot = plt.subplots(nrows, ncols, sharex='all', figsize=(23, 24))
     subplot = subplot.reshape(-1)
     num_plot = 0
-    dict_names = {'bottleneck': {'layer-0': 'first conv 1x1',
-                                 'layer-3': 'conv 3x3',
-                                 'layer-6': 'second conv 1x1'},
-                  'no_bottle': {'layer-0': 'first conv 3x3',
-                                'layer-3': 'second conv 3x3'}}
+    dict_names = {'bottleneck': {'layer-1': 'first conv 1x1',
+                                 'layer-4': 'conv 3x3',
+                                 'layer-7': 'second conv 1x1'},
+                  'no_bottle': {'layer-1': 'first conv 3x3',
+                                'layer-4': 'second conv 3x3'}}
 
     bottle = 'bottleneck' if bottleneck else 'no_bottle'
 
