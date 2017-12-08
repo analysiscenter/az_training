@@ -47,11 +47,11 @@ def get_rgb(image, noise, data_format='channels_last'):
     if data_format == 'channels_last':
         rgb_image[:, :, 1] = image
         rgb_image[:, :, 0] = image
-        axis=-1
+        axis = -1
     else:
         rgb_image[1, :, :] = image
         rgb_image[0, :, :] = image
-        axis=0       
+        axis = 0
     return np.max([rgb_noise, rgb_image], axis=axis)
 
 def plot_noised_image(ppl):
