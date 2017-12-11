@@ -2,7 +2,7 @@
 import numpy as np
 from skimage import color
 
-from dataset import ImagesBatch, action, inbatch_parallel
+from dataset.dataset import ImagesBatch, action, inbatch_parallel
 
 class TwoMnistBatch(ImagesBatch):
     """ Batch class which create colorize image """
