@@ -7,7 +7,7 @@ from dataset.dataset import ImagesBatch, action, inbatch_parallel
 class TwoMnistBatch(ImagesBatch):
     """ Batch class which create colorize image """
 
-    components = 'images', 'labels', 'indices'
+    components = 'images', 'labels', 'color', 'first_number', 'second_number', 'indices'
 
     @action
     def normalize_images(self):
@@ -16,8 +16,8 @@ class TwoMnistBatch(ImagesBatch):
         return self
 
     @action
-    @inbatch_parallel(init='init_func', post='assemble', components=['images', 'labels'])
-    def concat_and_colorize(self, ind):
+    @inbatch_parallel(init='init_func', post='assemble', components=['images', 'color', 'first_number', 'second_number'])
+    def concat_and_colorize_images(self, ind):
         """ From a black and white image makes either a red or blue image
         with probability = percent_blue.
 
@@ -31,16 +31,16 @@ class TwoMnistBatch(ImagesBatch):
         -------
             colorized image
         """
-
         image = self.get(ind, 'images')
         label = self.get(ind, 'labels')
-        image = color.gray2rgb(image).reshape(-1, 28, 28, 3)
+        shape = image.shape[1:3]
+        image = color.gray2rgb(image).reshape(-1, *shape, 3)
 
         indices = np.array([0, 1])
         np.random.shuffle(indices)
         col = np.array([[0., 0., 1.], [1., 0., 0.]])[indices]
 
-        return [np.hstack((image[0] * col[0], image[1] * col[1])), [*indices, *label]]
+        return [np.hstack((image[0] * col[0], image[1] * col[1])), indices[0], *label]
 
     def init_func(self, components):
         """ Create queue to parallel.
