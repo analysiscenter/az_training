@@ -1,19 +1,22 @@
-import numpy as np
+""" File with inception"""
 import tensorflow as tf
 
 from dataset.dataset.models.tf import Inception_v4
 from dataset.dataset.models.tf.layers import conv_block
 
 class FourHeadedInception(Inception_v4):
-    
+    """ inception with many outputs """
+
     def build_config(self, names=None):
+        """ coufiguration function """
         config = super().build_config(names)
         config['head'] = (dict(layout='Vf'))
         return config
 
     @classmethod
     def head(cls, inputs, name='head', **kwargs):
-
+        """ head function """
+        _ = name
         first_color = conv_block(inputs, units=2, name='first_col', **kwargs)
         first_color = tf.nn.softmax(first_color, name='first_color')
         first_number = conv_block(inputs, units=10, name='first_num', **kwargs)
