@@ -101,21 +101,25 @@ class MnistBatch(ImagesBatch):
             prob1 = tf.nn.softmax(net1, name='softmax_output')
             all_labels = tf.placeholder(tf.float32, [None, 10])
 
-            y_ = tf.gather_nd(all_labels, indices)
+            y_target = tf.gather_nd(all_labels, indices)
 
-            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net1, labels=y_), name='loss')
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net1, labels=y_target), name='loss')
 
             global_step = tf.Variable(0, trainable=False)
             learning_rate = tf.placeholder(tf.float32, shape=[], name='lr')
 
             train1 = (tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step))
+
+            train2 = (tf.train.AdamOptimizer().minimize(loss))
+
             labels_hat = tf.cast(tf.argmax(net1, axis=1), tf.float32, name='labels_hat')
-            labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, name='labels')
+            labels = tf.cast(tf.argmax(y_target, axis=1), tf.float32, name='labels')
 
             accuracy1 = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32, name='accuracy'))
             session = tf.Session()
             session.run(tf.global_variables_initializer())
-        return [[indices, all_data, all_labels, loss, train1, prob1], [accuracy1, session], [learning_rate, global_step]]
+        return [[indices, all_data, all_labels, loss, train1, prob1], [accuracy1, session],\
+                [learning_rate, global_step], [train2]]
 
 
     @action(model='resnet')
@@ -136,7 +140,6 @@ class MnistBatch(ImagesBatch):
             learning_rate, global_step = models[2]
 
             period = tf.cast(config['resnet']['period'], tf.float32)
-            n_iterations = tf.cast(config['resnet']['n_iterations'], tf.float32)
             alpha = tf.cast(config['resnet']['alpha'], tf.float32)
 
             cyclic_learning_rate = (alpha / tf.cast(2.0, tf.float32) *
@@ -182,7 +185,6 @@ class MnistBatch(ImagesBatch):
         n_iterations = config['resnet']['n_iterations']
 
         n_cycles = n_iterations // period
-        results = []
         ensemble_data = defaultdict(list)
 
         for i in range(1, n_cycles + 1):
@@ -208,6 +210,19 @@ class MnistBatch(ImagesBatch):
 
     @action(model='ensemble')
     def update_stats_ensemble(self, model, config, accs, loss_history, all_data, all_labels):
+        """
+        Append accuracy that is obtained by ensemble model
+        given weights stored in sess Tf-session
+
+        Args:
+            model : do not supply this arg, always the output of convy-model defined above
+            sess : tf-session with trained (to some extent) weights
+            config : dict
+            accs : list of accuracies
+            loss_history : list of losses
+            all_data : data
+            all_labels : labels
+        """
         ensemble_data = model
         results = []
         for i, sess in enumerate(ensemble_data['sess']):
@@ -221,67 +236,24 @@ class MnistBatch(ImagesBatch):
         avg_logits = np.mean(np.array(results), axis=0)
         small_graph = tf.Graph()
         with small_graph.as_default():
-            y_ = tf.placeholder(tf.float32, [None, 10], name='y_')
-            labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, name='labels')
+            y_target = tf.placeholder(tf.float32, [None, 10], name='y_target')
+            labels = tf.cast(tf.argmax(y_target, axis=1), tf.float32, name='labels')
 
             logits = tf.placeholder(tf.float32, [None, 10], name='logits')
             labels_hat = tf.cast(tf.argmax(logits, axis=1), tf.float32, name='labels_hat')
 
             accuracy = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32), name='accuracy')
-            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_, name='loss'))
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_target, name='loss'))
 
             small_sess = tf.Session()
             small_sess.run(tf.global_variables_initializer())
             labels = all_labels[self.indices]
-            accs.append(small_sess.run(accuracy, feed_dict={y_:labels, logits:avg_logits}))
-            loss_history.append(small_sess.run(loss, feed_dict={y_:labels, logits:avg_logits}))
+            accs.append(small_sess.run(accuracy, feed_dict={y_target: labels, logits:avg_logits}))
+            loss_history.append(small_sess.run(loss, feed_dict={y_target: labels, logits:avg_logits}))
         return self
 
-    @model(mode='dynamic')
-    def standard_resnet(self, config):
-        """ Simple implementation of Resnet.
-        Args:
-            self
-        Outputs:
-            Method return list with len = 2 and some params:
-            [0][0]: indices - Plcaeholder which takes batch indices.
-            [0][1]: all_data - Placeholder which takes all images.
-            [0][2]; all_labels - Placeholder for lables.
-            [0][3]: loss - Value of loss function.
-            [0][4]: train - List of train optimizers.
-            [0][5]: prob - softmax output, need to prediction.
-            [1][0]: accuracy - Current accuracy
-            [1][1]: session - tf session """
-        with tf.Graph().as_default():
-            indices = tf.placeholder(tf.int32, shape=[None, 1], name='indices')
-            all_data = tf.placeholder(tf.float32, shape=[None, 28, 28], name='all_data')
-            x_a = tf.gather_nd(all_data, indices)
-            x1_to_tens = tf.reshape(x_a, shape=[-1, 28, 28, 1])
-            net1 = tf.layers.conv2d(x1_to_tens, 32, (7, 7), strides=(2, 2), padding='SAME', \
-                                    activation=tf.nn.relu, kernel_initializer=xavier(), name='11')
-            net1 = tf.layers.max_pooling2d(net1, (2, 2), (2, 2))
-            net1 = conv_block(net1, 3, [32, 32, 128], name='22', strides=(1, 1))
-            net1 = conv_block(net1, 3, [32, 32, 128], name='in_33', strides=(1, 1))
-            net1 = identity_block(net1, 3, [32, 32, 128], name='33')
-            net1 = conv_block(net1, 3, [64, 64, 256], name='53', strides=(1, 1))
-            net1 = identity_block(net1, 3, [64, 64, 256], name='63')
-            net1 = tf.layers.average_pooling2d(net1, (7, 7), strides=(1, 1))
-            net1 = tf.contrib.layers.flatten(net1)
-            net1 = tf.layers.dense(net1, 10, kernel_initializer=tf.contrib.layers.xavier_initializer())
-            prob1 = tf.nn.softmax(net1, name='softmax_output')
-            all_labels = tf.placeholder(tf.float32, [None, 10])
-            y_ = tf.gather_nd(all_labels, indices)
-            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=net1, labels=y_), name='loss')
-            train1 = (tf.train.AdamOptimizer().minimize(loss))
-            labels_hat = tf.cast(tf.argmax(net1, axis=1), tf.float32, name='labels_hat')
-            labels = tf.cast(tf.argmax(y_, axis=1), tf.float32, name='labels')
-            accuracy1 = tf.reduce_mean(tf.cast(tf.equal(labels_hat, labels), tf.float32, name='accuracy'))
-            session = tf.Session()
-            session.run(tf.global_variables_initializer())
-        return [[indices, all_data, all_labels, loss, train1, prob1], [accuracy1, session]]
 
-
-    @action(model='standard_resnet')
+    @action(model='resnet')
     def train_standard_resnet(self, models, train_loss, accs, data, lables):
         """ Function for traning ResNet.
         Args:
@@ -291,7 +263,8 @@ class MnistBatch(ImagesBatch):
         Output:
             self """
         accuracy, sess = models[1]
-        indices, all_data, all_lables, loss, train, _ = models[0]
+        indices, all_data, all_lables, loss, _, _ = models[0]
+        train = models[-1][0]
 
         sess.run(train, feed_dict={indices:self.indices.reshape(-1, 1), all_lables:lables, all_data:data})
 
@@ -303,50 +276,9 @@ class MnistBatch(ImagesBatch):
         return self
 
 
-    @action(model='standard_resnet')
-    def update_stats_standard_resnet(self, model, accs, loss_history, data, labels):
-        """
-        Append accuracy that is obtained by convy-model
-        given weights stored in sess Tf-session
-
-        Args:
-            model: do not supply this arg, always the output of convy-model defined above
-            sess: tf-session with trained (to some extent) weights
-            accs: list with accuracies
-        """
-
-        sess = model[1][1]
-        accuracy = model[1][0]
-        indices, all_data, all_labels, loss, train, _ = model[0]
-
-        loss_history.append(sess.run(loss, feed_dict={indices:self.indices.reshape(-1, 1), \
-                                     all_data: data, all_labels: labels}))
-        accs.append(sess.run(accuracy, feed_dict={indices:self.indices.reshape(-1, 1), \
-                             all_data: data, all_labels: labels}))
-        return self
-
-
     @action(model='resnet')
     def update_stats(self, model, accs, loss_history, data, labels):
         """ Append accuracy that is obtained by convy-model given weights stored in sess Tf-session
-        Args:
-            model: do not supply this arg, always the output of convy-model defined above
-            sess: tf-session with trained (to some extent) weights
-            accs: list with accuracies
-        """
-        sess = model[1][1]
-        accuracy = model[1][0]
-        indices, all_data, all_labels, loss, train, _ = model[0]
-
-        loss_history.append(sess.run(loss, feed_dict={indices:self.indices.reshape(-1, 1), all_data: data, all_labels: labels}))
-        accs.append(sess.run(accuracy, feed_dict={indices:self.indices.reshape(-1, 1), all_data: data, all_labels: labels}))
-        return self
-
-
-    @action(model='resnet')
-    def update_stats(self, model, accs, loss_history, data, labels):
-        """ Append accuracy that is obtained by convy-model given weights stored in sess Tf-session
-
         Args:
             model: do not supply this arg, always the output of convy-model defined above
             sess: tf-session with trained (to some extent) weights
@@ -361,6 +293,7 @@ class MnistBatch(ImagesBatch):
         accs.append(sess.run(accuracy, feed_dict={indices:self.indices.reshape(-1, 1), \
                              all_data: data, all_labels: labels}))
         return self
+
 
 def conv_block(input_tensor, kernel, filters, name, strides=(2, 2)):
     """ Function to create block of ResNet network which incluce
