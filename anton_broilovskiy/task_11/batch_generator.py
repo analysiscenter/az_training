@@ -40,9 +40,10 @@ class TwoMnistBatch(ImagesBatch):
 
         return [np.hstack((image[0] * col[0], image[1] * col[1])), indices[0], *label]
 
-    def init_func(self, components):
+    def init_func(self, components, **kwargs):
         """ Create queue to parallel.
         Resurns
         -------
             Array with parallel indices """
+        _ = components
         return [{'ind':[i, np.random.choice(self.indices)]} for i in self.indices]
