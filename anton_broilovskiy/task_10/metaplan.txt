@@ -1,0 +1,75 @@
+Метаплан:
+1. Для решения каких задач авторы использовали эту модель?
+2. Как было до неё? И что за проблему решает эта архитектура?
+3. Которкий пересказ архитектуры: каким образом она решает эту проблему? Что новго они открыли, придумав эту модель? По пунктам расписать новые приемущества.
+4. Подробный рассказ про архитектуру, подробно рассказывая про каждый плюс из предыдущего пункта
+5. Какую пробему архитектура не решает? Выделить недостатки или проблемы, которые архитектура не решает
+6. Что нужно сделать, чтобы архитектура лучше или легче писалась? Рассказать какую-то фишечку об архитектуре, или про особенности её реализации
+7. Снова рассказать чем хорошая она и на этом закончить.
+
+2 части 
+* архитектурная
+* особенности имплементации
+
+Это одна из основных и самых стандартных архитектур с которой до сих пор сравнивают новые сети и используют её наработки.
+
+VGG:
+1. Архитектура задумывалась для классификация, регрессия и локализации.
+выграли Imagenet с локализацией.
+2. до её были большие ядра. Эта архитектура решает проблемiу большого количества параметров
+3. Решает эту проблему благодоря стаку из ядер 3х3, которые заменяют свертки большего размера
+4. блаблабла про почему они заменяют, как это происходит
+5. Архитектура решает проблему большого количества параметров
+Проблемы:
+	* Затухание градиента
+
+7. Маленькие свертки
+про объем памяти и сравнение с чем?
+
+
+
+Как я буду решать задачу
+
+Я буду эксперементировать с различными архитектурами.
+
+1. после одного полносвязного слоя сделать 4 независимых полносвязных слоя. Тогда обучение будет состоять:
+	* считаем 4 разных лосса, допустим кроссэнтропию, а потом складываем их. 1 оптимайзер
+	* Складывать отдельно лосс цифер и цвета. Сделать 2 оптимайзера на это
+	* Сделать 4 оптимайзера на это
+2. На последнем слое оставить карты, но их число должно быть 22. Затем мы делаем GAP и делаем сигмойду для первых двух карт, и 2 софтмакса для 20 оставшихся
+
+
+Расширенный метаплан:
+
+1. First slide with name of architercure and name of it and authors.
+
+Hello everyone! We are glad to see you here!
+And today we consider .... this model was elaborated by group of ... in ... and is model is _______good_____, because it ...(won imagenet for example)
+Authors use this model to solve ... tasks(classification and etc.)
+
+2. Slide with name and, maybe small structure one of them.
+
+Before (hat) appeared the problem was tackeled by ... and ... which were ____bad____
+The forerunners of this architecture were ...(name of architectures) There all have similar ...
+This model takes into account drawbacks and (see at the problem in anouther angle) solve the problem of ... in this way ...
+
+3. Slide with the pluses of this model.
+
+To achieve the goal, ...
+
+
+4. Slide with first plus(second and etc)
+
+And now let's talk more about first plus\feature\bonus\benefit\. This plus is ... and it resolved the problem in this way.. about second and etc.
+
+5. Slide with drawbacks.
+
+But this architectures is not perfect. First fo drawback\..\ is ... second ... etc ...
+
+6. Slide with code? or come advice with implementation of it
+
+(Now let's talk)\ about interesting things that you can stumble upon when you try to implement this architecture.
+
+7. slide with some interesting things.
+
+And in conclusion we will sum up the results..
