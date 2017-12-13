@@ -12,21 +12,19 @@ class TwoMnistBatch(ImagesBatch):
     @action
     def normalize_images(self):
         """Normalize pixel values to (0, 1)."""
-        self.images = self.images / 255.
+        self.images = self.images / 255. # pylint: disable=attribute-defined-outside-init
         return self
 
     @action
-    @inbatch_parallel(init='init_func', post='assemble', components=['images', 'color', 'first_number', 'second_number'])
+    @inbatch_parallel(init='init_func', post='assemble', components=['images', 'color', 'first_number',
+                                                                     'second_number'])
     def concat_and_colorize_images(self, ind):
         """ From a black and white image makes either a red or blue image
         with probability = percent_blue.
-
         Parameters
         ----------
-
         image : np.array
             input image
-
         Returns
         -------
             colorized image
