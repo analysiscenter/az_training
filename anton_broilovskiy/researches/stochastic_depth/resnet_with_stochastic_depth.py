@@ -105,8 +105,8 @@ class StochasticResNet(ResNet50):
                                   strides=strides, **kwargs)
 
             data_format = kwargs.get('data_format')
-            inputs_channels = cls.channels_shape(inputs, data_format)
-            x_channels = cls.channels_shape(x, data_format)
+            inputs_channels = cls.num_channels(inputs, data_format)
+            x_channels = cls.num_channels(x, data_format)
 
             x = tf.cond(tf.cast(off, tf.bool), lambda: x*off, lambda: tf.zeros_like(x))
 
