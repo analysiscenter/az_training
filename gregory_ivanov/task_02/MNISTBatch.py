@@ -19,6 +19,7 @@ class AugmentedMNISTBatch(ImagesBatch):
         """
         return self.images[idx] * np.random.random(size=3)
 
+
     @action
     @inbatch_parallel(init='indices', post='assemble', target='threads')
     def put_on_image(self, idx, background_images):
@@ -28,7 +29,7 @@ class AugmentedMNISTBatch(ImagesBatch):
             background_images: np.array of background images
         Returns
         -------
-            randomly selected background picture with an mnist image in a random place
+            randomly selected background picture with a mnist image in a random place
         """
 
         # back shape = (n, m, 3)
@@ -39,10 +40,10 @@ class AugmentedMNISTBatch(ImagesBatch):
         image = self.images[idx]
         k = image.shape[0]
 
-        i_left_upper, j_left_uuper = np.random.randint(n - k + 1), np.random.randint(m - k + 1)
+        i_left_upper, j_left_uuper = np.random.randint(n-k+1), np.random.randint(m-k+1)
 
         non_zero = image > 0
-        back[i_left_upper : i_left_upper + k,
-             j_left_uuper : j_left_uuper + k][non_zero] = image[non_zero]
+        back[i_left_upper : i_left_upper+k,
+             j_left_uuper : j_left_uuper+k][non_zero] = image[non_zero]
 
         return back
