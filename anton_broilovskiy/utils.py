@@ -178,7 +178,7 @@ def plot_weights(model_names, model_weights, model_params, colors, num_axis, num
             if name != 'shortcut' and name != 0:
                 name = dict_names[bottle][name]
 
-            subplot[num_plot].set_title('Number of parameners={}\n{}'.format(num, name), fontsize=18)
+            subplot[num_plot].set_title('Number of parameters={}\n{}'.format(num, name), fontsize=18)
 
             if not isinstance(weight, int):
                 sns.distplot(weight.reshape(-1), ax=subplot[num_plot], color=colors[int(num_plot % ncols)])
@@ -241,3 +241,27 @@ def axis_draw(freeze_loss, res_loss, src, axis):
     axis.set_xlabel('Iteration', fontsize=16)
     axis.set_ylabel('Loss', fontsize=16)
     axis.legend(fontsize=14, loc=3)
+
+def calculate_accuracy(batch, pipeline, predict_name):
+    """ Calculate top1 and top3 accuracy
+
+    Parameters
+    ----------
+    batch : batch class
+        model batch
+
+    pipeline : pipeline class
+        pipeline with prob variable to calculate accuracy
+
+    predict_name : str
+        name of pipeline variable
+
+    Returns
+    -------
+        top one and top three accuracy"""
+    predict = pipeline.get_variable(predict_name)
+    predict_top3 = predict[-1].argsort()[:, -3::]
+
+    top1 = np.mean(np.argmax(predict[-1], axis=1) == batch.labels)
+    top3 = np.mean([1 if batch.labels[i] in pred else 0 for i, pred in enumerate(predict_top3)])
+    return top1, top3
