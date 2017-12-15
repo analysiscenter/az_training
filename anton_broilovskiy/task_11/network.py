@@ -30,7 +30,7 @@ class FourHeadedInception(Inception_v4):
         tf.nn.softmax(first_number, name='first_number')
         tf.nn.softmax(second_color, name='second_color')
         tf.nn.softmax(second_number, name='second_number')
-        
+
         col1 = tf.get_default_graph().get_tensor_by_name('FourHeadedInception/inputs/first_color:0')
         col2 = tf.get_default_graph().get_tensor_by_name('FourHeadedInception/inputs/second_color:0')
         num1 = tf.get_default_graph().get_tensor_by_name('FourHeadedInception/inputs/first_number:0')

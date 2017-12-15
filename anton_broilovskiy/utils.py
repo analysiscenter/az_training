@@ -289,16 +289,16 @@ def four_losses_draw(losses, names, title):
     title : str
         title to graph
     """
-    _, ax = plt.subplots(1, 2)
+    _, axis = plt.subplots(1, 2)
     for loss, name in zip(losses, names):
-        ax[0].plot(loss[-100:], label='%s'%name)
-        ax[0].plot(ewma(np.array(loss[-100:]),span=10,adjust=False), label='%s'%name)
-        ax[1].plot(loss, label='%s'%name)
-        ax[1].plot(ewma(np.array(loss),span=10,adjust=False), label='%s'%name)
+        axis[0].plot(loss[-100:], label='%s'%name)
+        axis[0].plot(ewma(np.array(loss[-100:]), span=10, adjust=False), label='%s'%name)
+        axis[1].plot(loss, label='%s'%name)
+        axis[1].plot(ewma(np.array(loss), span=10, adjust=False), label='%s'%name)
 
-    ax[0].set_title(title)
-    ax[0].legend()
-    ax[1].legend()
+    axis[0].set_title(title)
+    axis[0].legend()
+    axis[1].legend()
     plt.show()
 
 def calculate_accuracy(batch, pipeline, predict_name):
