@@ -1,6 +1,8 @@
+"""Custom batch class for MNIST images
+"""
 from time import time
 
-from dataset import action, ImagesBatch
+from dataset import action, ImagesBatch #pylint: disable=import-error
 
 
 class ImagesBatchTimeRecorder(ImagesBatch):
@@ -12,6 +14,11 @@ class ImagesBatchTimeRecorder(ImagesBatch):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._time_stamps = {}
+
+    @action
+    def noop(self):
+        """pass"""
+        print('I love pylint so much!!', self)
 
     @action
     def record_time(self, stat_name='statistics', mode='record'):
@@ -40,6 +47,4 @@ class ImagesBatchTimeRecorder(ImagesBatch):
                 stat_name,
                 time()-self._time_stamps[stat_name],
                 mode='append')
-        else:
-            raise
         return self
