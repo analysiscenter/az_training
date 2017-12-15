@@ -19,18 +19,25 @@ def draw(first, first_label, second=None, second_label=None, type_data='loss', w
     ----------
     first : list or numpy array
         Have a values to show
+
     first_label : str
         Name of first data
+
     second : list or numpy array, optional
         Have a values to show
+
     second_label : str, optional
         Name of second data
+
     type_data : str, optional
         Type of data. Example 'loss', 'accuracy'
+
     window : int, optional
         window width for calculate average value
+
     bound : list or None
         Bounds to limit graph: [min x, max x, min y, max y]
+
     axis : None or element of subplot
         If you want to draw more subplots give the element of subplot """
 
@@ -60,14 +67,17 @@ def get_weights(session):
     ----------
     graph : tf.Graph
         your model graph
+
     session : tf.Session
 
     Returns
     -------
     names : list with str
         names of all layers
+
     weights : np.array
         weights of all layers
+
     biases : np.array
         biases of all layers
     """
@@ -93,12 +103,16 @@ def separate(layers_names, weights, num_params, bottle, num_blocks): # pylint: d
     ----------
     layers_names : list of str
         names of layers
+
     weights : list of str
         weights of layers
+
     num_params : list or tuple
         number of parameters in each layer
+
     bottle : bool
         use bottleneck
+
     num_blocks : list
         numbers of blocks to draw
 
@@ -106,8 +120,10 @@ def separate(layers_names, weights, num_params, bottle, num_blocks): # pylint: d
     ------
     layer_names : str
          name of layer
+
     layer_weights : list
         weights of layer
+
     layer_params : list
         number of parameters in layer
     """
@@ -147,16 +163,22 @@ def plot_weights(model_names, model_weights, model_params, colors, num_axis, num
     ----------
     model_names : list or str
         name layers of model
+
     model_weights : list
         all weights of model
+
     model_params : list
         number of parameters in layers
+
     colors : list
         names of colors
+
     num_axis : list with two elements
         [nrows, ncols] in plt.subplots
+
     bottleneck : bool
         use bottleneck
+
     num_blocks : list
         numbers of blocks to draw
         """
@@ -200,8 +222,10 @@ def draw_avgpooling(maps, answers, model=True):
     ----------
     maps : np.array
         all maps from GAP layers
+
     answers : np.array
         answers to all maps
+
     model : bool
         se resnet or simple resnet
     """
@@ -223,11 +247,20 @@ def draw_avgpooling(maps, answers, model=True):
 def axis_draw(freeze_loss, res_loss, src, axis):
     """ Draw graphs to compare models. Theaxis graph shows a comparison of the average
         values calculated with a window in 10 values.
-    Args:
-        freeze_loss: List with loss value in resnet and freezeout model
-        res_loss: List with loss value in clear resnet
-        src: List with parameters of model with FreezeOut
-        axis: Plt sublot """
+
+    Parameters
+    ----------
+    freeze_loss : list
+        loss value in resnet and freezeout model
+
+    res_loss : list
+        loss value in clear resnet
+
+    src : list
+        parameters of model with FreezeOut
+
+    axis : plt sublot
+    """
     fr_loss = []
     n_loss = []
 
@@ -241,3 +274,53 @@ def axis_draw(freeze_loss, res_loss, src, axis):
     axis.set_xlabel('Iteration', fontsize=16)
     axis.set_ylabel('Loss', fontsize=16)
     axis.legend(fontsize=14, loc=3)
+
+def four_losses_draw(losses, names, title):
+    """ Draw two graphs. First - last 100 iterations. Second - all iterations.
+
+    Parameters
+    ----------
+    losses : list
+        loss values
+
+    names : list
+        names of loss
+
+    title : str
+        title to graph
+    """
+    _, ax = plt.subplots(1, 2)
+    for loss, name in zip(losses, names):
+        ax[0].plot(loss[-100:], label='%s'%name)
+        ax[0].plot(ewma(np.array(loss[-100:]),span=10,adjust=False), label='%s'%name)
+        ax[1].plot(loss, label='%s'%name)
+        ax[1].plot(ewma(np.array(loss),span=10,adjust=False), label='%s'%name)
+
+    ax[0].set_title(title)
+    ax[0].legend()
+    ax[1].legend()
+    plt.show()
+
+def calculate_accuracy(batch, pipeline, predict_name):
+    """ Calculate top1 and top3 accuracy
+
+    Parameters
+    ----------
+    batch : batch class
+        model batch
+
+    pipeline : pipeline class
+        pipeline with prob variable to calculate accuracy
+
+    predict_name : str
+        name of pipeline variable
+
+    Returns
+    -------
+        top one and top three accuracy"""
+    predict = pipeline.get_variable(predict_name)
+    predict_top3 = predict[-1].argsort()[:, -3::]
+
+    top1 = np.mean(np.argmax(predict[-1], axis=1) == batch.labels)
+    top3 = np.mean([1 if batch.labels[i] in pred else 0 for i, pred in enumerate(predict_top3)])
+    return top1, top3

@@ -11,34 +11,68 @@ class TwoMnistBatch(ImagesBatch):
 
     @action
     def normalize_images(self):
-        """Normalize pixel values to (0, 1)."""
+        """ Normalize pixel values to (0, 1). """
         self.images = self.images / 255. # pylint: disable=attribute-defined-outside-init
         return self
 
     @action
-    @inbatch_parallel(init='init_f', post='assemble', components=['images', 'first_color', 'second_color',\
+    @inbatch_parallel(init='indices', post='assemble', components=['images', 'first_color', 'second_color',\
                      'first_number', 'second_number'])
     def colorize_images(self, ind, colors):
-        """ colorize images"""
+        """ Colorize input image to given colors
+
+        Parameters
+        ----------
+        ind : numpy.unit8
+            index
+
+        colors : np.array of npo.arrays
+            new colors can be shape = (2, 3) or (1, 3)
+
+        Returns
+        -------
+        colorized_image : np.array
+            new image
+
+        index : list
+            sequence of new colors. (1, 0) or (0, 1)
+
+        label : list
+            labels to image
+        """
+
         image = self.get(ind, 'images')
+        label = self.get(ind, 'labels')
+
         shape = image.shape[:2]
         image = color.gray2rgb(image).reshape(*shape, 3)
-        ind = np.arange(len(colors))
-        np.random.shuffle(ind)
-        colors = np.array(colors)[ind]
+        index = np.arange(len(colors))
+        np.random.shuffle(index)
+        colors = np.array(colors)[index]
+        if isinstance(label, np.uint8) or len(index) < 2:
+            label = np.hstack([label, -1])
+            index = np.hstack([index, 0])
 
-        label = self.get(ind, 'labels')
-        if image.shape[1] <= image.shape[0]:
-            label = np.hstack(([label], [-1]))
-            return [image * colors, *[colors]*2, *label]
-
-        colorized_image = np.hstack((image[:, :int(shape[1]/2)] * colors[0], image[:, int(shape[1]/2):] * colors[1]))
-    return [colorized_image, *ind, *label]
+        colorized_image = np.hstack((image[:, :int(shape[1]/2)] * colors[0], image[:, int(shape[1]/2):] * colors[-1]))
+        return [colorized_image, *index, *label]
 
     @action
     @inbatch_parallel(init='init_func', post='assemble', components=['images', 'labels'])
     def gluing_of_images(self, ind):
-        """gluing images """
+        """ Gluing two image by y axis
+
+        Parameters
+        ----------
+        ind : numpy.uint8
+            index
+
+        Returns
+        -------
+        image : np.array
+            new image
+
+        label : list
+            list len = 2 with answers to new image"""
         image = self.get(ind, 'images')
         label = self.get(ind, 'labels')
 
@@ -51,11 +85,3 @@ class TwoMnistBatch(ImagesBatch):
             Array with parallel indices """
         _ = components, kwargs
         return [{'ind':np.array([i, np.random.choice(self.indices)])} for i in self.indices]
-
-    def init_f(self, components, **kwargs):
-        """ Create queue to parallel.
-        Resurns
-        -------
-            Array with parallel indices """
-        _ = components, kwargs
-        return [{'ind':i} for i in self.indices]
