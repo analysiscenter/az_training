@@ -1,9 +1,9 @@
 """ File with some useful functions"""
 import itertools
-import matplotlib
 import numpy as np
 import seaborn as sns
 from pandas import ewma
+import matplotlib
 import matplotlib.pyplot as plt
 
 
@@ -327,7 +327,7 @@ def class_accuracy(all_predicted, all_real, all_classes):
         if predtion.shape[1] > 1:
             predtion = np.argmax(predtion, axis=1)
 
-        pred_acc = lambda pred, ans : len(np.where(pred == ans)[0]) / len(pred)
+        pred_acc = lambda pred, ans: len(np.where(pred == ans)[0]) / len(pred)
         acc = pred_acc(predtion, real)
 
         ind_wrong = np.where(predtion != real)[0]
