@@ -1,14 +1,14 @@
 """ File with some useful functions"""
-import matplotlib
-import matplotlib.pyplot as plt
-import seaborn as sns
+import itertools
+import 
 import numpy as np
+import seaborn as sns
 from pandas import ewma
+import matplotlib.pyplot as plt
 
 
 plt.style.use('seaborn-poster')
 plt.style.use('ggplot')
-
 def draw(first, first_label, second=None, second_label=None, type_data='loss', window=5, bound=None, axis=None):
     """ Draw on graph first and second data.
 
@@ -275,7 +275,7 @@ def axis_draw(freeze_loss, res_loss, src, axis):
     axis.set_ylabel('Loss', fontsize=16)
     axis.legend(fontsize=14, loc=3)
 
-def four_losses_draw(losses, names, title):
+def four_losses_draw(losses, names, title, no_smoothing=True):
     """ Draw two graphs. First - last 100 iterations. Second - all iterations.
 
     Parameters
@@ -291,17 +291,56 @@ def four_losses_draw(losses, names, title):
     """
     _, axis = plt.subplots(1, 2)
     for loss, name in zip(losses, names):
-        axis[0].plot(loss[-100:], label='%s'%name)
-        axis[0].plot(ewma(np.array(loss[-100:]), span=10, adjust=False), label='%s'%name)
-        axis[1].plot(loss, label='%s'%name)
+        if no_smoothing:
+            axis[0].plot(loss[-100:], label='%s'%name)
+            axis[1].plot(loss, label='%s'%name)
         axis[1].plot(ewma(np.array(loss), span=10, adjust=False), label='%s'%name)
+        axis[0].plot(ewma(np.array(loss[-100:]), span=10, adjust=False), label='%s'%name)
 
     axis[0].set_title(title)
     axis[0].legend()
     axis[1].legend()
     plt.show()
 
-def calculate_accuracy(batch, pipeline, predict_name):
+def class_accuracy(all_predicted, all_real, all_classes):
+    """Calculate where network predicted wrong classes
+
+    Parameters
+    ----------
+    all_predicted : list
+        Groups of predicted values
+
+    all_real : list
+        Answers to all predicted values
+
+    all_classes : list with ints
+        number of classes in each group
+
+    Yields
+    -------
+    dist : np.array
+        array with [repeate(class, *num_errors)]
+    acc : np.float32
+        value of quality """
+
+    def _calculate_dist(predtion, real, classes=2):
+        if predtion.shape[1] > 1:
+            predtion = np.argmax(predtion, axis=1)
+
+        pred_acc = lambda pred, ans : len(np.where(pred == ans)[0]) / len(pred)
+        acc = pred_acc(predtion, real)
+
+        ind_wrong = np.where(predtion != real)[0]
+        wrong = [np.where(real[ind_wrong] == i)[0] for i in range(classes)]
+
+        indices_wrong = [i for i, j in enumerate(wrong) if j.shape != (0, )]
+        dist = list(itertools.chain.from_iterable(itertools.repeat(x, len(wrong[x])) for x in indices_wrong))
+        return np.array(dist), acc
+
+    for pred_iter, real_iter, class_iter in zip(all_predicted, all_real, all_classes):
+        yield _calculate_dist(pred_iter, real_iter, class_iter)
+
+def top_accuracy(batch, pipeline, predict_name):
     """ Calculate top1 and top3 accuracy
 
     Parameters
