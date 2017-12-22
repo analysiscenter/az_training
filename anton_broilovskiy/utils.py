@@ -1,5 +1,6 @@
 """ File with some useful functions"""
-import itertools
+from collections import Counter
+
 import numpy as np
 import seaborn as sns
 from pandas import ewma
@@ -302,7 +303,7 @@ def four_losses_draw(losses, names, title, no_smoothing=True):
     axis[1].legend()
     plt.show()
 
-def class_accuracy(all_predicted, all_real, all_classes):
+def class_accuracy(all_predicted, all_real):
     """Calculate where network predicted wrong classes
 
     Parameters
@@ -323,22 +324,21 @@ def class_accuracy(all_predicted, all_real, all_classes):
     acc : np.float32
         value of quality """
 
-    def _calculate_dist(predtion, real, classes=2):
+    def _calculate_dist(predtion, real):
         if predtion.shape[1] > 1:
             predtion = np.argmax(predtion, axis=1)
 
         pred_acc = lambda pred, ans: len(np.where(pred == ans)[0]) / len(pred)
         acc = pred_acc(predtion, real)
 
-        ind_wrong = np.where(predtion != real)[0]
-        wrong = [np.where(real[ind_wrong] == i)[0] for i in range(classes)]
+        dist = sorted(real[np.where(predtion != real)[0]])
+        numbers_of_errors = list(Counter(dist).values())
+        dist_proportion = [numbers/sum(numbers_of_errors) for numbers in numbers_of_errors]
 
-        indices_wrong = [i for i, j in enumerate(wrong) if j.shape != (0, )]
-        dist = list(itertools.chain.from_iterable(itertools.repeat(x, len(wrong[x])) for x in indices_wrong))
-        return np.array(dist), acc
+        return np.array(dist_proportion), acc
 
-    for pred_iter, real_iter, class_iter in zip(all_predicted, all_real, all_classes):
-        yield _calculate_dist(pred_iter, real_iter, class_iter)
+    for pred_iter, real_iter in zip(all_predicted, all_real):
+        yield _calculate_dist(pred_iter, real_iter)
 
 def top_accuracy(batch, pipeline, predict_name):
     """ Calculate top1 and top3 accuracy
