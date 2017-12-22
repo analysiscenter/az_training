@@ -1,9 +1,9 @@
 """batch generator file"""
 import sys
 import numpy as np
-sys.path.append('..')
+sys.path.append('../task_11')
 sys.path.append('../..')
-from task_11.batch_generator import TwoMnistBatch
+from batch_generator import TwoMnistBatch
 from dataset.dataset import action, inbatch_parallel
 
 class SixNumbersBatch(TwoMnistBatch):
@@ -31,7 +31,7 @@ class SixNumbersBatch(TwoMnistBatch):
         image = self.get(ind, 'images')
         label = self.get(ind, 'labels')
 
-        return [np.hstack((image[0], image[1], image[2], image[3], image[4])), label, label]
+        return [np.hstack((image[0], image[1], image[2], image[3], image[4])), *label, label]
 
     def init_func(self, components, **kwargs):
         """ Create queue to parallel.
@@ -39,4 +39,4 @@ class SixNumbersBatch(TwoMnistBatch):
         -------
             Array with parallel indices """
         _ = components, kwargs
-        return [{'ind':np.array([i, np.random.choice(self.indices, 4)])} for i in self.indices]
+        return [{'ind':np.array([i, *np.random.choice(self.indices, 4)])} for i in self.indices]
