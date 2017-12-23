@@ -2,17 +2,16 @@
 import sys
 import numpy as np
 sys.path.append('../task_11')
-sys.path.append('../..')
+sys.path.append('..')
 from batch_generator import TwoMnistBatch
 from dataset.dataset import action, inbatch_parallel
 
 class SixNumbersBatch(TwoMnistBatch):
     """class with something """
-    components = 'images', 'labels', 'first', 'second', 'third', 'fourth', 'fifth', 'indices'
+    components = 'images', 'labels', 'indices'
 
     @action
-    @inbatch_parallel(init='init_func', post='assemble', \
-                      components=['images', 'first', 'second', 'third', 'fourth', 'fifth', 'labels'])
+    @inbatch_parallel(init='init_func', post='assemble', components=['images', 'labels'])
     def gluing_of_images(self, ind):
         """ Gluing two image by y axis
 
@@ -30,8 +29,25 @@ class SixNumbersBatch(TwoMnistBatch):
             list len = 2 with answers to new image"""
         image = self.get(ind, 'images')
         label = self.get(ind, 'labels')
+        return [np.hstack((image[0], image[1], image[2], image[3], image[4])), label]
 
-        return [np.hstack((image[0], image[1], image[2], image[3], image[4])), *label, label]
+    @action
+    @inbatch_parallel(init='indices', post='assemble', components='labels')
+    def one_hot(self, ind):
+        """ One hot encoding for labels
+
+        Parameters
+        ----------
+        ind : numpy.uint8
+            index
+
+        Returns
+        -------
+            One hot labels"""
+        label = self.get(ind, 'labels')
+        one_hot = np.zeros((len(label), 10))
+        one_hot[np.arange(len(label)), label] = 1
+        return one_hot.reshape(-1)
 
     def init_func(self, components, **kwargs):
         """ Create queue to parallel.
