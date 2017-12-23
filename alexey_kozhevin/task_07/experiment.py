@@ -130,8 +130,8 @@ class Experiment:
                 graph = self.train_ppl.get_model_by_name(
                     'model').graph.get_collection('trainable_variables')
                 sess = self.train_ppl.get_model_by_name('model').session
-                for v in graph:
-                    sess.run(v.initializer)
+                for var in graph:
+                    sess.run(var.initializer)
             self.train_ppl.reset_iter()
             self.test_ppl.reset_iter()
             for _ in range(n_iters):
@@ -148,7 +148,7 @@ class Experiment:
         stat['iter_time'] = stat['time'] / n_iters
         self.stat = stat
         self.train_history = {key: np.array(value) for key, value in train_history.items()}
-        self.test_history = {key: np.array(value) for k, v in test_history.items()}
+        self.test_history = {key: np.array(value) for key, value in test_history.items()}
 
     def get_stat(self):
         """ Get experiment results. """
