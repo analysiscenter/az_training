@@ -1,29 +1,31 @@
+#pylint:disable=attribute-defined-outside-init
+
 """ Numerical experiments with networks. """
+from time import time
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from time import time
 
-from dataset.dataset import Dataset, Pipeline, action, inbatch_parallel, B, V
-from dataset.opensets import MNIST, CIFAR10, CIFAR100
+from dataset.dataset import Dataset, Pipeline, B, V
+from dataset.dataset.opensets import MNIST, CIFAR10, CIFAR100
 
 _DATASETS = {
     'mnist': [MNIST, (28, 28, 1), 10],
     'cifar': [CIFAR10, (32, 32, 3), 10],
     'cifar10': [CIFAR10, (32, 32, 3), 10],
-    'cifar100': [CIFAR10, (32, 32, 3), 100],
+    'cifar100': [CIFAR100, (32, 32, 3), 100],
 }
 
 
 class Experiment:
-
+    """ Class for multiple experiments with models. """
     def __init__(self, model, data, preproc_template=None, model_config=None, metrics=None):
         self.data = data
         self.model = model
         self.metrics = metrics
         self.preproc_template = preproc_template
         self.model_template = None
-        self.model_config = None
+        self.model_config = model_config
         self.pipeline = None
         self.train_history = None
         self.test_history = None
@@ -37,9 +39,6 @@ class Experiment:
         self._create_preproc_template()
         self._create_config()
         self._create_model_template()
-
-        train_template = self.train_template
-        test_template = self.train_template
 
         self.train_ppl = (self.preproc_template +
                           Pipeline().init_model('dynamic', self.model, 'model', config=self.model_config) +
@@ -59,14 +58,12 @@ class Experiment:
 
     def _create_dataset(self):
         if isinstance(self.data, str):
-            self._images_labels(_DATASETS[self.data][
-                                1], _DATASETS[self.data][2])
+            self._images_labels(_DATASETS[self.data][1], _DATASETS[self.data][2])
             self.data = _DATASETS[self.data][0]()
-        elif isinstance(data, Dataset):
+        elif isinstance(self.data, Dataset):
             pass
         else:
-            raise ValueError(
-                'data must be str or Dataset but {} was given'.format(type(data)))
+            raise ValueError('data must be str or Dataset but {} was given'.format(type(self.data)))
         # TODO: add arrays
 
     def _images_labels(self, shape, n_classes):
@@ -84,7 +81,7 @@ class Experiment:
                           'labels': B('labels')}
 
     def _create_preproc_template(self):
-        if self.preproc_template == None:
+        if self.preproc_template is None:
             self.preproc_template = Pipeline()
 
     def _create_model_template(self):
@@ -112,9 +109,10 @@ class Experiment:
                                  'output': self.output,
                                  'loss': 'ce',
                                  'optimizer': 'Adam',
-                                 }
+                                }
 
     def run(self, batch_size, n_iters, reps=10):
+        """ Run experiments. """
         self.batch_size = batch_size
         self.n_iters = n_iters
         self.reps = reps
@@ -136,7 +134,7 @@ class Experiment:
                     sess.run(v.initializer)
             self.train_ppl.reset_iter()
             self.test_ppl.reset_iter()
-            for i in range(n_iters):
+            for _ in range(n_iters):
                 start = time()
                 self.train_ppl.next_batch(batch_size, shuffle=True)
                 self.test_ppl.next_batch(batch_size, shuffle=True)
@@ -149,10 +147,11 @@ class Experiment:
         stat['time'] = stat['time'] / reps
         stat['iter_time'] = stat['time'] / n_iters
         self.stat = stat
-        self.train_history = {k: np.array(v) for k, v in train_history.items()}
-        self.test_history = {k: np.array(v) for k, v in test_history.items()}
+        self.train_history = {key: np.array(value) for key, value in train_history.items()}
+        self.test_history = {key: np.array(value) for k, v in test_history.items()}
 
     def get_stat(self):
+        """ Get experiment results. """
         print('Model:', self.model.__name__)
         print('Number of repetitions:', self.reps)
         print('Number of iterations:', self.n_iters)
@@ -162,9 +161,9 @@ class Experiment:
             self.stat['iter_time']))
         sns.set(color_codes=True)
         for metric in self.metrics:
-            ax = sns.tsplot(self.train_history[metric])
+            sns.tsplot(self.train_history[metric])
             plt.title("Train " + metric)
             plt.show()
-            ax = sns.tsplot(self.test_history[metric])
+            sns.tsplot(self.test_history[metric])
             plt.title("Test " + metric)
             plt.show()
