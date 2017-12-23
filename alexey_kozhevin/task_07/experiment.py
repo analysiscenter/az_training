@@ -93,18 +93,16 @@ class Experiment:
             template = template + Pipeline().init_variable(metric, init_on_each_run=list)
         save_to = [V(metric) for metric in self.metrics]
 
-        self.train_template = template +
-            Pipeline().train_model('model',
-                                   fetches=self.fetches,
-                                   feed_dict=self.feed_dict,
-                                   save_to=save_to,
-                                   mode='a')
-        self.test_template = template +
-            Pipeline().predict_model('model',
-                                     fetches=self.fetches,
-                                     feed_dict=self.feed_dict,
-                                     save_to=save_to,
-                                     mode='a')
+        self.train_template = template + Pipeline().train_model('model',
+                                                                fetches=self.fetches,
+                                                                feed_dict=self.feed_dict,
+                                                                save_to=save_to,
+                                                                mode='a')
+        self.test_template = template + Pipeline().predict_model('model',
+                                                                 fetches=self.fetches,
+                                                                 feed_dict=self.feed_dict,
+                                                                 save_to=save_to,
+                                                                 mode='a')
 
     def _create_config(self):
         if self.model_config is None:
