@@ -1,4 +1,5 @@
 #pylint:disable=attribute-defined-outside-init
+#pylint:disable=too-many-instance-attributes
 
 """ Numerical experiments with networks. """
 from time import time
