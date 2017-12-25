@@ -1,13 +1,14 @@
 #pylint:disable=attribute-defined-outside-init
 #pylint:disable=too-many-instance-attributes
+#pylint:disable=too-many-arguments
 
 """ Numerical experiments with networks. """
 from time import time
+from itertools import product
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from itertools import product
 from ipywidgets import interactive
 
 from dataset.dataset import Dataset, Pipeline, B, V
@@ -82,7 +83,7 @@ class Experiment:
             self.data = _DATASETS[self.data][0]()
         elif issubclass(self.data, Dataset):
             if self.base_config is None:
-                raise ValueError('If data is not str base_config must be dict')    
+                raise ValueError('If data is not str base_config must be dict')
         else:
             raise ValueError('data must be str or Dataset subclass')
         # TODO: add arrays
@@ -116,12 +117,12 @@ class Experiment:
     def _base_config(self):
         if self.base_config is None:
             self.base_config = {'inputs': self.placeholders_config,
-                                 'input_block/inputs': 'images',
-                                 'batch_norm': {'momentum': 0.1},
-                                 'output': self.output,
-                                 'loss': 'ce',
-                                 'optimizer': 'Adam',
-                                }
+                                'input_block/inputs': 'images',
+                                'batch_norm': {'momentum': 0.1},
+                                'output': self.output,
+                                'loss': 'ce',
+                                'optimizer': 'Adam',
+                               }
 
     def _gen_config(self):
         if self.grid_config is not None:
@@ -212,7 +213,7 @@ class Experiment:
 
     def _mean_metrics(self, stat, metric, iteration=-1):
         res = [np.array(stat[history][metric]) for history in ['train_history', 'test_history']]
-        res = [np.mean(x[:, -1]) for x in res]
+        res = [np.mean(x[:, iteration]) for x in res]
         return res
 
     def get_plots(self, metric, params_ind, *args, **kwargs):
@@ -226,9 +227,10 @@ class Experiment:
         plt.title("Test " + metric)
         plt.show()
 
-    def plot_density(self, iter, params_ind, metric, mode=None, xlim=None, ylim=None, *args, **kwargs):
-        """ Plot histogram of the metric at the fixed iteration. 
-        
+    def plot_density(self, iteration, params_ind, metric,
+                     mode=None, xlim=None, ylim=None, *args, **kwargs):
+        """ Plot histogram of the metric at the fixed iteration.
+
         Parameters
         ----------
         iter : int
@@ -244,7 +246,7 @@ class Experiment:
         ylim : tuple
         """
         for name in mode:
-            x = np.array(self.stat[params_ind][1][name][metric])[:, iter]
+            x = np.array(self.stat[params_ind][1][name][metric])[:, iteration]
             sns.distplot(x, *args, **kwargs)
             if xlim is not None:
                 plt.xlim(xlim)
