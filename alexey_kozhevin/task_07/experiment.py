@@ -3,6 +3,7 @@
 #pylint:disable=too-many-arguments
 
 """ Numerical experiments with networks. """
+import os
 from time import time
 from itertools import product
 import numpy as np
@@ -10,6 +11,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from ipywidgets import interactive
+import pandas as pd
 
 from dataset.dataset import Dataset, Pipeline, B, V
 from dataset.dataset.opensets import MNIST, CIFAR10, CIFAR100
@@ -23,7 +25,6 @@ _DATASETS = {
 
 _TASK_METRICS = {
     'cls': ['accuracy'],
-    'sgm': ['mse']
 }
 
 
@@ -167,6 +168,17 @@ class Experiment:
                 test_history[metric].append(self.test_ppl.get_variable(metric))
         return train_time / self.n_reps, train_history, test_history
 
+    def get_config_by_index(self, ind):
+        """ Get parameters configuration by index. """
+        return list(self._gen_config())[ind]
+
+    def get_index_by_config(self, config):
+        """ Get parameters configuration by index. """
+        for ind, _config in enumerate(self._gen_config()):
+            if _config == config:
+                return ind
+        raise ValueError("Experiment wasn't conducted for that parameters.")
+
     def run(self, batch_size, n_iters, n_reps=10):
         """ Run experiments. """
         self.batch_size = batch_size
@@ -195,21 +207,32 @@ class Experiment:
             stat['iter_time'] = stat['time'] / n_iters
             self.stat.append([additional_parameters, stat])
 
-    def summary(self):
+    def summary(self, verbose=True):
         """ Get description of the experiment. """
         print('Model:', self.model.__name__)
         print('Number of repetitions:', self.n_reps)
         print('Number of iterations:', self.n_iters)
         print('Batch size:', self.batch_size)
+        summ = dict()
         for parameters, stat in self.stat:
-            print('='*30)
-            print(parameters)
-            print('Mean train time: {0:4.2f} s'.format(stat['time']))
-            print('Mean time per train step: {0:4.2f} s'.format(stat['iter_time']))
+            row = dict()
+            if verbose:
+                print('='*30)
+                print(parameters)
+                print('Mean train time: {0:4.2f} s'.format(stat['time']))
+                print('Mean time per train step: {0:4.2f} s'.format(stat['iter_time']))
+                for metric in self.metrics:
+                    mean = self._mean_metrics(stat, metric, iteration=-1)
+                    print('Train {}: {:4.2f}'.format(metric, mean[0]))
+                    print('Test  {}: {:4.2f}'.format(metric, mean[1]))
+            row['Time per train step'] = stat['iter_time']
             for metric in self.metrics:
                 mean = self._mean_metrics(stat, metric, iteration=-1)
-                print('Train {}: {:4.2f}'.format(metric, mean[0]))
-                print('Test  {}: {:4.2f}'.format(metric, mean[1]))
+                row['Train '+metric] = mean[0]
+                row['Test '+metric] = mean[1]
+            summ[self.get_index_by_config(parameters)] = row
+        return pd.DataFrame(summ).transpose()
+
 
     def _mean_metrics(self, stat, metric, iteration=-1):
         res = [np.array(stat[history][metric]) for history in ['train_history', 'test_history']]
@@ -219,6 +242,8 @@ class Experiment:
     def get_plots(self, metric, params_ind, *args, **kwargs):
         """ Plot mean metrics history with confidence. """
         sns.set(color_codes=True)
+        if isinstance(params_ind, dict):
+            params_ind = self.get_index_by_config(params_ind)
         stat = self.stat[params_ind][1]
         sns.tsplot(stat['train_history'][metric], *args, **kwargs)
         plt.title("Train " + metric)
@@ -227,26 +252,14 @@ class Experiment:
         plt.title("Test " + metric)
         plt.show()
 
-    def plot_density(self, iteration, params_ind, metric,
+    def _plot_density(self, iteration, metric, params_ind, window=0,
                      mode=None, xlim=None, ylim=None, *args, **kwargs):
-        """ Plot histogram of the metric at the fixed iteration.
-
-        Parameters
-        ----------
-        iter : int
-            iteration of interest
-        params_ind : int
-            index of the parameters combination
-        metric : str
-
-        mode : str, list or None
-            'test' and/or 'train'
-        xlim : tuple
-
-        ylim : tuple
-        """
+        """ Plot histogram of the metric at the fixed iteration. """
         for name in mode:
-            x = np.array(self.stat[params_ind][1][name][metric])[:, iteration]
+            left = max(iteration-window, 0)
+            right = min(iteration+window+1, self.n_iters)
+            x = np.array(self.stat[params_ind][1][name][metric])[:, left:right]
+            x = x.reshape(-1)
             sns.distplot(x, *args, **kwargs)
             if xlim is not None:
                 plt.xlim(xlim)
@@ -255,15 +268,33 @@ class Experiment:
             plt.title("{}: {}".format(name, metric))
             plt.show()
 
-    def plot_density_interactive(self, params_ind, metric, mode=None, *args, **kwargs):
-        """ Interactive version of plot_density for different iter values. """
+    def plot_density_interactive(self, metric, params_ind, window=0, mode=None, *args, **kwargs):
+        """ Interactive version of plot_density for different iter values.
+
+        Parameters
+        ----------
+        params_ind : int or dict
+            parameters combination or index of that combination
+        metric : str
+
+        window : int
+            distribution computed not exactly for the fixed iteration but for iterations
+            in the [iteration-window, iteration+window+1]
+        mode : str, list or None
+            'test' and/or 'train'
+        xlim : tuple
+
+        ylim : tuple
+        """
+        if isinstance(params_ind, dict):
+            params_ind = self.get_index_by_config(params_ind)
         if mode is None:
             mode = ['train', 'test']
         elif isinstance(mode, str):
             mode = [mode]
         mode = [name+'_history' for name in mode]
         def _interactive_f(iteration):
-            self.plot_density(iteration, params_ind, metric, mode, *args, **kwargs)
+            self._plot_density(iteration, metric, params_ind, window, mode, *args, **kwargs)
         interactive_plot = interactive(_interactive_f, iteration=(0, self.n_iters-1))
         output = interactive_plot.children[-1]
         output.layout.height = str(300*(len(mode)))+'px'
