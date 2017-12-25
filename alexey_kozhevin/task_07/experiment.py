@@ -3,7 +3,6 @@
 #pylint:disable=too-many-arguments
 
 """ Numerical experiments with networks. """
-import os
 from time import time
 from itertools import product
 import numpy as np
@@ -253,7 +252,7 @@ class Experiment:
         plt.show()
 
     def _plot_density(self, iteration, metric, params_ind, window=0,
-                     mode=None, xlim=None, ylim=None, *args, **kwargs):
+                      mode=None, xlim=None, ylim=None, *args, **kwargs):
         """ Plot histogram of the metric at the fixed iteration. """
         for name in mode:
             left = max(iteration-window, 0)
