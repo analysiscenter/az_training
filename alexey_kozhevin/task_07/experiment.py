@@ -3,8 +3,10 @@
 #pylint:disable=too-many-arguments
 
 """ Numerical experiments with networks. """
+import os
 from time import time
 from itertools import product
+from subprocess import call
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -173,6 +175,8 @@ class Experiment:
 
     def get_index_by_config(self, config):
         """ Get parameters configuration by index. """
+        if isinstance(config, int):
+            return config
         for ind, _config in enumerate(self._gen_config()):
             if _config == config:
                 return ind
@@ -201,8 +205,8 @@ class Experiment:
             stat = dict()
             train_time, train_history, test_history = self._multiple_train()
             stat['time'] = train_time
-            stat['train_history'] = {key: np.array(value) for key, value in train_history.items()}
-            stat['test_history'] = {key: np.array(value) for key, value in test_history.items()}
+            stat['train'] = {key: np.array(value) for key, value in train_history.items()}
+            stat['test'] = {key: np.array(value) for key, value in test_history.items()}
             stat['iter_time'] = stat['time'] / n_iters
             self.stat.append([additional_parameters, stat])
 
@@ -234,7 +238,7 @@ class Experiment:
 
 
     def _mean_metrics(self, stat, metric, iteration=-1):
-        res = [np.array(stat[history][metric]) for history in ['train_history', 'test_history']]
+        res = [np.array(stat[history][metric]) for history in ['train', 'test']]
         res = [np.mean(x[:, iteration]) for x in res]
         return res
 
@@ -244,15 +248,15 @@ class Experiment:
         if isinstance(params_ind, dict):
             params_ind = self.get_index_by_config(params_ind)
         stat = self.stat[params_ind][1]
-        sns.tsplot(stat['train_history'][metric], *args, **kwargs)
+        sns.tsplot(stat['train'][metric], *args, **kwargs)
         plt.title("Train " + metric)
         plt.show()
-        sns.tsplot(stat['test_history'][metric], *args, **kwargs)
+        sns.tsplot(stat['test'][metric], *args, **kwargs)
         plt.title("Test " + metric)
         plt.show()
 
     def _plot_density(self, iteration, metric, params_ind, window=0,
-                      mode=None, xlim=None, ylim=None, *args, **kwargs):
+                      mode=None, xlim=None, ylim=None, show=True, *args, **kwargs):
         """ Plot histogram of the metric at the fixed iteration. """
         for name in mode:
             left = max(iteration-window, 0)
@@ -264,8 +268,9 @@ class Experiment:
                 plt.xlim(xlim)
             if ylim is not None:
                 plt.ylim(ylim)
-            plt.title("{}: {}".format(name, metric))
-            plt.show()
+            plt.title("{} {}: iteration {}".format(name, metric, iteration+1))
+            if show:
+                plt.show()
 
     def plot_density_interactive(self, metric, params_ind, window=0, mode=None, *args, **kwargs):
         """ Interactive version of plot_density for different iter values.
@@ -285,16 +290,51 @@ class Experiment:
 
         ylim : tuple
         """
-        if isinstance(params_ind, dict):
-            params_ind = self.get_index_by_config(params_ind)
+        params_ind = self.get_index_by_config(params_ind)
         if mode is None:
             mode = ['train', 'test']
         elif isinstance(mode, str):
             mode = [mode]
-        mode = [name+'_history' for name in mode]
         def _interactive_f(iteration):
             self._plot_density(iteration, metric, params_ind, window, mode, *args, **kwargs)
         interactive_plot = interactive(_interactive_f, iteration=(0, self.n_iters-1))
         output = interactive_plot.children[-1]
         output.layout.height = str(300*(len(mode)))+'px'
         return interactive_plot
+
+    def make_video(self, name, metric, params_ind, plots_per_sec=1.,
+                   window=0, mode=None, *args, **kwargs):
+        if os.path.isfile(name):
+            raise OSError("File {} is already created".format(name))
+        params_ind = self.get_index_by_config(params_ind)
+        if mode is None:
+            mode = ['train', 'test']
+        elif isinstance(mode, str):
+            mode = [mode]
+        if not os.path.exists('.tmp'):
+            os.makedirs('.tmp')
+
+        self._clear_folder('./.tmp')
+
+        for iteration in range(self.n_iters):
+            mask = './.tmp/{:0' + str(int(np.ceil(np.log10(self.n_iters)))) + 'd}.png'
+            self._plot_density(iteration, metric, params_ind, window, mode, show=False, *args, **kwargs)
+            plt.savefig(mask.format(iteration))
+            plt.close()
+
+        mask = './.tmp/%0{}d.png'.format(int(np.ceil(np.log10(self.n_iters))))
+
+        res = call(["ffmpeg.exe", "-r", str(plots_per_sec), "-i", mask, "-c:v", "libx264", "-vf", 
+                    "fps=25", "-pix_fmt", "yuv420p", name])
+
+        self._clear_folder('./.tmp')
+
+        if res != 0:
+            raise OSError("Video can't be created")
+
+    def _clear_folder(self, dirname):
+        for root, dirs, files in os.walk(dirname, topdown=False):
+            for name in files:
+                os.remove(os.path.join(root, name))
+            for name in dirs:
+                os.rmdir(os.path.join(root, name))
