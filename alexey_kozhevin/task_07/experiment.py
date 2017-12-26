@@ -304,8 +304,15 @@ class Experiment:
 
     def make_video(self, name, metric, params_ind, plots_per_sec=1.,
                    window=0, mode=None, *args, **kwargs):
+        """ Creates video with distribution. """
         if os.path.isfile(name):
             raise OSError("File {} is already created".format(name))
+
+        try:
+            call(['ffmpeg.exe'])
+        except FileNotFoundError:
+            raise FileNotFoundError("ffmpeg.exe was not found.")
+
         params_ind = self.get_index_by_config(params_ind)
         if mode is None:
             mode = ['train', 'test']
@@ -324,7 +331,7 @@ class Experiment:
 
         mask = './.tmp/%0{}d.png'.format(int(np.ceil(np.log10(self.n_iters))))
 
-        res = call(["ffmpeg.exe", "-r", str(plots_per_sec), "-i", mask, "-c:v", "libx264", "-vf", 
+        res = call(["ffmpeg.exe", "-r", str(plots_per_sec), "-i", mask, "-c:v", "libx264", "-vf",
                     "fps=25", "-pix_fmt", "yuv420p", name])
 
         self._clear_folder('./.tmp')
