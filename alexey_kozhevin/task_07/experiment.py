@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from ipywidgets import interactive
 import pandas as pd
+import pickle
 
 from dataset.dataset import Dataset, Pipeline, B, V
 from dataset.dataset.opensets import MNIST, CIFAR10, CIFAR100
@@ -32,7 +33,7 @@ _TASK_METRICS = {
 
 class Experiment:
     """ Class for multiple experiments with models. """
-    def __init__(self, model, data, data_config=None,
+    def __init__(self, model=None, data='mnist', data_config=None,
                  task='cls', preproc_template=None, base_config=None, grid_config=None,
                  metrics=None, name=None):
         self.model = model
@@ -45,7 +46,8 @@ class Experiment:
         self.metrics = metrics
         self.dirname = name
 
-        self._build()
+        if model is not None:
+            self._build()
 
     def _build(self):
         if self.dirname is None:
@@ -64,6 +66,7 @@ class Experiment:
         self._preproc_template()
         self._base_config()
         self._model_template()
+        self._create_description()
 
     def _metrics(self):
         if self.metrics is None:
@@ -143,6 +146,14 @@ class Experiment:
         values = self.grid_config.values()
         return (OrderedDict(zip(keys, parameters)) for parameters in product(*values))
 
+    def _create_description(self):
+        _dict = OrderedDict()
+        for i, config in enumerate(self._gen_config()):
+            _dict[i] = config
+        _dict = pd.DataFrame(_dict).transpose()
+        filename = os.path.join(self.dirname, 'description.csv')
+        _dict.to_csv(filename)
+
     def _reset_model(self):
         for metric in self.metrics:
             self.train_ppl.set_variable(metric, list())
@@ -173,10 +184,20 @@ class Experiment:
                 self._reset_model()
             train_time += self._start_train()
             for metric in self.metrics:
-                train_history[metric].append(
-                    self.train_ppl.get_variable(metric))
+                train_history[metric].append(self.train_ppl.get_variable(metric))
                 test_history[metric].append(self.test_ppl.get_variable(metric))
+            self._save_to('train', train_history)
+            self._save_to('test', test_history)
         return train_time / self.n_reps, train_history, test_history
+
+    def _save_to(self, filename, obj, tmp=True):
+        subdir = '.tmp' if tmp else ''
+        dir = os.path.join(self.dirname, subdir)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+
+        with open(os.path.join(dir, filename), 'wb') as fp:
+            pickle.dump(obj, fp)
 
     def get_config_by_index(self, ind):
         """ Get parameters configuration by index. """
@@ -218,6 +239,10 @@ class Experiment:
             stat['test'] = {key: np.array(value) for key, value in test_history.items()}
             stat['iter_time'] = stat['time'] / n_iters
             self.stat.append([additional_parameters, stat])
+            self._clear_folder()
+            self._save_to('stat', self.stat)
+        self._clear_folder()
+        self._save_to('stat', self.stat, False)
 
     def summary(self, verbose=True):
         """ Get description of the experiment. """
@@ -336,7 +361,7 @@ class Experiment:
         if not os.path.exists(tmp_folder):
             os.makedirs(tmp_folder)
 
-        self._clear_folder(tmp_folder)
+        self._clear_folder()
 
         for iteration in range(self.n_iters):
             mask = '{:0' + str(int(np.ceil(np.log10(self.n_iters)))) + 'd}.png'
@@ -349,11 +374,12 @@ class Experiment:
         mask = os.path.join(tmp_folder, mask)
         res = call(["ffmpeg.exe", "-r", str(plots_per_sec), "-i", mask, "-c:v", "libx264", "-vf",
                     "fps=25", "-pix_fmt", "yuv420p", name])
-        self._clear_folder(tmp_folder)
+        self._clear_folder()
         if res != 0:
             raise OSError("Video can't be created")
 
-    def _clear_folder(self, dirname):
+    def _clear_folder(self):
+        dirname = os.path.join(self.dirname, '.tmp')
         for root, dirs, files in os.walk(dirname, topdown=False):
             for name in files:
                 os.remove(os.path.join(root, name))
