@@ -33,7 +33,7 @@ _TASK_METRICS = {
 
 class Experiment:
     """ Class for multiple experiments with models. """
-    def __init__(self, model, data='mnist', data_config=None,
+    def __init__(self, model, data, data_config=None,
                  task='cls', preproc_template=None, base_config=None, grid_config=None,
                  metrics=None, name=None):
         self.model = model
