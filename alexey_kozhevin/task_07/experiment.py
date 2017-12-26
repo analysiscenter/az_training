@@ -7,6 +7,7 @@ import os
 from time import time
 from itertools import product
 from subprocess import call
+from collections import OrderedDict
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -33,7 +34,7 @@ class Experiment:
     """ Class for multiple experiments with models. """
     def __init__(self, model, data, data_config=None,
                  task='cls', preproc_template=None, base_config=None, grid_config=None,
-                 metrics=None):
+                 metrics=None, name=None):
         self.model = model
         self.data = data
         self.data_config = data_config
@@ -42,10 +43,21 @@ class Experiment:
         self.base_config = base_config
         self.grid_config = grid_config
         self.metrics = metrics
+        self.dirname = name
 
         self._build()
 
     def _build(self):
+        if self.dirname is None:
+            self.dirname = self.model.__name__+'_experiment'
+        if not os.path.exists(self.dirname):
+            os.makedirs(self.dirname)
+
+        if self.grid_config is None:
+            self.grid_config = OrderedDict()
+        else:
+            self.grid_config = OrderedDict(self.grid_config)
+
         self._metrics()
         self._placeholders()
         self._dataset()
@@ -127,12 +139,9 @@ class Experiment:
                                }
 
     def _gen_config(self):
-        if self.grid_config is not None:
-            keys = self.grid_config.keys()
-            values = self.grid_config.values()
-            return (dict(zip(keys, parameters)) for parameters in product(*values))
-        else:
-            return [dict()]
+        keys = self.grid_config.keys()
+        values = self.grid_config.values()
+        return (OrderedDict(zip(keys, parameters)) for parameters in product(*values))
 
     def _reset_model(self):
         for metric in self.metrics:
@@ -175,7 +184,7 @@ class Experiment:
 
     def get_index_by_config(self, config):
         """ Get parameters configuration by index. """
-        if isinstance(config, int):
+        if isinstance(config, (int, list)):
             return config
         for ind, _config in enumerate(self._gen_config()):
             if _config == config:
@@ -236,7 +245,6 @@ class Experiment:
             summ[self.get_index_by_config(parameters)] = row
         return pd.DataFrame(summ).transpose()
 
-
     def _mean_metrics(self, stat, metric, iteration=-1):
         res = [np.array(stat[history][metric]) for history in ['train', 'test']]
         res = [np.mean(x[:, iteration]) for x in res]
@@ -258,17 +266,21 @@ class Experiment:
     def _plot_density(self, iteration, metric, params_ind, window=0,
                       mode=None, xlim=None, ylim=None, show=True, *args, **kwargs):
         """ Plot histogram of the metric at the fixed iteration. """
+        if isinstance(params_ind, int):
+            params_ind = [params_ind]
         for name in mode:
             left = max(iteration-window, 0)
             right = min(iteration+window+1, self.n_iters)
-            x = np.array(self.stat[params_ind][1][name][metric])[:, left:right]
-            x = x.reshape(-1)
-            sns.distplot(x, *args, **kwargs)
+            for ind in params_ind:
+                x = np.array(self.stat[ind][1][name][metric])[:, left:right]
+                x = x.reshape(-1)
+                sns.distplot(x, label=str(ind), *args, **kwargs)
             if xlim is not None:
                 plt.xlim(xlim)
             if ylim is not None:
                 plt.ylim(ylim)
             plt.title("{} {}: iteration {}".format(name, metric, iteration+1))
+            plt.legend()
             if show:
                 plt.show()
 
@@ -305,8 +317,11 @@ class Experiment:
     def make_video(self, name, metric, params_ind, plots_per_sec=1.,
                    window=0, mode=None, *args, **kwargs):
         """ Creates video with distribution. """
+        name = os.path.join(self.dirname, name)
         if os.path.isfile(name):
-            raise OSError("File {} is already created".format(name))
+            raise OSError("File {} is already created.".format(name))
+
+        tmp_folder = os.path.join(self.dirname, '.tmp')
 
         try:
             call(['ffmpeg.exe'])
@@ -318,24 +333,23 @@ class Experiment:
             mode = ['train', 'test']
         elif isinstance(mode, str):
             mode = [mode]
-        if not os.path.exists('.tmp'):
-            os.makedirs('.tmp')
+        if not os.path.exists(tmp_folder):
+            os.makedirs(tmp_folder)
 
-        self._clear_folder('./.tmp')
+        self._clear_folder(tmp_folder)
 
         for iteration in range(self.n_iters):
-            mask = './.tmp/{:0' + str(int(np.ceil(np.log10(self.n_iters)))) + 'd}.png'
+            mask = '{:0' + str(int(np.ceil(np.log10(self.n_iters)))) + 'd}.png'
+            mask = os.path.join(tmp_folder, '') + mask
             self._plot_density(iteration, metric, params_ind, window, mode, show=False, *args, **kwargs)
             plt.savefig(mask.format(iteration))
             plt.close()
 
-        mask = './.tmp/%0{}d.png'.format(int(np.ceil(np.log10(self.n_iters))))
-
+        mask = '%0{}d.png'.format(int(np.ceil(np.log10(self.n_iters))))
+        mask = os.path.join(tmp_folder, mask)
         res = call(["ffmpeg.exe", "-r", str(plots_per_sec), "-i", mask, "-c:v", "libx264", "-vf",
                     "fps=25", "-pix_fmt", "yuv420p", name])
-
-        self._clear_folder('./.tmp')
-
+        self._clear_folder(tmp_folder)
         if res != 0:
             raise OSError("Video can't be created")
 
