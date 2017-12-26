@@ -8,13 +8,13 @@ from time import time
 from itertools import product
 from subprocess import call
 from collections import OrderedDict
+import pickle
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from ipywidgets import interactive
 import pandas as pd
-import pickle
 
 from dataset.dataset import Dataset, Pipeline, B, V
 from dataset.dataset.opensets import MNIST, CIFAR10, CIFAR100
@@ -33,7 +33,7 @@ _TASK_METRICS = {
 
 class Experiment:
     """ Class for multiple experiments with models. """
-    def __init__(self, model=None, data='mnist', data_config=None,
+    def __init__(self, model, data='mnist', data_config=None,
                  task='cls', preproc_template=None, base_config=None, grid_config=None,
                  metrics=None, name=None):
         self.model = model
@@ -46,8 +46,7 @@ class Experiment:
         self.metrics = metrics
         self.dirname = name
 
-        if model is not None:
-            self._build()
+        self._build()
 
     def _build(self):
         if self.dirname is None:
@@ -192,12 +191,12 @@ class Experiment:
 
     def _save_to(self, filename, obj, tmp=True):
         subdir = '.tmp' if tmp else ''
-        dir = os.path.join(self.dirname, subdir)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
+        _dir = os.path.join(self.dirname, subdir)
+        if not os.path.exists(_dir):
+            os.makedirs(_dir)
 
-        with open(os.path.join(dir, filename), 'wb') as fp:
-            pickle.dump(obj, fp)
+        with open(os.path.join(_dir, filename), 'wb') as file:
+            pickle.dump(obj, file)
 
     def get_config_by_index(self, ind):
         """ Get parameters configuration by index. """
