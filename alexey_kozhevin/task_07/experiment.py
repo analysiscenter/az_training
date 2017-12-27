@@ -33,7 +33,22 @@ _TASK_METRICS = {
 
 class Experiment:
     """ Class for multiple experiments with models. """
-    def __init__(self, model, data, data_config=None,
+
+    def __init__(self):
+        self.model = None
+        self.data = None
+        self.data_config = None
+        self.task = None
+        self.preproc_template = None
+        self.base_config = None
+        self.grid_config = None
+        self.metrics = None
+        self.dirname = None
+        self.stat = None
+        self.train_ppl = None
+        self.test_ppl = None       
+
+    def build(self, model, data, data_config=None,
                  task='cls', preproc_template=None, base_config=None, grid_config=None,
                  metrics=None, name=None):
         self.model = model
@@ -241,7 +256,7 @@ class Experiment:
             self._clear_folder()
             self._save_to('stat', self.stat)
         self._clear_folder()
-        self._save_to('stat', self.stat, False)
+        self._dump()
 
     def summary(self, verbose=True):
         """ Get description of the experiment. """
@@ -384,3 +399,18 @@ class Experiment:
                 os.remove(os.path.join(root, name))
             for name in dirs:
                 os.rmdir(os.path.join(root, name))
+
+    def _dump(self):
+        self.train_ppl = None
+        self.test_ppl = None
+        self.preproc_template = None
+        self.train_template = None
+        self.test_template = None
+        with open(os.path.join(self.dirname, 'main'), 'wb') as file:
+            pickle.dump(self, file)
+
+    @classmethod
+    def load(cls, name):
+        with open(os.path.join(name, 'main'), 'rb') as file:
+            res = pickle.load(file)
+        return res
