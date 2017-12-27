@@ -42,17 +42,18 @@ class WaterBatch(ImagesBatch):
     def _init_component(self, *args, **kwargs):
         """Create and preallocate a new attribute with the name ``dst`` if it
         does not exist and return batch indices."""
-        _ = args
-        dst = kwargs.get("dst")
+        _ = args, kwargs
+        dst = kwargs.get('dst')
         if dst is None:
-            raise KeyError("dst argument must be specified")
+            raise KeyError('dst argument must be specified')
         if not hasattr(self, dst):
             setattr(self, dst, np.array([None] * len(self.index)))
         return self.indices
-    
+
     @action
     @inbatch_parallel(init='_init_component', src='images', dst='cropped', target='threads')
     def crop_to_bbox(self, index, *args, src='images', dst='cropped', **kwargs):
+        _ = args, kwargs
         image = self.get(index, 'images')
         x, y, x1, y1 = self.get(index, 'coordinates')
         i = self.get_pos(None, 'images', index)
@@ -61,19 +62,21 @@ class WaterBatch(ImagesBatch):
 
     @action
     @inbatch_parallel(init='_init_component', src='cropped', dst='sepcrop', target='threads')
-    def crop_to_numbers(self, index, *args, src='cropped', dst='sepcrop', **kwargs):
-        def resize(img, shape):
+    def crop_to_numbers(self, index, *args, shape=(64, 32), src='cropped', dst='sepcrop', **kwargs):
+        """Crop image with 8 number to 8 images with one number"""
+        def _resize(img, shape):
             factor = 1. * np.asarray([*shape]) / np.asarray(img.shape[:2])
             if len(img.shape) > 2:
                 factor = np.concatenate((factor, [1.] * len(img.shape[2:])))
             new_image = scipy.ndimage.interpolation.zoom(img, factor, order=3)
             return new_image
 
+        _ = args, kwargs
         i = self.get_pos(None, 'cropped', index)
         image = getattr(self, 'cropped')[i]
         step = round(image.shape[1]/8)
         #!!!remove hardcode
-        numbers = np.array([resize(image[:, i:i+step], (64, 32))  for i in range(0, image.shape[1], step)] + \
+        numbers = np.array([_resize(image[:, i:i+step], (64, 32)) for i in range(0, image.shape[1], step)] + \
                            [None])[:-1]
         if len(numbers) > 8:
             numbers = numbers[:-1]
@@ -82,6 +85,8 @@ class WaterBatch(ImagesBatch):
     @action
     @inbatch_parallel(init='_init_component', src='labels', dst='labels', target='threads')
     def crop_labels(self, index, *args, src='labels', dst='labels', **kwargs):
+        """Create labels"""
+        _ = args, kwargs
         i = self.get_pos(None, 'labels', index)
         label = getattr(self, 'labels')[i]
 
