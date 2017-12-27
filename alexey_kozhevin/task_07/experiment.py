@@ -46,11 +46,12 @@ class Experiment:
         self.dirname = None
         self.stat = None
         self.train_ppl = None
-        self.test_ppl = None       
+        self.test_ppl = None
 
     def build(self, model, data, data_config=None,
-                 task='cls', preproc_template=None, base_config=None, grid_config=None,
-                 metrics=None, name=None):
+              task='cls', preproc_template=None, base_config=None, grid_config=None,
+              metrics=None, name=None):
+        """ Prepare experiment to run. """
         self.model = model
         self.data = data
         self.data_config = data_config
@@ -411,6 +412,7 @@ class Experiment:
 
     @classmethod
     def load(cls, name):
+        """ Load experiment from dump. """
         with open(os.path.join(name, 'main'), 'rb') as file:
             res = pickle.load(file)
         return res
