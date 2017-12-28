@@ -149,7 +149,7 @@ class Experiment:
             pass
         elif isinstance(key, str):
             key = (key, key)
-        if self.aliases == False:
+        if not self.aliases:
             value = [(item, i) for i, item in enumerate(value)]
         return key, value
 
@@ -262,7 +262,6 @@ class Experiment:
         summ = OrderedDict()
         for parameters, stat in self.stat:
             row = OrderedDict()
-            index = []
             if verbose:
                 print('='*30)
                 alias = self._alias_to_str(parameters[1])
