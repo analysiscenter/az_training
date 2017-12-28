@@ -287,6 +287,23 @@ class Experiment:
         res = res[:-1]
         return res
 
+    def _index_by_alias(self, alias):
+        index = -1
+        for i, config in enumerate(self._gen_config()):
+            if config[1] == alias:
+                index = i
+                break
+        return index
+
+    def _indices_by_alias(self, aliases):
+        output = []
+        for alias in aliases:
+            index = self._index_by_alias(alias)
+            if index == -1:
+                raise ValueError("Config wasn't found in experiment results.")
+            output.append(index)
+        return output
+
     def _mean_metrics(self, stat, metric, iteration=-1):
         res = [np.array(stat[history][metric]) for history in ['train', 'test']]
         res = [np.mean(x[:, iteration]) for x in res]
@@ -307,6 +324,13 @@ class Experiment:
         if axes is None:
             axes = [0.1, 0.4, 0.8, 0.5]
         ax = fig.add_axes(axes)
+
+        if params_ind is None:
+            params_ind = list(range(len(self.stat)))
+
+        if isinstance(params_ind[0], dict):
+            params_ind = self._indices_by_alias(params_ind)
+
         for ind in params_ind:
             x = np.array(self.stat[ind][1][mode][metric])[:, left:right]
             x = x.reshape(-1)
@@ -318,7 +342,6 @@ class Experiment:
             ax.set_ylim(ylim)
         ax.set_title("{} {}: iteration {}".format(mode, metric, iteration+1))
         ax.legend(loc=9, bbox_to_anchor=(0.5, -0.1))
-        fig.tight_layout()
         if show:
             plt.show()
         return ax
@@ -348,12 +371,13 @@ class Experiment:
         output.layout.height = str(300*(len(mode)))+'px'
         return interactive_plot
 
-    def make_video(self, name, metric, params_ind, plots_per_sec=1.,
+    def make_video(self, name, metric, params_ind=None, plots_per_sec=1.,
                    window=0, mode=None, key_frames=None, *args, **kwargs):
         """ Creates video with distribution. """
         name = os.path.join(self.dirname, name)
         if os.path.isfile(name):
-            raise OSError("File {} is already created.".format(name))
+            os.remove(name)
+            #raise OSError("File {} is already created.".format(name))
 
         tmp_folder = os.path.join(self.dirname, '.tmp')
 
@@ -386,9 +410,15 @@ class Experiment:
             raise OSError("Video can't be created")
 
     def _get_frame(self, iteration, key_frames):
-        indices = np.array([frame[0] for frame in key_frames])
-        frames = np.array([frame[1] for frame in key_frames])
-        return frames[np.where(indices <= iteration)][-1]
+        output = dict()
+        for parameter, parameter_values in key_frames.items():
+            if callable(parameter_values):
+                output[parameter] = parameter_values(iteration)
+            elif isinstance(parameter_values, list):
+                indices = np.array([value[0] for value in parameter_values])
+                frames = np.array([value[1] for value in parameter_values])
+                output[parameter] = frames[np.where(indices <= iteration)][-1]
+        return output
 
     def _clear_folder(self):
         dirname = os.path.join(self.dirname, '.tmp')
