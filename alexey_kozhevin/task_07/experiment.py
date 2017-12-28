@@ -34,23 +34,9 @@ _TASK_METRICS = {
 class Experiment:
     """ Class for multiple experiments with models. """
 
-    def __init__(self):
-        self.model = None
-        self.data = None
-        self.data_config = None
-        self.task = None
-        self.preproc_template = None
-        self.base_config = None
-        self.grid_config = None
-        self.metrics = None
-        self.dirname = None
-        self.stat = None
-        self.train_ppl = None
-        self.test_ppl = None
-
     def build(self, model, data, data_config=None,
               task='cls', preproc_template=None, base_config=None, grid_config=None,
-              metrics=None, name=None):
+              aliases=False, metrics=None, name=None):
         """ Prepare experiment to run. """
         self.model = model
         self.data = data
@@ -59,6 +45,7 @@ class Experiment:
         self.preproc_template = preproc_template
         self.base_config = base_config
         self.grid_config = grid_config
+        self.aliases = aliases
         self.metrics = metrics
         self.dirname = name
 
@@ -75,6 +62,7 @@ class Experiment:
         else:
             self.grid_config = OrderedDict(self.grid_config)
 
+        self._add_aliases()
         self._metrics()
         self._placeholders()
         self._dataset()
@@ -129,10 +117,6 @@ class Experiment:
         for metric in self.metrics:
             template = template + Pipeline().init_variable(metric, init_on_each_run=list)
 
-        if self.grid_config is not None:
-            for parameter in self.grid_config.keys():
-                template = template + Pipeline().init_variable(parameter, init_on_each_run=list)
-
         save_to = [V(metric) for metric in self.metrics]
 
         self.train_template = template + Pipeline().train_model('model',
@@ -156,15 +140,38 @@ class Experiment:
                                 'optimizer': 'Adam',
                                }
 
+    def _add_aliases(self):
+        self.grid_config = [self._parse_parameter(*item) for item in self.grid_config.items()]
+        self.grid_config = OrderedDict(self.grid_config)
+
+    def _parse_parameter(self, key, value):
+        if isinstance(key, tuple):
+            pass
+        elif isinstance(key, str):
+            key = (key, key)
+        if self.aliases == False:
+            value = [(item, i) for i, item in enumerate(value)]
+        return key, value
+
+
     def _gen_config(self):
         keys = self.grid_config.keys()
         values = self.grid_config.values()
-        return (OrderedDict(zip(keys, parameters)) for parameters in product(*values))
+        return (self._get_dict_and_alias(keys, parameters) for parameters in product(*values))
+
+    def _get_dict_and_alias(self, keys, parameters):
+        _dict = OrderedDict(zip(keys, parameters))
+        alias = OrderedDict()
+        for key, value in _dict.items():
+            alias[key[1]] = value[1]
+        _dict = OrderedDict([(key[0], value[0]) for key, value in _dict.items()])
+        return _dict, alias
+
 
     def _create_description(self):
         _dict = OrderedDict()
         for i, config in enumerate(self._gen_config()):
-            _dict[i] = config
+            _dict[i] = config[0]
         _dict = pd.DataFrame(_dict).transpose()
         filename = os.path.join(self.dirname, 'description.csv')
         _dict.to_csv(filename)
@@ -214,19 +221,6 @@ class Experiment:
         with open(os.path.join(_dir, filename), 'wb') as file:
             pickle.dump(obj, file)
 
-    def get_config_by_index(self, ind):
-        """ Get parameters configuration by index. """
-        return list(self._gen_config())[ind]
-
-    def get_index_by_config(self, config):
-        """ Get parameters configuration by index. """
-        if isinstance(config, (int, list)):
-            return config
-        for ind, _config in enumerate(self._gen_config()):
-            if _config == config:
-                return ind
-        raise ValueError("Experiment wasn't conducted for that parameters.")
-
     def run(self, batch_size, n_iters, n_reps=10):
         """ Run experiments. """
         self.batch_size = batch_size
@@ -235,7 +229,7 @@ class Experiment:
         self.stat = []
 
         for additional_parameters in self._gen_config():
-            config = {**self.base_config, **additional_parameters}
+            config = {**self.base_config, **additional_parameters[0]}
 
             self.train_ppl = (self.preproc_template +
                               Pipeline().init_model('dynamic', self.model, 'model', config=config) +
@@ -265,12 +259,14 @@ class Experiment:
         print('Number of repetitions:', self.n_reps)
         print('Number of iterations:', self.n_iters)
         print('Batch size:', self.batch_size)
-        summ = dict()
+        summ = OrderedDict()
         for parameters, stat in self.stat:
-            row = dict()
+            row = OrderedDict()
+            index = []
             if verbose:
                 print('='*30)
-                print(parameters)
+                alias = self._alias_to_str(parameters[1])
+                print(alias)
                 print('Mean train time: {0:4.2f} s'.format(stat['time']))
                 print('Mean time per train step: {0:4.2f} s'.format(stat['iter_time']))
                 for metric in self.metrics:
@@ -282,47 +278,51 @@ class Experiment:
                 mean = self._mean_metrics(stat, metric, iteration=-1)
                 row['Train '+metric] = mean[0]
                 row['Test '+metric] = mean[1]
-            summ[self.get_index_by_config(parameters)] = row
-        return pd.DataFrame(summ).transpose()
+            summ[alias] = row
+        return pd.DataFrame(summ, columns=summ.keys(), index=row.keys())#.transpose()
+
+    def _alias_to_str(self, alias):
+        res = ""
+        for key, value in alias.items():
+            res += str(key) + '-' + str(value) + '_'
+        res = res[:-1]
+        return res
 
     def _mean_metrics(self, stat, metric, iteration=-1):
         res = [np.array(stat[history][metric]) for history in ['train', 'test']]
         res = [np.mean(x[:, iteration]) for x in res]
         return res
 
-    def get_plots(self, metric, params_ind, *args, **kwargs):
-        """ Plot mean metrics history with confidence. """
-        sns.set(color_codes=True)
-        if isinstance(params_ind, dict):
-            params_ind = self.get_index_by_config(params_ind)
-        stat = self.stat[params_ind][1]
-        sns.tsplot(stat['train'][metric], *args, **kwargs)
-        plt.title("Train " + metric)
-        plt.show()
-        sns.tsplot(stat['test'][metric], *args, **kwargs)
-        plt.title("Test " + metric)
-        plt.show()
-
     def _plot_density(self, iteration, metric, params_ind, window=0,
-                      mode=None, xlim=None, ylim=None, show=True, *args, **kwargs):
+                      mode=None, xlim=None, ylim=None, axes=None, figsize=None,
+                      show=True, *args, **kwargs):
         """ Plot histogram of the metric at the fixed iteration. """
         if isinstance(params_ind, int):
             params_ind = [params_ind]
-        for name in mode:
-            left = max(iteration-window, 0)
-            right = min(iteration+window+1, self.n_iters)
-            for ind in params_ind:
-                x = np.array(self.stat[ind][1][name][metric])[:, left:right]
-                x = x.reshape(-1)
-                sns.distplot(x, label=str(ind), *args, **kwargs)
-            if xlim is not None:
-                plt.xlim(xlim)
-            if ylim is not None:
-                plt.ylim(ylim)
-            plt.title("{} {}: iteration {}".format(name, metric, iteration+1))
-            plt.legend()
-            if show:
-                plt.show()
+        left = max(iteration-window, 0)
+        right = min(iteration+window+1, self.n_iters)
+        if figsize is None:
+            fig = plt.figure()
+        else:
+            fig = plt.figure(figsize=figsize)
+        if axes is None:
+            axes = [0.1, 0.4, 0.8, 0.5]
+        ax = fig.add_axes(axes)
+        for ind in params_ind:
+            x = np.array(self.stat[ind][1][mode][metric])[:, left:right]
+            x = x.reshape(-1)
+            label = self._alias_to_str(self.stat[ind][0][1])
+            sns.distplot(x, label=label, ax=ax, *args, **kwargs)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+        ax.set_title("{} {}: iteration {}".format(mode, metric, iteration+1))
+        ax.legend(loc=9, bbox_to_anchor=(0.5, -0.1))
+        fig.tight_layout()
+        if show:
+            plt.show()
+        return ax
 
     def plot_density_interactive(self, metric, params_ind, window=0, mode=None, *args, **kwargs):
         """ Interactive version of plot_density for different iter values.
@@ -342,11 +342,6 @@ class Experiment:
 
         ylim : tuple
         """
-        params_ind = self.get_index_by_config(params_ind)
-        if mode is None:
-            mode = ['train', 'test']
-        elif isinstance(mode, str):
-            mode = [mode]
         def _interactive_f(iteration):
             self._plot_density(iteration, metric, params_ind, window, mode, *args, **kwargs)
         interactive_plot = interactive(_interactive_f, iteration=(0, self.n_iters-1))
@@ -355,7 +350,7 @@ class Experiment:
         return interactive_plot
 
     def make_video(self, name, metric, params_ind, plots_per_sec=1.,
-                   window=0, mode=None, *args, **kwargs):
+                   window=0, mode=None, key_frames=None, *args, **kwargs):
         """ Creates video with distribution. """
         name = os.path.join(self.dirname, name)
         if os.path.isfile(name):
@@ -368,17 +363,15 @@ class Experiment:
         except FileNotFoundError:
             raise FileNotFoundError("ffmpeg.exe was not found.")
 
-        params_ind = self.get_index_by_config(params_ind)
-        if mode is None:
-            mode = ['train', 'test']
-        elif isinstance(mode, str):
-            mode = [mode]
         if not os.path.exists(tmp_folder):
             os.makedirs(tmp_folder)
 
         self._clear_folder()
 
         for iteration in range(self.n_iters):
+            if key_frames is not None:
+                frame = self._get_frame(iteration, key_frames)
+                kwargs = {**kwargs, **frame}
             mask = '{:0' + str(int(np.ceil(np.log10(self.n_iters)))) + 'd}.png'
             mask = os.path.join(tmp_folder, '') + mask
             self._plot_density(iteration, metric, params_ind, window, mode, show=False, *args, **kwargs)
@@ -393,6 +386,11 @@ class Experiment:
         if res != 0:
             raise OSError("Video can't be created")
 
+    def _get_frame(self, iteration, key_frames):
+        indices = np.array([frame[0] for frame in key_frames])
+        frames = np.array([frame[1] for frame in key_frames])
+        return frames[np.where(indices <= iteration)][-1]
+
     def _clear_folder(self):
         dirname = os.path.join(self.dirname, '.tmp')
         for root, dirs, files in os.walk(dirname, topdown=False):
@@ -402,17 +400,22 @@ class Experiment:
                 os.rmdir(os.path.join(root, name))
 
     def _dump(self):
-        self.train_ppl = None
-        self.test_ppl = None
-        self.preproc_template = None
-        self.train_template = None
-        self.test_template = None
-        with open(os.path.join(self.dirname, 'main'), 'wb') as file:
+        with open(os.path.join(self.dirname, '.dump'), 'wb') as file:
             pickle.dump(self, file)
 
     @classmethod
     def load(cls, name):
         """ Load experiment from dump. """
-        with open(os.path.join(name, 'main'), 'rb') as file:
+        with open(os.path.join(name, '.dump'), 'rb') as file:
             res = pickle.load(file)
         return res
+
+    def __getstate__(self):
+        _dict = self.__dict__
+        del _dict['train_ppl']
+        del _dict['test_ppl']
+        del _dict['preproc_template']
+        del _dict['train_template']
+        del _dict['test_template']
+        return _dict
+
