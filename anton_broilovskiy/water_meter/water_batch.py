@@ -12,32 +12,7 @@ from dataset.dataset import ImagesBatch, action, inbatch_parallel
 
 class WaterBatch(ImagesBatch):
     """Class to create batch with water meter"""
-    components = 'images', 'labels', 'coordinates', 'indices', 'numbers'#, 'cropped', 'sepcrop'
-
-    @inbatch_parallel(init='indices', post='assemble')
-    def _load_jpg(self, ind, src, components=None):
-        _ = components, self
-        images = plt.imread(src + ind + '.jpg')
-        return images
-
-    def _load_csv(self, src, components=None, *args, **kwargs):
-        if src[-4:] != '.csv':
-            src += '.csv'
-        _data = pd.read_csv(src, *args, **kwargs)
-
-        if 'file_name' in _data.columns:
-            _data = [_data[_data['file_name'] == ind]['counter_value'].values[0] for ind in self.indices]
-
-        else:
-            indices = [int(ind[1:3]) for ind in self.indices]
-            coord = []
-
-            for ind in indices:
-                string = _data.loc[ind].values[0][36:-7]
-                coord.append(list([int(i) for i in re.sub('\\D+', ' ', string).split(' ')[1:]]))
-                #print(coord[-1], ind)
-            _data = np.array(coord)
-        setattr(self, components, _data)
+    components = 'images', 'labels', 'coordinates', 'indices', 'numbers'
 
     def _init_component(self, *args, **kwargs):
         """Create and preallocate a new attribute with the name ``dst`` if it
@@ -53,6 +28,7 @@ class WaterBatch(ImagesBatch):
     @action
     @inbatch_parallel(init='_init_component', src='images', dst='cropped', target='threads')
     def crop_to_bbox(self, index, *args, src='images', dst='cropped', **kwargs):
+        """Create cropped attr with crop image use ``coordinates``"""
         _ = args, kwargs
         image = self.get(index, 'images')
         x, y, x1, y1 = self.get(index, 'coordinates')
@@ -75,8 +51,7 @@ class WaterBatch(ImagesBatch):
         i = self.get_pos(None, 'cropped', index)
         image = getattr(self, 'cropped')[i]
         step = round(image.shape[1]/8)
-        #!!!remove hardcode
-        numbers = np.array([_resize(image[:, i:i+step], (64, 32)) for i in range(0, image.shape[1], step)] + \
+        numbers = np.array([_resize(image[:, i:i+step], shape) for i in range(0, image.shape[1], step)] + \
                            [None])[:-1]
         if len(numbers) > 8:
             numbers = numbers[:-1]
@@ -93,6 +68,31 @@ class WaterBatch(ImagesBatch):
         more_label = np.array([int(i) for i in label.replace('.', '')] + [None])[:-1]
 
         getattr(self, dst)[i] = more_label
+
+    @inbatch_parallel(init='indices', post='assemble')
+    def _load_jpg(self, ind, src, components=None):
+        _ = components, self
+        images = plt.imread(src + ind + '.jpg')
+        return images
+
+    def _load_csv(self, src, components=None, *args, **kwargs):
+        _ = args, kwargs
+        if src[-4:] != '.csv':
+            src += '.csv'
+        _data = pd.read_csv(src, *args, **kwargs)
+
+        if 'file_name' in _data.columns:
+            _data = [_data[_data['file_name'] == ind]['counter_value'].values[0] for ind in self.indices]
+
+        else:
+            indices = [int(ind[1:3]) for ind in self.indices]
+            coord = []
+
+            for ind in indices:
+                string = _data.loc[ind].values[0][36:-7]
+                coord.append(list([int(i) for i in re.sub('\\D+', ' ', string).split(' ')[1:]]))
+            _data = np.array(coord)
+        setattr(self, components, _data)
 
     @action
     def load(self, src, fmt=None, components=None, *args, **kwargs):
@@ -118,7 +118,7 @@ class WaterBatch(ImagesBatch):
         elif fmt == 'csv':
             self._load_csv(src, components, *args, **kwargs)
         else:
-            raise ValueError("Unknown format " + fmt)
+            super().load(src, fmt, components, *args, **kwargs)
         return self
 
     @action
