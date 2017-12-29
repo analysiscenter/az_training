@@ -3,6 +3,8 @@ import sys
 import re
 
 import scipy
+import dill
+import blosc
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,7 +14,15 @@ from dataset.dataset import ImagesBatch, action, inbatch_parallel
 
 class WaterBatch(ImagesBatch):
     """Class to create batch with water meter"""
-    components = 'images', 'labels', 'coordinates', 'indices', 'numbers'
+    components = 'images', 'labels', 'coordinates', 'indices'
+
+    @action
+    @inbatch_parallel(init='indices', src='images', post='assemble')
+    def normalize_images(self, ind, src='images'):
+        image = self.get(ind, src)
+        """ Normalize pixel values to (0, 1). """
+        normalize_image = image / 255.
+        return normalize_image
 
     def _init_component(self, *args, **kwargs):
         """Create and preallocate a new attribute with the name ``dst`` if it
@@ -27,19 +37,45 @@ class WaterBatch(ImagesBatch):
 
     @action
     @inbatch_parallel(init='_init_component', src='images', dst='cropped', target='threads')
-    def crop_to_bbox(self, index, *args, src='images', dst='cropped', **kwargs):
-        """Create cropped attr with crop image use ``coordinates``"""
+    def crop_to_bbox(self, ind, *args, src='images', dst='cropped', **kwargs):
+        """Create cropped attr with crop image use ``coordinates``
+
+        Parameter
+        ----------
+        ind : str or int
+        dataset index
+
+        src : str
+        the name of the placeholder with data
+
+        dst : str
+        the name of the placeholder in witch the result will be recorded"""
         _ = args, kwargs
-        image = self.get(index, 'images')
-        x, y, x1, y1 = self.get(index, 'coordinates')
-        i = self.get_pos(None, 'images', index)
-        dst_data = image[y:y+y1, x:x+x1]
+        image = self.get(ind, src)
+        x, y, width, height = self.get(ind, 'coordinates')
+        i = self.get_pos(None, src, ind)
+        dst_data = image[y:y+height, x:x+width]
         getattr(self, dst)[i] = dst_data
 
     @action
     @inbatch_parallel(init='_init_component', src='cropped', dst='sepcrop', target='threads')
-    def crop_to_numbers(self, index, *args, shape=(64, 32), src='cropped', dst='sepcrop', **kwargs):
-        """Crop image with 8 number to 8 images with one number"""
+    def crop_to_numbers(self, ind, *args, shape=(64, 32), src='cropped', dst='sepcrop', **kwargs):
+        """Crop image with 8 number to 8 images with one number
+        
+        Parameters
+        ----------
+        ind : str or int
+        dataset index
+        
+        shape : tuple or list
+        shape of output image
+
+        src : str
+        the name of the placeholder with data
+
+        dst : str
+        the name of the placeholder in witch the result will be recorded"""
+
         def _resize(img, shape):
             factor = 1. * np.asarray([*shape]) / np.asarray(img.shape[:2])
             if len(img.shape) > 2:
@@ -48,8 +84,8 @@ class WaterBatch(ImagesBatch):
             return new_image
 
         _ = args, kwargs
-        i = self.get_pos(None, 'cropped', index)
-        image = getattr(self, 'cropped')[i]
+        i = self.get_pos(None, src, ind)
+        image = getattr(self, src)[i]
         step = round(image.shape[1]/8)
         numbers = np.array([_resize(image[:, i:i+step], shape) for i in range(0, image.shape[1], step)] + \
                            [None])[:-1]
@@ -57,31 +93,32 @@ class WaterBatch(ImagesBatch):
             numbers = numbers[:-1]
         getattr(self, dst)[i] = numbers
 
-    @action
-    @inbatch_parallel(init='_init_component', src='labels', dst='labels', target='threads')
-    def crop_labels(self, index, *args, src='labels', dst='labels', **kwargs):
-        """Create labels"""
+    @inbatch_parallel(init='_init_component', src='labels', dst='cropped_labels', target='threads')
+    def _crop_labels(self, ind, *args, src='labels', dst='cropped_labels', **kwargs):
         _ = args, kwargs
-        i = self.get_pos(None, 'labels', index)
-        label = getattr(self, 'labels')[i]
+        i = self.get_pos(None, src, ind)
+        label = getattr(self, src)[i]
+
+        if type(label) != str:
+            fmt = '%s' if type(label)[0] == str else '%.18e'
+            np.savetxt('./file', label, fmt=fmt)
 
         more_label = np.array([int(i) for i in label.replace('.', '')] + [None])[:-1]
-
         getattr(self, dst)[i] = more_label
 
     @inbatch_parallel(init='indices', post='assemble')
-    def _load_jpg(self, ind, src, components=None):
+    def _load_jpg(self, ind, src, components=None, *args, **kwargs):
         _ = components, self
-        images = plt.imread(src + ind + '.jpg')
+        images = plt.imread(src + ind + '.jpg', *args, **kwargs)
         return images
 
     def _load_csv(self, src, components=None, *args, **kwargs):
-        _ = args, kwargs
+        _ = args
+        crop_labels = kwargs.pop('crop_labels') if 'crop_labels' in kwargs.keys() else False
         if src[-4:] != '.csv':
             src += '.csv'
         _data = pd.read_csv(src, *args, **kwargs)
-
-        if 'file_name' in _data.columns:
+        if 'file_name' in _data.columns: # pylint: disable=no-member
             _data = [_data[_data['file_name'] == ind]['counter_value'].values[0] for ind in self.indices]
 
         else:
@@ -89,10 +126,20 @@ class WaterBatch(ImagesBatch):
             coord = []
 
             for ind in indices:
-                string = _data.loc[ind].values[0][36:-7]
+                string = _data.loc[ind].values[0][36:-7] # pylint: disable=no-member
                 coord.append(list([int(i) for i in re.sub('\\D+', ' ', string).split(' ')[1:]]))
             _data = np.array(coord)
         setattr(self, components, _data)
+        if crop_labels:
+            self._crop_labels()
+
+    @inbatch_parallel(init='indices', post='assemble')
+    def _load_blosc(self, ind, src=None, components=None, *args, **kwargs):
+        _ = args, kwargs, components
+        file_name = self._get_file_name(ind, src, 'blosc')
+        with open(file_name, 'rb') as f:
+            data = dill.loads(blosc.decompress(f.read()))
+        return data
 
     @action
     def load(self, src, fmt=None, components=None, *args, **kwargs):
@@ -114,15 +161,11 @@ class WaterBatch(ImagesBatch):
             other parameters are passed to format-specific loaders
         """
         if fmt == 'jpg':
-            self._load_jpg(src, components)
+            self._load_jpg(src, components, *args, **kwargs)
         elif fmt == 'csv':
             self._load_csv(src, components, *args, **kwargs)
+        elif fmt == 'blosc':
+            self._load_blosc(src, components, *args, **kwargs)
         else:
-            super().load(src, fmt, components, *args, **kwargs)
-        return self
-
-    @action
-    def normalize_images(self):
-        """ Normalize pixel values to (0, 1). """
-        self.images = self.images / 255. # pylint: disable=attribute-defined-outside-init
+            raise ValueError("Unknown format " + fmt)
         return self
