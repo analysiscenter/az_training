@@ -19,8 +19,8 @@ class WaterBatch(ImagesBatch):
     @action
     @inbatch_parallel(init='indices', src='images', post='assemble')
     def normalize_images(self, ind, src='images'):
-        image = self.get(ind, src)
         """ Normalize pixel values to (0, 1). """
+        image = self.get(ind, src)
         normalize_image = image / 255.
         return normalize_image
 
@@ -61,12 +61,12 @@ class WaterBatch(ImagesBatch):
     @inbatch_parallel(init='_init_component', src='cropped', dst='sepcrop', target='threads')
     def crop_to_numbers(self, ind, *args, shape=(64, 32), src='cropped', dst='sepcrop', **kwargs):
         """Crop image with 8 number to 8 images with one number
-        
+
         Parameters
         ----------
         ind : str or int
         dataset index
-        
+
         shape : tuple or list
         shape of output image
 
@@ -86,23 +86,15 @@ class WaterBatch(ImagesBatch):
         _ = args, kwargs
         i = self.get_pos(None, src, ind)
         image = getattr(self, src)[i]
-        step = round(image.shape[1]/8)
-        numbers = np.array([_resize(image[:, i:i+step], shape) for i in range(0, image.shape[1], step)] + \
-                           [None])[:-1]
-        if len(numbers) > 8:
-            numbers = numbers[:-1]
+        numbers = np.array([_resize(img, shape) for img in np.array_split(image, 8, axis=1)] + [None])[:-1]
+
         getattr(self, dst)[i] = numbers
 
-    @inbatch_parallel(init='_init_component', src='labels', dst='cropped_labels', target='threads')
-    def _crop_labels(self, ind, *args, src='labels', dst='cropped_labels', **kwargs):
+    @inbatch_parallel(init='_init_component', src='labels', dst='labels', target='threads')
+    def _crop_labels(self, ind, *args, src='labels', dst='labels', **kwargs):
         _ = args, kwargs
         i = self.get_pos(None, src, ind)
         label = getattr(self, src)[i]
-
-        if type(label) != str:
-            fmt = '%s' if type(label)[0] == str else '%.18e'
-            np.savetxt('./file', label, fmt=fmt)
-
         more_label = np.array([int(i) for i in label.replace('.', '')] + [None])[:-1]
         getattr(self, dst)[i] = more_label
 
@@ -137,8 +129,8 @@ class WaterBatch(ImagesBatch):
     def _load_blosc(self, ind, src=None, components=None, *args, **kwargs):
         _ = args, kwargs, components
         file_name = self._get_file_name(ind, src, 'blosc')
-        with open(file_name, 'rb') as f:
-            data = dill.loads(blosc.decompress(f.read()))
+        with open(file_name, 'rb') as file:
+            data = dill.loads(blosc.decompress(file.read()))
         return data
 
     @action
