@@ -123,7 +123,7 @@ class WaterBatch(ImagesBatch):
             _data = np.array(coord)
         setattr(self, components, _data)
         if crop_labels:
-            self._crop_labels()
+            self._crop_labels(self.indices)
 
     @inbatch_parallel(init='indices', post='assemble')
     def _load_blosc(self, ind, src=None, components=None, *args, **kwargs):
