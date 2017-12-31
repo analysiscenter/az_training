@@ -323,19 +323,28 @@ def class_accuracy(all_predicted, all_real):
         array with [repeate(class, *num_errors)]
     acc : np.float32
         value of quality """
+    def _calculate_dist(prediction, real):
+        dist_numbers = np.zeros(prediction.shape[-1])
 
-    def _calculate_dist(predtion, real):
-        if predtion.shape[1] > 1:
-            predtion = np.argmax(predtion, axis=1)
+        prediction = np.argmax(prediction, axis=-1) if prediction.shape[-1] > 1 else prediction
+        real = np.argmax(real, axis=-1) if len(real.shape) > 2 and real.shape[-1] > 1 else real
 
-        pred_acc = lambda pred, ans: len(np.where(pred == ans)[0]) / len(pred)
-        acc = pred_acc(predtion, real)
+        pred_acc = lambda pred, ans: len(np.where(np.array(list(Counter(np.where(prediction == real)[0]).values()))
+                                                  == 2)[0]) / len(pred)
 
-        dist = sorted(real[np.where(predtion != real)[0]])
+        acc = pred_acc(prediction, real)
+        prediction = prediction.reshape(-1)
+        real = real.reshape(-1)
+
+        dist = sorted(real[np.where(prediction != real)[0]])
         numbers_of_errors = list(Counter(dist).values())
+
         dist_proportion = [numbers/sum(numbers_of_errors) for numbers in numbers_of_errors]
 
-        return np.array(dist_proportion), acc
+        for i, num in enumerate(Counter(dist).keys()):
+            dist_numbers[num] = dist_proportion[i]
+
+        return np.array(dist_numbers), acc
 
     for pred_iter, real_iter in zip(all_predicted, all_real):
         yield _calculate_dist(pred_iter, real_iter)
