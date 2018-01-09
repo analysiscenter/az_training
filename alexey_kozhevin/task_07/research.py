@@ -21,10 +21,10 @@ from dataset.dataset.opensets import MNIST, CIFAR10, CIFAR100
 from training import MultipleTraining
 
 _DATASETS = {
-    'mnist': [MNIST, (28, 28, 1), 10],
-    'cifar': [CIFAR10, (32, 32, 3), 10],
-    'cifar10': [CIFAR10, (32, 32, 3), 10],
-    'cifar100': [CIFAR100, (32, 32, 3), 100],
+    'mnist': MNIST,
+    'cifar': CIFAR10,
+    'cifar10': CIFAR10,
+    'cifar100': CIFAR100,
 }
 
 class Research:
@@ -75,7 +75,7 @@ class Research:
             os.makedirs(tmp_dir)
         self.results = list()
         self.vizualizations = {
-            'density': self._plot_density
+            'density': self.plot_density
         }
 
         self._defaults()
@@ -96,6 +96,7 @@ class Research:
         self.n_reps = n_reps
         self.batch_size = batch_size
         self.n_iters = n_iters
+        self._clear_tmp_folder()
         for class_model, base_config, grid_config in self.models:
             for additional_parameters in self._gen_config(grid_config):
                 config = {**base_config, **additional_parameters[0]}
@@ -140,7 +141,7 @@ class Research:
     def _dataset(self):
         """ Transform str value of self.data to Dataset. """
         if isinstance(self.data, str):
-            self.data = _DATASETS[self.data][0]()
+            self.data = _DATASETS[self.data]()
         elif issubclass(self.data, Dataset):
             pass
         else:
@@ -220,29 +221,43 @@ class Research:
         res = [np.mean(x[:, iteration]) for x in res]
         return res
 
-    def _index_by_alias(self, model_name, alias):
-        index = -1
-        for i, (model, _, config, _)  in enumerate(self.results):
-            if config == alias and model == model_name:
-                index = i
-                break
-        return index
-
     def _indices_by_alias(self, model_name, aliases):
         output = []
         for alias in aliases:
             index = self._index_by_alias(model_name, alias)
-            if index == -1:
-                raise ValueError("Config wasn't found in experiment results.")
-            output.append(index)
+            output.extend(index)
+        if len(output) == 0:
+            raise ValueError("No one config was found in experiment results.")
         return output
 
-    def _plot_density(self, iteration, params_ind=None, metric='loss', window=0,
+    def _index_by_alias(self, model_name, alias):
+        index = []
+        for i, (model, parameters, config_alias, _)  in enumerate(self.results):
+            if self._is_subset(alias, config_alias) and model == model_name:
+                index.append(i)
+        return index
+
+    def _is_subset(self, subset, superset):
+        return all(item in superset.items() for item in subset.items())
+
+    def _select_params(self, params_ind):
+        if params_ind is None:
+            return list(range(len(self.results)))
+        if not isinstance(params_ind, list):
+            params_ind = [params_ind]
+        indices = []
+        for ind in params_ind:
+            if isinstance(ind, int):
+                indices.append(ind)
+            else:
+                indices.extend(self._indices_by_alias(*ind))
+        return indices
+
+    def plot_density(self, iteration, params_ind=None, metric='loss', window=0,
                       mode=None, xlim=None, ylim=None, axes=None, figsize=None,
                       show=True, *args, **kwargs):
         """ Plot histogram of the metric at the fixed iteration. """
-        if isinstance(params_ind, int):
-            params_ind = [params_ind]
+        params_ind = self._select_params(params_ind)
         left = max(iteration-window, 0)
         right = min(iteration+window+1, self.n_iters)
         if figsize is None:
