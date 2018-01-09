@@ -1,6 +1,7 @@
 #pylint:disable=attribute-defined-outside-init
 #pylint:disable=too-many-instance-attributes
 #pylint:disable=too-many-arguments
+#pylint:disable=too-many-locals
 
 """ Experiments with models. """
 
