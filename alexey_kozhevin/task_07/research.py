@@ -232,7 +232,7 @@ class Research:
 
     def _index_by_alias(self, model_name, alias):
         index = []
-        for i, (model, parameters, config_alias, _)  in enumerate(self.results):
+        for i, (model, _, config_alias, _)  in enumerate(self.results):
             if self._is_subset(alias, config_alias) and model == model_name:
                 index.append(i)
         return index
@@ -254,8 +254,8 @@ class Research:
         return indices
 
     def plot_density(self, iteration, params_ind=None, metric='loss', window=0,
-                      mode=None, xlim=None, ylim=None, axes=None, figsize=None,
-                      show=True, *args, **kwargs):
+                     mode=None, xlim=None, ylim=None, axes=None, figsize=None,
+                     show=True, *args, **kwargs):
         """ Plot histogram of the metric at the fixed iteration. """
         params_ind = self._select_params(params_ind)
         left = max(iteration-window, 0)
