@@ -1,5 +1,10 @@
+#pylint:disable=attribute-defined-outside-init
+#pylint:disable=too-many-instance-attributes
+#pylint:disable=too-many-arguments
+
+""" Experiments with models. """
+
 import os
-from time import time
 from itertools import product
 from subprocess import call
 from collections import OrderedDict
@@ -7,11 +12,9 @@ import pickle
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from tqdm import tqdm
-from ipywidgets import interactive
 import pandas as pd
 
-from dataset.dataset import Dataset, Pipeline, B, V
+from dataset.dataset import Dataset, Pipeline
 from dataset.dataset.opensets import MNIST, CIFAR10, CIFAR100
 
 from training import MultipleTraining
@@ -26,7 +29,7 @@ _DATASETS = {
 class Research:
     """ Class for multiple experiments with models. """
     def __init__(self, models, data, feed_dict, preproc_template=None, metrics=None, aliases=False, name=None):
-        """ Initial experiment settings. 
+        """ Initial experiment settings.
 
         Parameters
         ----------
@@ -34,7 +37,7 @@ class Research:
             class_model : TFModel
             base_config : dict
                 model config with parameters which are not changes between experiments
-            grid_config : dict 
+            grid_config : dict
                 key : str or tuple of str
                     if str - parameter name. if tuple - (parameter name, parameter alias)
                 value : list
@@ -48,7 +51,7 @@ class Research:
             pipeline to preprocess data. Default - None
         base_config : dict
         metrics : str or list of str
-            metrics to compute on trainn and test. If None is 
+            metrics to compute on train and test. If None 'loss' will be assigned.
         aliases : bool
             see models
         name : str
@@ -79,8 +82,8 @@ class Research:
         self._add_aliases()
 
     def run(self, batch_size, n_iters, n_reps):
-        """ Run experiments. 
-        
+        """ Run experiments.
+
         Parameters
         ----------
         n_reps : int
@@ -95,14 +98,14 @@ class Research:
         for class_model, base_config, grid_config in self.models:
             for additional_parameters in self._gen_config(grid_config):
                 config = {**base_config, **additional_parameters[0]}
-                training_class = MultipleTraining(class_model, self.data, config, self.feed_dict, 
+                training_class = MultipleTraining(class_model, self.data, config, self.feed_dict,
                                                   self.preproc_template, self.metrics)
                 training_class.run(batch_size, n_iters, n_reps)
                 self.results.append((class_model.__name__, *additional_parameters, training_class.results))
                 self._save_results()
 
     def summary(self):
-        """ Get description of the experiment. 
+        """ Get description of the experiment.
         Returns
         -------
         pd.DataFrame
@@ -111,7 +114,7 @@ class Research:
         print('Number of iterations:', self.n_iters)
         print('Batch size:', self.batch_size)
         summ = OrderedDict()
-        for model, parameters, alias, stat in self.results:
+        for model, _, alias, stat in self.results:
             row = OrderedDict()
             alias = model + '_' + self._alias_to_str(alias)
             for metric in ['loss']+self.metrics:
@@ -165,7 +168,7 @@ class Research:
 
     def _gen_config(self, grid_config):
         """ Generate tuples (config, config_alias) from grid_config. """
-        keys = grid_config.keys() # it is important that keys and values are in the same order 
+        keys = grid_config.keys() # it is important that keys and values are in the same order
         values = grid_config.values()
         return (self._get_dict_and_alias(keys, parameters) for parameters in product(*values))
 
@@ -186,7 +189,7 @@ class Research:
             for name in dirs:
                 os.rmdir(os.path.join(root, name))
 
-    def _save_results(self, tmp=False):
+    def _save_results(self):
         name = os.path.join(self.name, 'results')
         with open(name, 'wb') as file:
             pickle.dump(self, file)
@@ -291,7 +294,7 @@ class Research:
                 kwargs = {**kwargs, **frame}
             mask = '{:0' + str(int(np.ceil(np.log10(self.n_iters)))) + 'd}.png'
             mask = os.path.join(tmp_folder, '') + mask
-            self.vizualizations[vizualization](iteration, show=False, *args, **kwargs)
+            self.vizualizations[vizualization](iteration, params_ind, show=False, *args, **kwargs)
             plt.savefig(mask.format(iteration))
             plt.close()
 

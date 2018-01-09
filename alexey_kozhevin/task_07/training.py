@@ -1,11 +1,13 @@
+#pylint:disable=too-many-instance-attributes
+#pylint:disable=too-few-public-methods
+#pylint:disable=attribute-defined-outside-init
+
 """ Training of model. """
 
-import os
 from time import time
-import numpy as np
 from tqdm import tqdm
 
-from dataset.dataset import Dataset, Pipeline, B, V
+from dataset.dataset import Pipeline, V
 
 class MultipleTraining:
     """ Class for training one model repeatedly. """
@@ -71,9 +73,9 @@ class MultipleTraining:
     def _empty_results(self):
         """ Create empty dict for results of research. """
         self.results = {
-          'time': list(),
-          'train': dict(),
-          'test': dict()  
+            'time': list(),
+            'train': dict(),
+            'test': dict()
         }
         for metric in ['loss'] + self.metrics:
             self.results['train'][metric] = list()
@@ -87,8 +89,8 @@ class MultipleTraining:
             self.results['test'][metric].append(results['test'][metric])
 
     def run(self, batch_size, n_iters, n_reps):
-        """ Run training and save statistics into attribute results 
-        
+        """ Run training and save statistics into attribute results
+
         Parameters
         ----------
         n_reps : int
@@ -109,7 +111,7 @@ class MultipleTraining:
                 self.train_ppl.next_batch(batch_size, shuffle=True, n_epochs=None)
                 self.test_ppl.next_batch(batch_size, shuffle=True, n_epochs=None)
                 train_time.append(time() - start)
-        
+
             results = {
                 'time': sum(train_time),
             }
