@@ -118,6 +118,7 @@ class Grid:
         return self.config() == other.config()
 
     def gen_configs(self):
+        """ Generate configs from grid. """
         for item in self.grid:
             keys = [option.parameter for option in item]
             values = [option.values for option in item]
