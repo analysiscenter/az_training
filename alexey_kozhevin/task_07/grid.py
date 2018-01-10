@@ -52,6 +52,22 @@ class Option:
     def __add__(self, other):
         return Grid(self) + Grid(other)
 
+class Config:
+    """ Class for config. """
+    def __init__(self, config):
+        self._config = config
+
+    def alias(self):
+        """ Returns alias. """
+        return {item[0].alias: item[1].alias for item in self._config}
+
+    def config(self):
+        """ Returns values. """
+        return {item[0].value: item[1].value for item in self._config}
+
+    def __repr__(self):
+        return str(self.alias())
+
 class Grid:
     """ Class for grid of parameters. """
     def __init__(self, grid):
@@ -96,7 +112,14 @@ class Grid:
         return str(self.alias())
 
     def __getitem__(self, index):
-        return self.grid[index]
+        return Grid([self.grid[index]])
 
     def __eq__(self, other):
         return self.config() == other.config()
+
+    def gen_configs(self):
+        for item in self.grid:
+            keys = [option.parameter for option in item]
+            values = [option.values for option in item]
+            for parameters in product(*values):
+                yield Config(list(zip(keys, parameters)))
