@@ -1,3 +1,5 @@
+#pylint:disable=too-few-public-methods
+
 """ Options and configs. """
 
 from itertools import product
@@ -64,10 +66,10 @@ class Grid:
             pass
         else:
             self.grid = grid
-        
+
     def __len__(self):
         return len(self.grid)
-    
+
     def __mul__(self, other):
         if isinstance(other, Grid):
             res = list(product(self.grid, other.grid))
@@ -81,20 +83,20 @@ class Grid:
             return Grid(self.grid + other.grid)
         elif isinstance(other, Option):
             return self + Grid([[other]])
-        
+
     def alias(self):
         """ Returns alias of the Grid. """
         return [[option.alias() for option in options] for options in self.grid]
-    
+
     def config(self):
         """ Returns config of the Grid. """
         return [[option.config() for option in options] for options in self.grid]
-    
+
     def __repr__(self):
         return str(self.alias())
-    
-    def __getitem__(self, ix):
-        return self.grid[ix]
-    
+
+    def __getitem__(self, index):
+        return self.grid[index]
+
     def __eq__(self, other):
         return self.config() == other.config()
