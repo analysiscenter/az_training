@@ -128,6 +128,7 @@ class Research:
 
     def plot(self, iteration, grid_config=None, func='density', metric='train loss', window=0,
              xlim=None, ylim=None, axes=None, figsize=None, show='display', *args, **kwargs):
+        """ General plot function"""
         indices = self._indices_by_grid(grid_config)
         if isinstance(func, str):
             func = self.vizualizations[func]
@@ -160,12 +161,13 @@ class Research:
             plt.savefig(show)
 
     def _indices_by_grid(self, grid_config):
+        _ = grid_config
         return list(range(len(self.results)))
 
     def plot_density(self, data, label, ax, *args, **kwargs):
         """ Plot histogram of the metric at the fixed iteration. """
         sns.distplot(data, label=label, ax=ax, *args, **kwargs)
-        
+
 
     def make_video(self, filename=None, plots_per_sec=1., key_frames=None, *args, **kwargs):
         """ Creates video with distribution. """
