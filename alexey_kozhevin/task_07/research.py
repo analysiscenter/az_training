@@ -6,7 +6,6 @@
 """ Experiments with models. """
 
 import os
-from itertools import product
 from subprocess import call
 from collections import OrderedDict
 import pickle
@@ -127,11 +126,11 @@ class Research:
             summ[alias] = row
         return pd.DataFrame(summ, columns=summ.keys(), index=row.keys()).transpose()
 
-    def plot_density(self, iteration, params_ind=None, metric='loss', window=0,
-                     mode=None, xlim=None, ylim=None, axes=None, figsize=None,
-                     show=True, *args, **kwargs):
-        """ Plot histogram of the metric at the fixed iteration. """
-        params_ind = self._select_params(params_ind)
+    def plot(self, iteration, grid_config=None, func='density', metric='train loss', window=0,
+             xlim=None, ylim=None, axes=None, figsize=None, show='display', *args, **kwargs):
+        indices = self._indices_by_grid(grid_config)
+        if isinstance(func, str):
+            func = self.vizualizations[func]
         left = max(iteration-window, 0)
         right = min(iteration+window+1, self.n_iters)
         if figsize is None:
@@ -142,30 +141,37 @@ class Research:
             axes = [0.1, 0.4, 0.8, 0.5]
         ax = fig.add_axes(axes)
 
-        if params_ind is None:
-            params_ind = list(range(len(self.results)))
-
-        for ind in params_ind:
+        mode, metric = metric.split()
+        for ind in indices:
             stat = self.results[ind]
             x = np.array(stat[-1][mode][metric])[:, left:right]
             x = x.reshape(-1)
             label = stat[0]+'_'+self._alias_to_str(stat[2])
-            sns.distplot(x, label=label, ax=ax, *args, **kwargs)
+            func(x, label=label, ax=ax, *args, **kwargs)
         if xlim is not None:
             ax.set_xlim(xlim)
         if ylim is not None:
             ax.set_ylim(ylim)
         ax.set_title("{} {}: iteration {}".format(mode, metric, iteration+1))
         ax.legend(loc=9, bbox_to_anchor=(0.5, -0.1))
-        if show:
+        if show == 'display':
             plt.show()
-        return ax
+        else:
+            plt.savefig(show)
 
-    def make_video(self, vizualization, name, params_ind=None, plots_per_sec=1., key_frames=None, *args, **kwargs):
+    def _indices_by_grid(self, grid_config):
+        return list(range(len(self.results)))
+
+    def plot_density(self, data, label, ax, *args, **kwargs):
+        """ Plot histogram of the metric at the fixed iteration. """
+        sns.distplot(data, label=label, ax=ax, *args, **kwargs)
+        
+
+    def make_video(self, filename=None, plots_per_sec=1., key_frames=None, *args, **kwargs):
         """ Creates video with distribution. """
-        name = os.path.join(self.name, name)
-        if os.path.isfile(name):
-            os.remove(name)
+        filename = os.path.join(self.name, filename)
+        if os.path.isfile(filename):
+            os.remove(filename)
         tmp_folder = os.path.join(self.name, '.tmp')
 
         try:
@@ -184,14 +190,13 @@ class Research:
                 kwargs = {**kwargs, **frame}
             mask = '{:0' + str(int(np.ceil(np.log10(self.n_iters)))) + 'd}.png'
             mask = os.path.join(tmp_folder, '') + mask
-            self.vizualizations[vizualization](iteration, params_ind, show=False, *args, **kwargs)
-            plt.savefig(mask.format(iteration))
+            self.plot(iteration, show=mask.format(iteration), *args, **kwargs)
             plt.close()
 
         mask = '%0{}d.png'.format(int(np.ceil(np.log10(self.n_iters))))
         mask = os.path.join(tmp_folder, mask)
         res = call(["ffmpeg.exe", "-r", str(plots_per_sec), "-i", mask, "-c:v", "libx264", "-vf",
-                    "fps=25", "-pix_fmt", "yuv420p", name])
+                    "fps=25", "-pix_fmt", "yuv420p", filename])
         self._clear_tmp_folder()
         if res != 0:
             raise OSError("Video can't be created")
