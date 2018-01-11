@@ -7,12 +7,11 @@
 from time import time
 from tqdm import tqdm
 
-from dataset.dataset import Pipeline, V
+from dataset.dataset import Pipeline, V, C
 
 class MultipleTraining:
     """ Class for training one model repeatedly. """
-    def __init__(self, class_model, data, config, feed_dict, preproc_template=None, metrics=None):
-        self.class_model = class_model
+    def __init__(self, data, config, feed_dict, preproc_template=None, metrics=None):
         self.data = data
         self.config = config
         self.feed_dict = feed_dict
@@ -50,14 +49,14 @@ class MultipleTraining:
         self._model_template()
 
         self.train_ppl = (self.preproc_template +
-                          Pipeline().init_model('dynamic', self.class_model, 'model', config=self.config) +
+                          Pipeline(config=self.config).init_model('dynamic', C('model'), 'model') +
                           self.train_template)
-        self.train_ppl = self.train_ppl << self.data.train
+        self.train_ppl = Pipeline(config=self.config) + self.train_ppl << self.data.train
 
         self.test_ppl = (self.preproc_template +
-                         Pipeline().import_model('model', self.train_ppl) +
+                         Pipeline(config=self.config).import_model('model', self.train_ppl) +
                          self.test_template)
-        self.test_ppl = self.test_ppl << self.data.test
+        self.test_ppl = Pipeline(config=self.config) + self.test_ppl << self.data.test
 
     def _reset_model(self):
         for metric in ['loss']+self.metrics:
