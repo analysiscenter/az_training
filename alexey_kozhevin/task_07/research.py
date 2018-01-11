@@ -47,10 +47,10 @@ class Research:
         feed_dict : dict
 
         data : str or Dataset
-            input data. If str, must be 'mnist', 'cifar', 'cifar10' or 'cifar100'
+            input data. If str, must be 'mnist', 'cifar', 'cifar10' or 'cifar100'. If Dataset, it must has attributes
+            train and test.
         preproc_template : Pipeline
-            pipeline to preprocess data. Default - None
-        base_config : dict
+            pipeline to preprocess data which is applied to data.test and data.train. Default - None (empty pipeline).
         metrics : str or list of str
             metrics to compute on train and test. If None 'loss' will be assigned.
         aliases : bool
@@ -80,7 +80,6 @@ class Research:
 
         self._defaults()
         self._dataset()
-        self._add_aliases()
 
     def run(self, batch_size, n_iters, n_reps):
         """ Run experiments.
@@ -98,12 +97,13 @@ class Research:
         self.n_iters = n_iters
         self._clear_tmp_folder()
         for class_model, base_config, grid_config in self.models:
-            for additional_parameters in self._gen_config(grid_config):
-                config = {**base_config, **additional_parameters[0]}
+            for additional_parameters in grid_config.gen_configs():
+                config = {**base_config, **additional_parameters.config()}
                 training_class = MultipleTraining(class_model, self.data, config, self.feed_dict,
                                                   self.preproc_template, self.metrics)
                 training_class.run(batch_size, n_iters, n_reps)
-                self.results.append((class_model.__name__, *additional_parameters, training_class.results))
+                self.results.append((class_model.__name__, additional_parameters.config(),
+                                     additional_parameters.alias(), training_class.results))
                 self._save_results()
 
     def summary(self):
@@ -196,16 +196,6 @@ class Research:
         if res != 0:
             raise OSError("Video can't be created")
 
-    def alias_description(self):
-        """ Print alias and corresponding parameter values. """
-        for class_model, _, grid_config in self.models:
-            print("Model:", class_model.__name__)
-            for parameter, values in grid_config.items():
-                aliases = [parameter[1]+'-'+str(value[1]) for value in values]
-                configs = [parameter[0]+'='+str(value[0]) for value in values]
-                for alias, config in zip(aliases, configs):
-                    print("    {}: {}".format(alias, config))
-
     def _defaults(self):
         """ Assign default values. """
         if self.name is None:
@@ -226,14 +216,6 @@ class Research:
         else:
             raise ValueError('data must be str or Dataset subclass')
 
-    def _add_aliases(self):
-        """ Add aliases to grid.config if needed. """
-        models_with_aliases = []
-        for class_model, base_config, grid_config in self.models:
-            grid_config = dict([self._item_aliases(*item) for item in grid_config.items()])
-            models_with_aliases.append((class_model, base_config, grid_config))
-        self.models = models_with_aliases
-
     def _item_aliases(self, key, value):
         """ Transform dict items to (key, value) where
             key = (parameter_name, parameter_alias)
@@ -246,12 +228,6 @@ class Research:
         if not self.aliases:
             value = [(item, i) for i, item in enumerate(value)]
         return key, value
-
-    def _gen_config(self, grid_config):
-        """ Generate tuples (config, config_alias) from grid_config. """
-        keys = grid_config.keys() # it is important that keys and values are in the same order
-        values = grid_config.values()
-        return (self._get_dict_and_alias(keys, parameters) for parameters in product(*values))
 
     def _get_dict_and_alias(self, keys, parameters):
         """ Create dict of parameters and corresponding dict of aliases. """

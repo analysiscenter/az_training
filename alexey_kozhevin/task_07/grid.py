@@ -14,11 +14,15 @@ class Pair:
         alias : obj
             if None alias will be equal to value.
         """
-        self.value = value
-        if alias is None:
-            self.alias = value
+        if isinstance(value, Pair):
+            self.value = value.value
+            self.alias = value.alias
         else:
-            self.alias = alias
+            self.value = value
+            if alias is None:
+                self.alias = value
+            else:
+                self.alias = alias
 
     def __repr__(self):
         return str(self.alias) + ': ' + str(self.value)
@@ -32,8 +36,8 @@ class Option:
         parameter : Pair
         *values : Pairs
         """
-        self.values = values
-        self.parameter = parameter
+        self.parameter = Pair(parameter)
+        self.values = [Pair(value) for value in values]
 
     def alias(self):
         """ Returns alias of the Option. """
@@ -79,7 +83,7 @@ class Grid:
         if isinstance(grid, Option):
             self.grid = [[grid]]
         elif isinstance(grid, Grid):
-            pass
+            self.grid = grid.grid
         else:
             self.grid = grid
 
