@@ -4,11 +4,9 @@
 
 """ Training of model. """
 
-from time import time
+from copy import copy
 from tqdm import tqdm
-from copy import deepcopy, copy
 
-from dataset.dataset import Pipeline, V, C
 from dataset.dataset.models import BaseModel
 
 class MultipleRunning:
@@ -43,27 +41,25 @@ class MultipleRunning:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
         self.pipelines.append({'name': name, 'ppl': pipeline, 'cfg': config, 'var': variables})
 
-    def run(self, n_iters, n_reps=1, names=None, additional_config=None, return_results=False, *args, **kwargs):
+    def run(self, n_iters, n_reps=1, names=None, additional_config=None, return_results=False):
         """ Run pipelines repeatedly. Pipelines will be executed simultaneously in the following sense:
-        next_batch is applied successively to each pipeline in names list at each iteration. Pipelines at each repetition
-        are copies of the initial pipelines.
+        next_batch is applied successively to each pipeline in names list at each iteration. Pipelines 
+        at each repetition are copies of the initial pipelines.
 
         Parameters
         ----------
-        n_reps : int
-            number of repeated runs of each pipeline
-        n_iters : int (default 1)
+        n_iters : int
             number of iterations at each repetition
+        n_reps : int (default 1)
+            number of repeated runs of each pipeline
         names : str, int or list (default None)
             pipelines to run. If str - name of the pipeline. If int - index at self.pipelines.
             If list - list of names or list of indices. If None - all pipelines will be run.
-        *args, **kwargs 
-            parameters for next_batch which are common for each pipeline
         """
         results = Results()
         if additional_config is None:
             additional_config = dict()
-        for experiment in tqdm(range(n_reps)):
+        for _ in tqdm(range(n_reps)):
             pipelines = []
             if names is None:
                 names = list(range(len(self.pipelines)))
@@ -83,10 +79,10 @@ class MultipleRunning:
                 pipeline['ppl'].config = {**BaseModel.flatten(pipeline['cfg']), **BaseModel.flatten(additional_config)}
                 pipeline['ppl'].config = BaseModel.parse(pipeline['ppl'].config)
 
-            for i in range(n_iters):
+            for _ in range(n_iters):
                 for pipeline in pipelines:
                     pipeline['ppl'].next_batch()
-            
+
             for pipeline in pipelines:
                 if len(pipeline['var']) != 0:
                     _results = {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}

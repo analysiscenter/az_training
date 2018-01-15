@@ -6,26 +6,11 @@
 """ Experiments with models. """
 
 import os
-from subprocess import call
-from collections import OrderedDict
 import pickle
 import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pandas as pd
-
-from dataset.dataset import Dataset, Pipeline
-from dataset.dataset.opensets import MNIST, CIFAR10, CIFAR100
 
 from multiplerun import MultipleRunning
 from grid import Grid, Option
-
-_DATASETS = {
-    'mnist': MNIST,
-    'cifar': CIFAR10,
-    'cifar10': CIFAR10,
-    'cifar100': CIFAR100,
-}
 
 class ResearchResults:
     """ Class for results of research. """
@@ -34,7 +19,7 @@ class ResearchResults:
 
     def append(self, config, new_results):
         """ Append results.
-        
+
         Parameters
         ----------
         config : Config
@@ -73,6 +58,12 @@ class ResearchResults:
         return self.results[ind]
 
     def get_results(self, cond):
+        """ Get results for configs that satisfy cond
+        
+        Parameters
+        ----------
+        cond : Grid, Option; dict, int or list 
+        """
         if isinstance(cond, (Grid, Option)):
             cond = self._index_by_grid(cond)
         elif isinstance(cond, list):
@@ -112,13 +103,20 @@ class Research(MultipleRunning):
             see models
         name : str
         """
+        super().__init__()
         if name is None:
-           name = 'research'
+            name = 'research'
         self.name = name
 
         self._build()
 
     def grid_config(self, grid):
+        """ Add Grid.
+
+        Parameters
+        ----------
+        grid: Grid
+        """
         self.grid = grid
 
     def _build(self):
@@ -131,10 +129,6 @@ class Research(MultipleRunning):
         self.pipelines = list()
         self.grid = None
         self.results = ResearchResults()
-
-        self.vizualizations = {
-            'density': self.plot_density
-        }
 
     def run(self, n_iters, n_reps=1, names=None, *args, **kwargs):
         """ Run experiments.

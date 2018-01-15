@@ -4,8 +4,6 @@
 
 from itertools import product
 
-from dataset.dataset.models import BaseModel
-
 class Pair:
     """ Class for pair value-alias. """
     def __init__(self, value, alias=None):
