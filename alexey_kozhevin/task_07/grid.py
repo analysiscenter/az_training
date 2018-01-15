@@ -4,6 +4,8 @@
 
 from itertools import product
 
+from dataset.dataset.models import BaseModel
+
 class Pair:
     """ Class for pair value-alias. """
     def __init__(self, value, alias=None):
@@ -29,12 +31,12 @@ class Pair:
 
 class Option:
     """ Class for single-parameter option. """
-    def __init__(self, parameter, *values):
+    def __init__(self, parameter, values):
         """
         Parameters
         ----------
         parameter : Pair
-        *values : Pairs
+        values : list of Pairs
         """
         self.parameter = Pair(parameter)
         self.values = [Pair(value) for value in values]
@@ -55,6 +57,11 @@ class Option:
 
     def __add__(self, other):
         return Grid(self) + Grid(other)
+
+    def gen_configs(self):
+        """ Returns Configs created from the option. """
+        grid = Grid(self)
+        return grid.gen_configs()
 
 class Config:
     """ Class for config. """
@@ -78,7 +85,7 @@ class Grid:
         """
         Parameters
         ----------
-        grid: Option, Grid or list of list of Options
+        grid: Option, Grid or list of lists of Options
         """
         if isinstance(grid, Option):
             self.grid = [[grid]]
@@ -105,11 +112,11 @@ class Grid:
             return self + Grid([[other]])
 
     def alias(self):
-        """ Returns alias of the Grid. """
+        """ Returns alias of Grid. """
         return [[option.alias() for option in options] for options in self.grid]
 
     def config(self):
-        """ Returns config of the Grid. """
+        """ Returns config of Grid. """
         return [[option.config() for option in options] for options in self.grid]
 
     def __repr__(self):
@@ -122,7 +129,7 @@ class Grid:
         return self.config() == other.config()
 
     def gen_configs(self):
-        """ Generate configs from grid. """
+        """ Generate Configs from grid. """
         for item in self.grid:
             keys = [option.parameter for option in item]
             values = [option.values for option in item]
