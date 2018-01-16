@@ -6,10 +6,12 @@
 """ Experiments with models. """
 
 import os
+import collections
+from copy import deepcopy
 import pickle
 import numpy as np
 
-from multiplerun import MultipleRunning
+from multiplerun import SingleRunning, Results
 from grid import Grid, Option
 
 class ResearchResults:
@@ -30,7 +32,7 @@ class ResearchResults:
     def __iter__(self):
         return self.results
 
-    def _indices_by_alias(self, aliases):
+    def _index_by_aliases(self, aliases):
         output = []
         for alias in aliases:
             if isinstance(alias, dict):
@@ -49,32 +51,39 @@ class ResearchResults:
 
     def _index_by_grid(self, grid):
         aliases = [config.alias() for config in grid.gen_configs()]
-        return self._indices_by_alias(aliases)
+        return self._index_by_aliases(aliases)
 
     def _is_subset(self, subset, superset):
         return all(item in superset.items() for item in subset.items())
 
+    def _load_results(self, filename):
+        with open(filename, 'rb') as file:
+            return pickle.load(file)
+
     def __getitem__(self, ind):
-        return self.results[ind]
+        res = self.results[ind]
+        if isinstance(res[1], str):
+            res = (res[0], self._load_results(res[1]))       
+        return res
 
     def get_results(self, cond):
         """ Get results for configs that satisfy cond
-        
+
         Parameters
         ----------
-        cond : Grid, Option; dict, int or list 
+        cond : Grid, Option; dict, int or list
         """
         if isinstance(cond, (Grid, Option)):
             cond = self._index_by_grid(cond)
         elif isinstance(cond, list):
-            cond = self._indices_by_alias(cond)
+            cond = self._index_by_aliases(cond)
         else:
-            cond = self._indices_by_alias([cond])
+            cond = self._index_by_aliases([cond])
         cond = np.unique(cond)
-        return [self.results[i] for i in self._indices_by_alias(cond)]
+        return [self[i] for i in self._index_by_aliases(cond)]
 
 
-class Research(MultipleRunning):
+class Research:
     """ Class for multiple experiments with models. """
     def __init__(self, name=None):
         """ Initial experiment settings.
@@ -108,18 +117,6 @@ class Research(MultipleRunning):
             name = 'research'
         self.name = name
 
-        self._build()
-
-    def grid_config(self, grid):
-        """ Add Grid.
-
-        Parameters
-        ----------
-        grid: Grid
-        """
-        self.grid = grid
-
-    def _build(self):
         if not os.path.exists(self.name):
             os.makedirs(self.name)
         tmp_dir = os.path.join(self.name, '.tmp')
@@ -130,7 +127,40 @@ class Research(MultipleRunning):
         self.grid = None
         self.results = ResearchResults()
 
-    def run(self, n_iters, n_reps=1, names=None, *args, **kwargs):
+    def add_pipeline(self, pipeline, variables, config=None, name=None):
+        """ Add new pipeline to research.
+        Parameters
+        ----------
+        pipeline : dataset.Pipeline
+        variables : str or list of strs
+            names of pipeline variables to remember at each repetition
+        config : dict (default None)
+            pipeline config
+        names : str (default None)
+            name of pipeline. If None - name will be 'ppl_{index}'
+        """
+        if name is None:
+            name = 'ppl_' + str(len(self.pipelines))
+        if config is None:
+            config = dict()
+        if variables is None:
+            variables = []
+        if not isinstance(variables, list):
+            variables = [variables]
+        if name in [pipeline['name'] for pipeline in self.pipelines]:
+            raise ValueError('Pipeline with name {} was alredy existed'.format(name))
+        self.pipelines.append({'name': name, 'ppl': pipeline, 'cfg': config, 'var': variables})
+
+    def add_grid_config(self, grid):
+        """ Add Grid.
+
+        Parameters
+        ----------
+        grid: Grid
+        """
+        self.grid = grid
+
+    def run(self, n_iters, n_reps=1, names=None):
         """ Run experiments.
 
         Parameters
@@ -141,11 +171,18 @@ class Research(MultipleRunning):
 
         n_iters : int
         """
+        self.results = ResearchResults()
         self._clear_tmp_folder()
         for additional_config in self.grid.gen_configs():
-            results = super().run(n_iters, n_reps, names, additional_config.config(), return_results=True)
-            self.results.append(additional_config, results)
+            single_run = SingleRunning()
+            for experiment in range(n_reps):
+                single_run.pipelines = deepcopy(self.pipelines)
+                save_to = os.path.join('.', self.name, 'results',
+                                       additional_config.alias(as_string=True), str(experiment))
+                single_run.run(n_iters, names, additional_config.config(), save_to)
+                self.results.append(additional_config, save_to)
             self._save_results()
+
 
     def _clear_tmp_folder(self):
         dirname = os.path.join(self.name, '.tmp')
@@ -156,25 +193,13 @@ class Research(MultipleRunning):
                 os.rmdir(os.path.join(root, name))
 
     def _save_results(self):
-        name = os.path.join(self.name, 'results')
+        name = os.path.join(self.name, 'research')
         with open(name, 'wb') as file:
             pickle.dump(self, file)
 
     @classmethod
     def load(cls, name):
         """ Load experiment. """
-        with open(os.path.join(name, 'results'), 'rb') as file:
+        with open(os.path.join(name, 'research'), 'rb') as file:
             res = pickle.load(file)
         return res
-
-    def __getstate__(self):
-        """ Save all attributes except data. """
-        _dict = self.__dict__.copy()
-        #_dict['data'] = _dict['data'].__class__.__name__
-        ppls = list()
-        for pipeline in _dict['pipelines']:
-            dct = pipeline.copy()
-            dct['ppl'] = None
-            ppls.append(dct)
-        _dict['pipelines'] = dct
-        return _dict

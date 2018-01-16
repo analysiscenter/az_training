@@ -4,18 +4,21 @@
 
 """ Training of model. """
 
-from copy import copy
+import os
+from copy import copy, deepcopy
 from tqdm import tqdm
+import numpy as np
+import pickle
 
 from dataset.dataset.models import BaseModel
 
-class MultipleRunning:
+class SingleRunning:
     """ Class for training one model repeatedly. """
-    def __init__(self):
+    def __init__(self, prefix=None):
         self.pipelines = []
         self.results = Results()
 
-    def pipeline(self, pipeline, variables, config=None, name=None):
+    def add_pipeline(self, pipeline, variables, config=None, name=None):
         """ Add new pipeline to research.
         Parameters
         ----------
@@ -24,8 +27,6 @@ class MultipleRunning:
             names of pipeline variables to remember at each repetition
         config : dict (default None)
             pipeline config
-        run_kwargs : dict (default None)
-            kwargs for next_batch of that pipeline
         names : str (default None)
             name of pipeline. If None - name will be 'ppl_{index}'
         """
@@ -41,9 +42,9 @@ class MultipleRunning:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
         self.pipelines.append({'name': name, 'ppl': pipeline, 'cfg': config, 'var': variables})
 
-    def run(self, n_iters, n_reps=1, names=None, additional_config=None, return_results=False):
+    def run(self, n_iters, names=None, additional_config=None, save_to=None):
         """ Run pipelines repeatedly. Pipelines will be executed simultaneously in the following sense:
-        next_batch is applied successively to each pipeline in names list at each iteration. Pipelines 
+        next_batch is applied successively to each pipeline in names list at each iteration. Pipelines
         at each repetition are copies of the initial pipelines.
 
         Parameters
@@ -57,40 +58,52 @@ class MultipleRunning:
             If list - list of names or list of indices. If None - all pipelines will be run.
         """
         results = Results()
-        if additional_config is None:
-            additional_config = dict()
-        for _ in tqdm(range(n_reps)):
-            pipelines = []
-            if names is None:
-                names = list(range(len(self.pipelines)))
-            elif isinstance(names, (str, int)):
-                names = [names]
-            if isinstance(names[0], int):
-                pipelines = [self.pipelines[i] for i in names]
-            else:
-                pipelines = [pipeline for pipeline in self.pipelines if pipeline['name'] in names]
-            # pipelines = [deepcopy(pipeline) for pipeline in pipelines]
-            pipelines = [pipeline for pipeline in pipelines]
-            for pipeline in pipelines:
-                for variable in pipeline['var']:
-                    pipeline['ppl'].set_variable(variable, list())
-
-            for pipeline in pipelines:
-                pipeline['ppl'].config = {**BaseModel.flatten(pipeline['cfg']), **BaseModel.flatten(additional_config)}
-                pipeline['ppl'].config = BaseModel.parse(pipeline['ppl'].config)
-
-            for _ in range(n_iters):
-                for pipeline in pipelines:
-                    pipeline['ppl'].next_batch()
-
-            for pipeline in pipelines:
-                if len(pipeline['var']) != 0:
-                    _results = {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
-                    results.append(pipeline['name'], _results)
-        if return_results:
-            return results
+        additional_config = additional_config if additional_config is not None else dict()
+        pipelines = []
+        names = names if names is not None else list(range(len(self.pipelines)))
+        names = [names] if isinstance(names, (str, int)) else names
+        
+        if isinstance(names[0], int):
+            pipelines = [self.pipelines[i] for i in names]
         else:
-            self.results = results
+            pipelines = [pipeline for pipeline in self.pipelines if pipeline['name'] in names]
+
+        for pipeline in pipelines:
+            pipeline['ppl'].config = {**BaseModel.flatten(pipeline['cfg']), **BaseModel.flatten(additional_config)}
+            pipeline['ppl'].config = BaseModel.parse(pipeline['ppl'].config)
+
+        for _ in range(n_iters):
+            for pipeline in pipelines:
+                pipeline['ppl'].next_batch()
+
+        for pipeline in pipelines:
+            if len(pipeline['var']) != 0:
+                _results = {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
+                results.append(pipeline['name'], _results)
+
+        save_to = '.' if save_to is None else save_to
+        self._save_results(results, save_to)
+
+    def _save_results(self, results, save_to=None):
+        name = 'results' if save_to is None else save_to
+
+        foldername, _ = os.path.split(name)
+        if not os.path.exists(foldername):
+            os.makedirs(foldername)
+        with open(name, 'wb') as file:
+            pickle.dump(results, file)
+
+    def _load_pipeline(self, ppl_name, index=None, name=None, prefix=None):
+        prefix = '.' if prefix is None else prefix
+        if index is None and name is None:
+            raise ValueError('At least one of index and name must be defined.')
+        name = str(index) if name is None else name
+        ppl_name = 'ppl_'+str(ppl_name) if isinstance(ppl_name, int) else ppl_name
+
+        foldername = os.path.join(prefix, 'pipelines', ppl_name)
+        filename = os.path.join(foldername, name)
+        with open(filename, 'rb') as file:
+            return pickle.load(file)
 
     def _append_results(self, name, results):
         if name not in self.results:
@@ -111,15 +124,18 @@ class Results:
         Parameters
         ----------
         name : str
-        results : dict
-            results of new repetition which have structure dict(var1=[...], var2=[...], ...)
+        results : dict or Results
+            results to append
         """
         if name not in self.stat:
             self.stat[name] = dict()
         for variable in results:
             if variable not in self.stat[name]:
                 self.stat[name][variable] = list()
-            self.stat[name][variable].append(results[variable])
+            if isinstance(results, dict):
+                self.stat[name][variable].append(results[variable])
+            else:
+                self.stat[name][variable].extend(results.stat[variable])
 
     def __getitem__(self, index):
         return BaseModel.get(index, self.stat)

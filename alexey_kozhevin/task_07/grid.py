@@ -3,6 +3,7 @@
 """ Options and configs. """
 
 from itertools import product
+import collections
 
 class Pair:
     """ Class for pair value-alias. """
@@ -66,9 +67,14 @@ class Config:
     def __init__(self, config):
         self._config = config
 
-    def alias(self):
+    def alias(self, as_string=False):
         """ Returns alias. """
-        return {item[0].alias: item[1].alias for item in self._config}
+        _dict = {item[0].alias: item[1].alias for item in self._config}
+        if as_string == False:
+            return _dict
+        else:
+            _dict = collections.OrderedDict(sorted(_dict.items()))
+            return '-'.join([str(key)+'_'+str(value) for key, value in _dict.items()])
 
     def config(self):
         """ Returns values. """
