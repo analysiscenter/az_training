@@ -6,12 +6,11 @@
 """ Experiments with models. """
 
 import os
-import collections
 from copy import deepcopy
 import pickle
 import numpy as np
 
-from multiplerun import SingleRunning, Results
+from multiplerun import SingleRunning
 from grid import Grid, Option
 
 class ResearchResults:
@@ -63,7 +62,7 @@ class ResearchResults:
     def __getitem__(self, ind):
         res = self.results[ind]
         if isinstance(res[1], str):
-            res = (res[0], self._load_results(res[1]))       
+            res = (res[0], self._load_results(res[1]))
         return res
 
     def get_results(self, cond):

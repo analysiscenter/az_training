@@ -70,7 +70,7 @@ class Config:
     def alias(self, as_string=False):
         """ Returns alias. """
         _dict = {item[0].alias: item[1].alias for item in self._config}
-        if as_string == False:
+        if as_string is False:
             return _dict
         else:
             _dict = collections.OrderedDict(sorted(_dict.items()))

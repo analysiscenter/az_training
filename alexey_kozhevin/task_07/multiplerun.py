@@ -5,16 +5,13 @@
 """ Training of model. """
 
 import os
-from copy import copy, deepcopy
-from tqdm import tqdm
-import numpy as np
 import pickle
 
 from dataset.dataset.models import BaseModel
 
 class SingleRunning:
     """ Class for training one model repeatedly. """
-    def __init__(self, prefix=None):
+    def __init__(self):
         self.pipelines = []
         self.results = Results()
 
@@ -62,7 +59,7 @@ class SingleRunning:
         pipelines = []
         names = names if names is not None else list(range(len(self.pipelines)))
         names = [names] if isinstance(names, (str, int)) else names
-        
+
         if isinstance(names[0], int):
             pipelines = [self.pipelines[i] for i in names]
         else:
