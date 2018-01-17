@@ -10,7 +10,7 @@ from copy import deepcopy
 import pickle
 import numpy as np
 
-from multiplerun import SingleRunning
+from singlerun import SingleRunning
 from grid import Grid, Option
 
 class ResearchResults:
