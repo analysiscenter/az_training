@@ -10,57 +10,14 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from tensorflow.contrib.layers import xavier_initializer_conv2d
 
-from dataset import Batch, action, model, inbatch_parallel, ImagesBatch
+from dataset import Batch, action, inbatch_parallel, ImagesBatch
 
 
 class DetectionBatch(ImagesBatch):
     ''' A batch for detection task on MNIST data
     '''
     components = 'images', 'labels', 'coordinates', 'noise', 'other_coordinates', 'other_labels'
-    # def __init__(self, index, *args, **kwargs):
-    #     """ Init func, inherited from base batch
-    #     """
-    #     super().__init__(index, *args, **kwargs)
-    #     self.images = None
-    #     self.labels = None
-    #     self.bb_coordinates = None
-
-
-    # @property
-    # def components(self):
-    #     """ Components of mnist-batch
-    #     """
-    #     return 'images', 'labels', 'bb_coordinates'
-
-
-    # @action
-    # def load(self, src, fmt='blosc'):
-    #     """ Load mnist pics with specifed indices
-
-    #     Args:
-    #         fmt: format of source. Can be either 'blosc' or 'ndarray'
-    #         src: if fmt='blosc', then src is a path to dir with blosc-packed
-    #             mnist images and labels are stored.
-    #             if fmt='ndarray' - this is a tuple with arrays of images and labels
-
-    #     Return:
-    #         self
-    #     """
-    #     if fmt == 'blosc':     
-    #         # read blosc images, labels
-    #         with open('mnist_pics.blk', 'rb') as file:
-    #             self.images = blosc.unpack_array(file.read())[self.indices]
-    #             self.images = np.reshape(self.images, (65000, 28, 28))
-
-    #         with open('mnist_labels.blk', 'rb') as file:
-    #             self.labels = blosc.unpack_array(file.read())[self.indices]
-    #     elif fmt == 'ndarray':
-    #         all_images, all_labels = src
-    #         self.images = all_images[self.indices]
-    #         self.labels = all_labels[self.indices]
-
-    #     return self
-
+    
     def post_function(self, list_results):
         '''Post function for parallel shift, gathers results of every worker'''
         print(list_results)
@@ -83,22 +40,97 @@ class DetectionBatch(ImagesBatch):
     @inbatch_parallel(init='images', post='assemble', components='noise')
     def create_noise(self, image, *args):
         """Create noise at MNIST image."""
-        # print('1')
         image_size = self.images.shape[1]
         if args[0] == 'random_noise':
             noise = args[1] * np.random.random((image_size, image_size, 1)) * image.max()
         elif args[0] == 'mnist_noise':
             level, n_fragments, size, distr = args[1:]
-
-            ind_for_noise = np.random.choice(len(self.images), n_fragments)
+            ind_for_noise = np.random.choice(self.images.shape[0], n_fragments)
             images = [self.images[i] for i in ind_for_noise]
             coordinates = [self.coordinates[i] for i in ind_for_noise]
-            images_for_noise = self.crop_images(images, coordinates)
-            fragments = self.create_fragments(images_for_noise, size)
-            noise = self.arrange_fragments(image_size, fragments, distr, level)
+            try:
+                images_for_noise = self.crop_images(images, coordinates)
+            except Exception as e:
+                print('crop_images fail')
+                return ValueError
+            try:
+                fragments = self.create_fragments(images_for_noise, size)
+#                 print('create_fragments_DONE')
+            except Exception as e:
+                print('create_fragments fail')
+#                 print(len(images_for_noise))
+                return ValueError
+            try:
+                noise = self.arrange_fragments(image_size, fragments, distr, level)
+            except Exception as e:
+                print('arrange_fragments fail')
+                return ValueError
         else:
             noise = np.zeros_like(image)
         return noise
+    
+    def crop_images(self, images, coordinates):
+        """Crop real 28x28 MNIST from large image."""
+        images_for_noise = []
+        for image, coord in zip(images, coordinates):
+#             print(coordinates, 'coordinates')
+            try:
+                images_for_noise.append(image[coord[0]:coord[2], coord[1]:coord[3]])
+#                 if images_for_noise[-1].shape[1] < 4:
+#                     print(coord)
+            except Exception as e:
+                print('HEREEEEE')
+                return ValueError
+#             print('SALUT', len(images_for_noise), 'SHAPE HERE')
+        return images_for_noise
+
+    def create_fragments(self, images, size):
+        """Cut fragment from each."""
+        fragments = []
+        for image in images:
+            image = np.squeeze(image)
+#             print('ldldl', image.shape)
+            
+            x = np.random.randint(0, image.shape[0] - size)
+            y = np.random.randint(0, image.shape[1] - size)
+            try:
+                fragment = image[x:x + size, y:y + size]
+            except Exception as e:
+                print('x={}, y={}, image.shape={}'.format(x, y, image.shape))
+            fragments.append(fragment)
+#         print(len(fragments), 'FRAGMENTs', len(images), 'IMAGS')
+        return fragments
+
+    def arrange_fragments(self, image_size, fragments, distr, level):
+        """Put fragments on image."""
+        image = np.zeros((image_size, image_size))
+        for fragment in fragments:
+            size = fragment.shape[0]
+            try:
+                x_fragment, y_fragment = getattr(self, distr)(image_size, size)
+            except Exception as e:
+                print('2')
+                return ValueError
+            try:
+                image_to_change = image[x_fragment:x_fragment+size, y_fragment:y_fragment+size]
+            except Exception as e:
+                print('3')
+                return ValueError
+            height_to_change, width_to_change = image_to_change.shape
+            # print(height_to_change, '+', width_to_change)
+#             print(fragment.shape)
+            try:
+                image_to_change = np.max([level*fragment[:height_to_change, :width_to_change], image_to_change], axis=0)
+                # print (image_to_change.shape, 'SHAPE')
+            except Exception as e:
+                print('5')
+                return ValueError
+            try:
+                image[x_fragment:x_fragment+size, y_fragment:y_fragment+size] = image_to_change
+            except Exception as e:
+                print('6')
+                return ValueError
+        return image
 
     @action
     @inbatch_parallel(init='indices', post='assemble')
@@ -106,43 +138,17 @@ class DetectionBatch(ImagesBatch):
         if self.images.shape[-1] != 1:
             return np.expand_dims(np.max([self.get(ind, 'images'), self.get(ind, 'noise')], axis=0), axis=-1)
         else:
-            return np.max([self.get(ind, 'images'), self.get(ind, 'noise')], axis=0)
-    # def enlarge_post_function(self, list_results):
-    #     result_bb_batch = np.array(list_results)
-    #     self.coordinates = result_bb_batch
+            return np.max([self.get(ind, 'images'), np.expand_dims(self.get(ind, 'noise'), axis=-1)], axis=0)
+    
+    def uniform(self, image_size, fragment_size):
+        """Uniform distribution of fragmnents on image."""
+        return np.random.randint(0, image_size-fragment_size, 2)
 
-        # return self
+    def normal(self, image_size, fragment_size):
+        """Normal distribution of fragmnents on image."""
+        return list([int(x) for x in np.random.normal((image_size-fragment_size)/2,
+                                                      (image_size-fragment_size)/4, 2)])
 
-    # @action
-    # @inbatch_parallel(init='images', post='assemble', components=('images', 'coordinates'))
-    @action
-    @inbatch_parallel(init='init_function', post='bb_post_function', target='threads')
-    def find_and_crop(self, idx):
-        """ Apply random shift to a flattened pic
-        
-        Args:
-            idx: index in the self.images of a pic to be flattened
-        Return:
-            flattened shifted pic
-        """
-        print(idx, 'IDX')
-        pic = self.images[idx]
-        size = pic.shape[0]
-        for i in range(size):
-            for j in range(size):
-                if pic[i, j] > 0:
-                    min_row = i
-                    min_col = j
-
-                if pic[size-i, size-j] > 0:
-                    max_row = size - i
-                    max_col = size - j
-        coordinates = [min_row, min_col, max_row, max_col]
-        # return crop_images(pic, coordinates), coordinates 
-        return coordinates
-
-
-    # , components=('images', 'coordinates'))
     @action
     @inbatch_parallel(init='images', post='assemble', components=('images', 'coordinates', 'other_coordinates', 'other_labels'))
     def enlarge_data(self, image, num_others=3, new_size=64):
@@ -157,53 +163,103 @@ class DetectionBatch(ImagesBatch):
         #                     [bottom_pad, padding_size - bottom_pad]], mode='constant')
 
         # return padded_pic
-        image_size = new_size
         pure_mnist = np.squeeze(image)
-        large_mnist = np.zeros((image_size, image_size))
+        large_mnist = np.zeros((new_size, new_size))
 
         all_indices = self.images.shape[0]
 
         other_label= []
         other_coord = []
         for i in range(num_others):
-            random_idx = np.random.randint(0, image_size-28)
+            random_idx = np.random.randint(0, all_indices)
             random_image = np.squeeze(self.images[random_idx])
-            new_x, new_y = np.random.randint(0, image_size-28, 2)
-            new_x_2, new_y_2 = new_x + 28, new_y + 28
-            large_mnist[new_x:new_x+28, new_y:new_y+28] = random_image
+            try:
+                random_cropped = self.find_and_crop(random_image)
+            except Exception as e:
+                print('find_and_crop error')
+                return ValueError
+            width, height = random_cropped.shape
+#             height, width = random_cropped.shape
+            new_x = np.random.randint(0, new_size - width)
+            new_y = np.random.randint(0, new_size - height)
+#             new_x_2, new_y_2 = min(new_x + width, new_size), min(new_y + height, new_size)
+            new_x_2, new_y_2 = new_x + width, new_y + height
+#             print(new_x, ' ', new_y, 'new_x, new_y, ', width, ' ', height, ' width, height')
+#             plt.imshow(random_cropped)
+#             plt.show()
+#             quit()
+            large_mnist[new_x:new_x_2, new_y:new_y_2] = random_cropped
+            new_x, new_y = max(new_x - 4, 0), max(new_y - 4, 0)
+            new_x_2, new_y_2 = min(new_x + width + 4, new_size), min(new_y + height + 4, new_size)
+
             other_coord.append([new_x, new_y, new_x_2, new_y_2])
             other_label.append(self.labels[random_idx])
+        
+        cropped = self.find_and_crop(pure_mnist)
+        width, height = cropped.shape
+#         height, width = cropped.shape
+        new_x = np.random.randint(0, new_size - width)
+        new_y = np.random.randint(0, new_size - height)
 
-        new_x, new_y = np.random.randint(0, image_size-28, 2)
-        new_x_2, new_y_2 = new_x + 28, new_y + 28
-        large_mnist[new_x:new_x+28, new_y:new_y+28] = pure_mnist
+#         new_x, new_y = np.random.randint(0, new_size - size, 2)
+        new_x_2, new_y_2 = new_x + width, new_y + height
+
+        large_mnist[new_x:new_x_2, new_y:new_y_2] = cropped
+        
+        new_x, new_y = max(new_x - 4, 0), max(new_y - 4, 0)
+        new_x_2, new_y_2 = min(new_x + width + 4, new_size), min(new_y + height + 4, new_size)
+
         large_mnist = np.expand_dims(large_mnist, axis=3)
         return large_mnist, [new_x, new_y, new_x_2, new_y_2], other_coord, other_label
 
-    @action
-    @inbatch_parallel(init='init_function', post='post_function', target='threads')
-    def shift_flattened_pic(self, idx, max_margin=8):
-        """ Apply random shift to a flattened pic
+
+#     @action
+#     @inbatch_parallel(init='init_function', post='post_function', target='threads')
+#     def shift_flattened_pic(self, idx, max_margin=8):
+#         """ Apply random shift to a flattened pic
         
+#         Args:
+#             idx: index in the self.images of a pic to be flattened
+#         Return:
+#             flattened shifted pic
+#         """
+        
+#         pic = self.images[idx]
+#         padded = np.pad(pic, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
+#                         mode='minimum')
+#         left_lower = np.random.randint(2 * max_margin, size=2)
+#         slicing = (slice(left_lower[0], left_lower[0] + 28),
+#                    slice(left_lower[1], left_lower[1] + 28))
+#         res = padded[slicing]
+#         return res
+
+
+    def find_and_crop(self, image):
+        """ Find and crop a rectangle with digit        
         Args:
-            idx: index in the self.images of a pic to be flattened
+            image: square image with a digit to be cropped
         Return:
-            flattened shifted pic
+            cropped image
         """
-        
-        pic = self.images[idx]
-        padded = np.pad(pic, pad_width=[[max_margin, max_margin], [max_margin, max_margin]], 
-                        mode='minimum')
-        left_lower = np.random.randint(2 * max_margin, size=2)
-        slicing = (slice(left_lower[0], left_lower[0] + 28),
-                   slice(left_lower[1], left_lower[1] + 28))
-        res = padded[slicing]
-        return res
-
-
-    def crop_images(self, images, coordinates):
-        """Crop real 28x28 MNIST from large image."""
-        images_for_noise = []
-        for image, coord in zip(images, coordinates):
-            images_for_noise.append(image[coord[0]:coord[0] + 28, coord[1]:coord[1] + 28])
-        return images_for_noise
+        found_left_x = False
+        found_left_y = False
+        found_right_x = False
+        found_right_y = False  
+        size = image.shape[0]
+        for i in range(size):
+            if not found_left_x and np.sum(image[i, :]) > 0:
+                left_x = i
+                found_left_x = True
+            if not found_left_y and np.sum(image[:, i]) > 0:
+                left_y = i
+                found_left_y = True
+            if not found_right_x and np.sum(image[size - 1 - i, :]) > 0:
+                right_x = size - 1 - i
+                found_right_x = True
+            if not found_right_y and np.sum(image[:, size - 1 - i]):
+                right_y = size - 1 - i
+                found_right_y = True
+            if found_right_x and found_right_y and found_left_x and found_left_y:
+                break
+        cropped_image = image[left_x:right_x, left_y:right_y]
+        return cropped_image
