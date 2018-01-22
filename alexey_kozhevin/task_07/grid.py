@@ -75,14 +75,14 @@ class ConfigAlias:
         """
         self._config = config
 
-    def alias(self, as_string=False, delim=' '):
+    def alias(self, as_string=False, delim='_'):
         """ Returns alias. """
         config_alias = {item[0].alias: item[1].alias for item in self._config}
         if as_string is False:
             return config_alias
         else:
             config_alias = collections.OrderedDict(sorted(config_alias.items()))
-            return delim.join([str(key)+':'+str(value) for key, value in config_alias.items()])
+            return delim.join([str(key)+'-'+str(value) for key, value in config_alias.items()])
 
     def config(self):
         """ Returns values. """

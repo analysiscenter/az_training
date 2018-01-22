@@ -6,6 +6,7 @@
 
 import os
 from copy import copy
+from collections import OrderedDict
 import pickle
 
 from dataset import Config
@@ -13,8 +14,9 @@ from dataset import Config
 class SingleRunning:
     """ Class for training one model repeatedly. """
     def __init__(self):
-        self.pipelines = []
-        self.results = Results()
+        self.pipelines = OrderedDict()
+        self.config = Config()
+        self.results = None
 
     def add_pipeline(self, pipeline, variables, config=None, name=None):
         """ Add new pipeline to research.
@@ -36,11 +38,17 @@ class SingleRunning:
             variables = []
         if not isinstance(variables, list):
             variables = [variables]
-        if name in [pipeline['name'] for pipeline in self.pipelines]:
+        if name in self.pipelines:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
-        self.pipelines.append({'name': name, 'ppl': pipeline, 'cfg': config, 'var': variables})
+        self.pipelines[name] = {'ppl': pipeline, 'cfg': config, 'var': variables}
 
-    def run(self, n_iters, names=None, additional_config=None):
+    def get_pipeline(self, name):
+        return self.pipelines[name]
+
+    def set_config(self, config):
+        self.config = config
+
+    def run(self, n_iters, names=None):
         """ Run pipelines repeatedly. Pipelines will be executed simultaneously in the following sense:
         next_batch is applied successively to each pipeline in names list at each iteration. Pipelines
         at each repetition are copies of the initial pipelines.
@@ -51,86 +59,33 @@ class SingleRunning:
             number of iterations at each repetition
         n_reps : int (default 1)
             number of repeated runs of each pipeline
-        names : str, int or list (default None)
+        names : str or list (default None)
             pipelines to run. If str - name of the pipeline. If int - index at self.pipelines.
             If list - list of names or list of indices. If None - all pipelines will be run.
         """
-        results = Results()
-        additional_config = additional_config if additional_config is not None else Config()
         pipelines = []
-        names = names if names is not None else list(range(len(self.pipelines)))
-        names = [names] if isinstance(names, (str, int)) else names
+        names = names if names is not None else self.pipelines.keys()
+        names = [names] if isinstance(names, str) else names
 
-        if isinstance(names[0], int):
-            pipelines = [self.pipelines[i] for i in names]
-        else:
-            pipelines = [pipeline for pipeline in self.pipelines if pipeline['name'] in names]
+        pipelines = [self.pipelines[name] for name in names]
 
         for pipeline in pipelines:
-            pipeline['ppl'].config = (pipeline['cfg'] + additional_config).config
+            pipeline['ppl'].config = (pipeline['cfg'] + self.config).config
 
         for _ in range(n_iters):
             for pipeline in pipelines:
                 pipeline['ppl'].next_batch()
 
-        for pipeline in pipelines:
+        results = dict()
+        for name, pipeline in zip(names, pipelines):
             if len(pipeline['var']) != 0:
-                _results = {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
-                results.append(pipeline['name'], _results)
-        return results
+                results[name] = {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
+        self.results = results
 
-
-    def _save_results(self, results, save_to=None):
-        foldername, _ = os.path.split(name)
+    def save_results(self, save_to=None):
+        foldername, _ = os.path.split(save_to)
         if len(foldername) != 0:
             if not os.path.exists(foldername):
                 os.makedirs(foldername)
-        with open(name, 'wb') as file:
-            pickle.dump(results, file)
-
-    def _load_pipeline(self, ppl_name, index=None, name=None, prefix=None):
-        prefix = '.' if prefix is None else prefix
-        if index is None and name is None:
-            raise ValueError('At least one of index and name must be defined.')
-        name = str(index) if name is None else name
-        ppl_name = 'ppl_'+str(ppl_name) if isinstance(ppl_name, int) else ppl_name
-
-        foldername = os.path.join(prefix, 'pipelines', ppl_name)
-        filename = os.path.join(foldername, name)
-        with open(filename, 'rb') as file:
-            return pickle.load(file)
-
-    def _append_results(self, name, results):
-        if name not in self.results:
-            self.results[name] = dict()
-        for variable in results:
-            if variable not in self.results[name]:
-                self.results[name][variable] = list()
-            self.results[name][variable].append(results[variable])
-
-class Results:
-    """ Class for results of an experiment. """
-    def __init__(self):
-        self.stat = dict()
-
-    def append(self, name, results):
-        """ Append results.
-
-        Parameters
-        ----------
-        name : str
-        results : dict or Results
-            results to append
-        """
-        if name not in self.stat:
-            self.stat[name] = dict()
-        for variable in results:
-            if variable not in self.stat[name]:
-                self.stat[name][variable] = list()
-            if isinstance(results, dict):
-                self.stat[name][variable].append(results[variable])
-            else:
-                self.stat[name][variable].extend(results.stat[variable])
-
-    def __getitem__(self, index):
-        return Config().get(index, self.stat)
+        with open(save_to, 'wb') as file:
+            pickle.dump(self.results, file)

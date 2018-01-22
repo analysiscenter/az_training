@@ -9,6 +9,7 @@ import os
 from copy import deepcopy
 import pickle
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor
 
 from singlerun import SingleRunning
 from grid import Grid, Option
@@ -43,7 +44,7 @@ class ResearchResults:
 
     def _index_by_alias(self, alias):
         index = []
-        for i, (config, _)  in enumerate(self.results):
+        for i, (config, _) in enumerate(self.results):
             if self._is_subset(alias, config.alias()):
                 index.append(i)
         return index
@@ -159,7 +160,7 @@ class Research:
         """
         self.grid = grid
 
-    def run(self, n_iters, n_reps=1, names=None):
+    def run(self, n_iters, n_reps=1, names=None, max_workers=None):
         """ Run experiments.
 
         Parameters
@@ -172,16 +173,35 @@ class Research:
         """
         self.results = ResearchResults()
         self._clear_tmp_folder()
-        for additional_config in self.grid.gen_configs():
+
+        def _run(arg):
+            indices, additional_config = arg
             single_run = SingleRunning()
-            for experiment in range(n_reps):
+            results = dict()
+            for experiment in indices:
                 single_run.pipelines = deepcopy(self.pipelines)
                 save_to = os.path.join('.', self.name, 'results',
                                        additional_config.alias(as_string=True), str(experiment))
-                single_run.run(n_iters, names, additional_config.config(), save_to)
-                self.results.append(additional_config, save_to)
-            self._save_results()
+                experiment_result = single_run.run(n_iters, names, additional_config.config())
+                self._save_results(experiment_result, save_to)
+                results[experiment] = save_to
+            del single_run
+            return results
 
+        for additional_config in self.grid.gen_configs():
+            tasks = [([i], additional_config) for i in range(n_reps)]
+            with ThreadPoolExecutor(max_workers) as executor:
+                exec_output = executor.map(_run, tasks)
+                exec_output = dict(item for dct in exec_output for item in dct.items())
+                self.results.append(additional_config, exec_output)
+
+    def _save_results(self, results, name=None):
+        foldername, _ = os.path.split(name)
+        if len(foldername) != 0:
+            if not os.path.exists(foldername):
+                os.makedirs(foldername)
+        with open(name, 'wb') as file:
+            pickle.dump(results, file)
 
     def _clear_tmp_folder(self):
         dirname = os.path.join(self.name, '.tmp')
@@ -191,13 +211,8 @@ class Research:
             for name in dirs:
                 os.rmdir(os.path.join(root, name))
 
-    def _save_results(self):
-        name = os.path.join(self.name, 'research')
-        with open(name, 'wb') as file:
-            pickle.dump(self, file)
-
     @classmethod
-    def load(cls, name):
+    def load_results(cls, name):
         """ Load experiment. """
         with open(os.path.join(name, 'research'), 'rb') as file:
             res = pickle.load(file)

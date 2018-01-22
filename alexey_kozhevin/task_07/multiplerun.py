@@ -9,128 +9,46 @@ from copy import copy
 import pickle
 
 from dataset import Config
+from distributor import Tasks, Distributor, Worker
+from singlerun import SingleRunning
 
-class SingleRunning:
-    """ Class for training one model repeatedly. """
-    def __init__(self):
-        self.pipelines = []
-        self.results = Results()
+class PipelineWorker(Worker):
+    def task(self, item):
+        i, task = item
+        print('Run task', i)
+        single_running = SingleRunning()
+        for name, pipeline in task['pipelines'].items():
+            single_running.add_pipeline(pipeline['ppl'], pipeline['var'], pipeline['cfg'], name)
+        single_running.set_config(task['config'])
+        single_running.run(task['n_iters'], task['names'])
+        single_running.save_results(task['save_to'])
 
-    def add_pipeline(self, pipeline, variables, config=None, name=None):
-        """ Add new pipeline to research.
-        Parameters
-        ----------
-        pipeline : dataset.Pipeline
-        variables : str or list of strs
-            names of pipeline variables to remember at each repetition
-        config : dict (default None)
-            pipeline config
-        names : str (default None)
-            name of pipeline. If None - name will be 'ppl_{index}'
-        """
-        if name is None:
-            name = 'ppl_' + str(len(self.pipelines))
-        if config is None:
-            config = Config()
-        if variables is None:
-            variables = []
-        if not isinstance(variables, list):
-            variables = [variables]
-        if name in [pipeline['name'] for pipeline in self.pipelines]:
-            raise ValueError('Pipeline with name {} was alredy existed'.format(name))
-        self.pipelines.append({'name': name, 'ppl': pipeline, 'cfg': config, 'var': variables})
+class MultipleRunning(SingleRunning):
+    def add_grid_config(self, grid_config):
+        self.grid_config = grid_config
 
-    def run(self, n_iters, names=None, additional_config=None):
-        """ Run pipelines repeatedly. Pipelines will be executed simultaneously in the following sense:
-        next_batch is applied successively to each pipeline in names list at each iteration. Pipelines
-        at each repetition are copies of the initial pipelines.
+    def _create_tasks(self, n_reps, n_iters, names):
+        self.tasks = (
+            {'pipelines': self.pipelines, 
+             'n_iters': n_iters, 
+             'names': names, 
+             'config': config.config(),
+             'save_to': os.path.join('results', config.alias(as_string=True), str(idx)),
+             }
+             for config in self.grid_config.gen_configs()
+             for idx in range(n_reps)
+        )
+        self.tasks = Tasks(self.tasks)
 
-        Parameters
-        ----------
-        n_iters : int
-            number of iterations at each repetition
-        n_reps : int (default 1)
-            number of repeated runs of each pipeline
-        names : str, int or list (default None)
-            pipelines to run. If str - name of the pipeline. If int - index at self.pipelines.
-            If list - list of names or list of indices. If None - all pipelines will be run.
-        """
-        results = Results()
-        additional_config = additional_config if additional_config is not None else Config()
-        pipelines = []
-        names = names if names is not None else list(range(len(self.pipelines)))
-        names = [names] if isinstance(names, (str, int)) else names
+    def run(self, n_reps, n_iters, names=None, n_jobs=1, worker_class=None):
+        worker_class = worker_class if worker_class is not None else PipelineWorker
+        self._create_tasks(n_reps, n_iters, names)
+        distr = Distributor(worker_class, n_jobs)
+        distr.run(self.tasks)
 
-        if isinstance(names[0], int):
-            pipelines = [self.pipelines[i] for i in names]
-        else:
-            pipelines = [pipeline for pipeline in self.pipelines if pipeline['name'] in names]
-
-        for pipeline in pipelines:
-            pipeline['ppl'].config = (pipeline['cfg'] + additional_config).config
-
-        for _ in range(n_iters):
-            for pipeline in pipelines:
-                pipeline['ppl'].next_batch()
-
-        for pipeline in pipelines:
-            if len(pipeline['var']) != 0:
-                _results = {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
-                results.append(pipeline['name'], _results)
-        return results
-
-
-    def _save_results(self, results, save_to=None):
-        foldername, _ = os.path.split(name)
-        if len(foldername) != 0:
-            if not os.path.exists(foldername):
-                os.makedirs(foldername)
-        with open(name, 'wb') as file:
-            pickle.dump(results, file)
-
-    def _load_pipeline(self, ppl_name, index=None, name=None, prefix=None):
-        prefix = '.' if prefix is None else prefix
-        if index is None and name is None:
-            raise ValueError('At least one of index and name must be defined.')
-        name = str(index) if name is None else name
-        ppl_name = 'ppl_'+str(ppl_name) if isinstance(ppl_name, int) else ppl_name
-
-        foldername = os.path.join(prefix, 'pipelines', ppl_name)
-        filename = os.path.join(foldername, name)
-        with open(filename, 'rb') as file:
+    def load_results(self, name=None):
+        with open(name, 'rb') as file:
             return pickle.load(file)
 
-    def _append_results(self, name, results):
-        if name not in self.results:
-            self.results[name] = dict()
-        for variable in results:
-            if variable not in self.results[name]:
-                self.results[name][variable] = list()
-            self.results[name][variable].append(results[variable])
 
-class Results:
-    """ Class for results of an experiment. """
-    def __init__(self):
-        self.stat = dict()
 
-    def append(self, name, results):
-        """ Append results.
-
-        Parameters
-        ----------
-        name : str
-        results : dict or Results
-            results to append
-        """
-        if name not in self.stat:
-            self.stat[name] = dict()
-        for variable in results:
-            if variable not in self.stat[name]:
-                self.stat[name][variable] = list()
-            if isinstance(results, dict):
-                self.stat[name][variable].append(results[variable])
-            else:
-                self.stat[name][variable].extend(results.stat[variable])
-
-    def __getitem__(self, index):
-        return Config().get(index, self.stat)
