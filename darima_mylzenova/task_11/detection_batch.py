@@ -119,16 +119,15 @@ class DetectionBatch(ImagesBatch):
 
     @action
     @inbatch_parallel(init='indices', post='assemble')
-    def add_noise(self, ind, margin=4):
+    def add_noise(self, ind):
         coordinates = self.get(ind, 'coordinates')
+        noise = self.get(ind, 'noise')
+        for i, bbox in enumerate(coordinates):
+            x_left, y_left, x_right, y_right = bbox
         try:
-            noise = self.get(ind, 'noise')
-            for bbox in enumerate(coordinates):
-                x_left, x_right, y_left, y_right = bbox
-                print(x_left, x_right, y_left, y_right)
-                noise[x_left:x_right, y_left:y_right] = np.zeros((x_right - x_left, y_right - y_left)) 
+            noise[x_left:x_right, y_left:y_right] = np.zeros((x_right - x_left, y_right - y_left)) 
         except Exception as e:
-            print('wrong size')
+            print('wrong size', x_right - x_left, y_right - y_left, ' ', x_left, x_right, y_left, y_right )
             return ValueError
 
         if self.images.shape[-1] != 1:
