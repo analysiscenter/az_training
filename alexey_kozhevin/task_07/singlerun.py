@@ -7,9 +7,10 @@
 import os
 from copy import copy
 from collections import OrderedDict
+import numpy as np
 import pickle
 
-from dataset import Config
+from dataset import Config, Pipeline
 
 class SingleRunning:
     """ Class for training one model repeatedly. """
@@ -18,7 +19,7 @@ class SingleRunning:
         self.config = Config()
         self.results = None
 
-    def add_pipeline(self, pipeline, variables, config=None, name=None):
+    def add_pipeline(self, pipeline, variables, config=None, name=None, preproc=None):
         """ Add new pipeline to research.
         Parameters
         ----------
@@ -30,25 +31,34 @@ class SingleRunning:
         names : str (default None)
             name of pipeline. If None - name will be 'ppl_{index}'
         """
-        if name is None:
-            name = 'ppl_' + str(len(self.pipelines))
-        if config is None:
-            config = Config()
-        if variables is None:
-            variables = []
+        name = name or 'ppl_' + str(len(self.pipelines))
+        config = config or Config()
+        variables = variables or []
         if not isinstance(variables, list):
             variables = [variables]
         if name in self.pipelines:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
-        self.pipelines[name] = {'ppl': pipeline, 'cfg': config, 'var': variables}
+        self.pipelines[name] = {'ppl': pipeline, 'cfg': config, 'var': variables, 'preproc': preproc}
 
     def get_pipeline(self, name):
         return self.pipelines[name]
 
-    def set_config(self, config):
+    def add_common_config(self, config):
         self.config = config
+        for _, pipeline in self.pipelines.items():
+            pipeline['ppl'].config = (pipeline['cfg'] + self.config).config
 
-    def run(self, n_iters, names=None):
+    def _get_results(self, names, pipelines):
+        results = dict()
+        for name, pipeline in zip(names, pipelines):
+            if len(pipeline['var']) != 0:
+                results[name] = {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
+        return results
+
+    def run_on_batch(self, batch, name):
+        self.pipelines['name'].exec(batch)
+        
+    def run(self, n_iters):
         """ Run pipelines repeatedly. Pipelines will be executed simultaneously in the following sense:
         next_batch is applied successively to each pipeline in names list at each iteration. Pipelines
         at each repetition are copies of the initial pipelines.
@@ -63,24 +73,11 @@ class SingleRunning:
             pipelines to run. If str - name of the pipeline. If int - index at self.pipelines.
             If list - list of names or list of indices. If None - all pipelines will be run.
         """
-        pipelines = []
-        names = names if names is not None else self.pipelines.keys()
-        names = [names] if isinstance(names, str) else names
-
-        pipelines = [self.pipelines[name] for name in names]
-
-        for pipeline in pipelines:
-            pipeline['ppl'].config = (pipeline['cfg'] + self.config).config
-
+        names, pipelines = self.pipelines.items()
         for _ in range(n_iters):
             for pipeline in pipelines:
                 pipeline['ppl'].next_batch()
-
-        results = dict()
-        for name, pipeline in zip(names, pipelines):
-            if len(pipeline['var']) != 0:
-                results[name] = {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
-        self.results = results
+        self.results = self._get_results(names, pipelines)
 
     def save_results(self, save_to=None):
         foldername, _ = os.path.split(save_to)

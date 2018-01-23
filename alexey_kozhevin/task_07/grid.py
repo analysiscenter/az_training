@@ -59,10 +59,10 @@ class Option:
     def __add__(self, other):
         return Grid(self) + Grid(other)
 
-    def gen_configs(self):
+    def gen_configs(self, n_items=None):
         """ Returns Configs created from the option. """
         grid = Grid(self)
-        return grid.gen_configs()
+        return grid.gen_configs(n_items)
 
 class ConfigAlias:
     """ Class for config. """
@@ -140,10 +140,20 @@ class Grid:
     def __eq__(self, other):
         return self.grid() == other.grid()
 
-    def gen_configs(self):
+    def gen_configs(self, n_items=None):
         """ Generate Configs from grid. """
         for item in self._grid:
             keys = [option.parameter for option in item]
             values = [option.values for option in item]
-            for parameters in product(*values):
-                yield ConfigAlias(list(zip(keys, parameters)))
+            if n_items is None:
+                for parameters in product(*values):
+                    yield ConfigAlias(list(zip(keys, parameters)))
+            else:
+                res = []
+                for parameters in product(*values):
+                    if len(res) < n_items:
+                        res.append(ConfigAlias(list(zip(keys, parameters))))
+                    else:
+                        yield res
+                        res = [ConfigAlias(list(zip(keys, parameters)))]
+                yield res

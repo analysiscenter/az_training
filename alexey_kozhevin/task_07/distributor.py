@@ -50,7 +50,7 @@ class Worker:
         queue.task_done()
 
 class Distributor:
-    def __init__(self, worker_class, n_workers):
+    def __init__(self, worker_class, n_workers, reuse_batch):
         self.n_workers = n_workers
         self.worker_class = worker_class
 
