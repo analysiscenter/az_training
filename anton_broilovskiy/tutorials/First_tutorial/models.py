@@ -21,6 +21,6 @@ class Regressions(TFModel):
         with tf.variable_scope(name):
             dense = tf.layers.dense(inputs, kwargs['units'], name='dense')
 
-        tf.cast(tf.exp(dense), tf.int32, name='predicted_poisson_answer')
+        tf.cast(tf.exp(dense), tf.int32, name='predicted_poisson')
 
         return dense

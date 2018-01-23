@@ -19,13 +19,13 @@ class MyBatch(Batch):
     def __init__(self, index, *args, **kwargs):
         _ = args, kwargs
         super().__init__(index, *args, **kwargs)
-        self.input_data = None
+        self.input = None
         self.labels = None
 
     @property
     def components(self):
         """ Define components """
-        return 'input_data', 'labels'
+        return 'input', 'labels'
 
     @action
     def load(self, src, fmt='blosc', components=None, *args, **kwargs):
@@ -44,6 +44,6 @@ class MyBatch(Batch):
 
         """
         _ = args, kwargs, fmt, components
-        self.input_data = src[0][self.indices].reshape(-1, src[0].shape[1])
+        self.input = src[0][self.indices].reshape(-1, src[0].shape[1])
         self.labels = src[1][self.indices]
         return self
