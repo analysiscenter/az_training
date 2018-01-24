@@ -3,6 +3,7 @@ import sys
 import multiprocessing as mp
 import numpy as np
 import pickle
+import logging
 
 class Tasks:
     def __init__(self, tasks):
@@ -12,8 +13,13 @@ class Tasks:
         return self.tasks
 
 class Worker:
-    def __init__(self):
-        pass
+    def __init__(self, dirname=None, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        self.dirname = dirname or ''
+
+        logfile = os.path.join(self.dirname, 'errors.log')
+        logging.basicConfig(filename=logfile, level=logging.ERROR)
 
     def init(self, task):
         _ = task
@@ -25,6 +31,9 @@ class Worker:
         _ = task
 
     def __call__(self, queue):
+        logfile = os.path.join(self.dirname, 'errors.log')
+        logging.basicConfig(filename=logfile, level=logging.ERROR)
+
         item = queue.get()
         while item is not None:
             sub_queue = mp.JoinableQueue()
@@ -34,23 +43,29 @@ class Worker:
                 worker.start()
                 sub_queue.join()
             except:
-                print(sys.exc_info()[0])
+                self._log()
             queue.task_done()
             item = queue.get()
         queue.task_done()
 
     def _run(self, queue):
+        logfile = os.path.join(self.dirname, 'errors.log')
+        logging.basicConfig(filename=logfile, level=logging.ERROR)
+
         task = queue.get()
         try:
             self.init(task)
-            self.task(task)
+            self.task(task, *self.args, **self.kwargs)
             self.post(task)
         except:
-            print(sys.exc_info())
+            self._log()
         queue.task_done()
 
+    def _log(self):
+        logging.error(str(sys.exc_info()))
+
 class Distributor:
-    def __init__(self, worker_class, n_workers, reuse_batch):
+    def __init__(self, n_workers, reuse_batch, worker_class, *args, **kwargs):
         self.n_workers = n_workers
         self.worker_class = worker_class
 
@@ -62,10 +77,11 @@ class Distributor:
             queue.put(None)
         return queue        
 
-    def run(self, tasks):
+    def run(self, tasks, *args, **kwargs):
         queue = self._tasks_to_queue(tasks)
         for i in range(self.n_workers):
-            worker = self.worker_class()
+            worker = self.worker_class(*args, **kwargs)
             mp.Process(target=worker, args=(queue, )).start()
+
         queue.join()
     
