@@ -1,3 +1,5 @@
+# pylint: skip-file
+
 """Split into microbatches on tf level"""
 import pickle
 from time import time

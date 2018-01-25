@@ -44,7 +44,7 @@ class SingleRunning:
         if import_model_from is not None:
             import_model = Config(import_model_from=self.pipelines[import_model_from]['ppl'])
         else:
-            import_model = dict()
+            import_model = Config()
         self.pipelines[name] = {
             'ppl': pipeline,
             'cfg': config + import_model,
