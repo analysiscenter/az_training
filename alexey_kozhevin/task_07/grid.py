@@ -102,7 +102,7 @@ class Grid:
         if isinstance(grid, Option):
             self.grid = [[grid]]
         elif isinstance(grid, Grid):
-            self.grid = grid._grid
+            self.grid = grid.grid
         elif isinstance(grid, dict):
             self.grid = self._dict_to_grid(grid)
         else:
@@ -121,7 +121,7 @@ class Grid:
         """ Returns alias of Grid. """
         return [[option.alias() for option in options] for options in self.grid]
 
-    def grid(self):
+    def value(self):
         """ Returns config of Grid. """
         return [[option.option() for option in options] for options in self.grid]
 
@@ -130,7 +130,7 @@ class Grid:
 
     def __mul__(self, other):
         if isinstance(other, Grid):
-            res = list(product(self.grid, other._grid))
+            res = list(product(self.grid, other.grid))
             res = [item[0] + item[1] for item in res]
             return Grid(res)
         elif isinstance(other, Option):
@@ -138,7 +138,7 @@ class Grid:
 
     def __add__(self, other):
         if isinstance(other, Grid):
-            return Grid(self.grid + other._grid)
+            return Grid(self.grid + other.grid)
         elif isinstance(other, Option):
             return self + Grid([[other]])
 

@@ -2,11 +2,11 @@
 #pylint:disable=too-few-public-methods
 #pylint:disable=attribute-defined-outside-init
 #pylint:disable=bare-except
+#pylint:disable=no-value-for-parameter
 
 """ Class Research and auxiliary classes for multiple experiments. """
 
 import os
-import sys
 from collections import OrderedDict
 import pickle
 
@@ -18,9 +18,9 @@ from singlerun import SingleRunning
 class PipelineWorker(Worker):
     """ Worker that run pipelines. """
     @inbatch_parallel(init='_parallel_init')
-    def _parallel_run(self, sr, single_runnings, batch, name):
+    def _parallel_run(self, item, single_runnings, batch, name):
         _ = single_runnings
-        sr.run_on_batch(batch, name)
+        item.run_on_batch(batch, name)
 
     def _parallel_init(self, single_runnings, batch, name):
         _ = batch, name
@@ -60,7 +60,7 @@ class PipelineWorker(Worker):
                         item.next_batch(name)
         for item, config in zip(single_runnings, task['configs']):
             item.save_results(os.path.join(task['name'], 'results',
-                              config.alias(as_string=True), str(task['repetition'])))
+                                           config.alias(as_string=True), str(task['repetition'])))
 
 class Research:
     """ Class Research for multiple experiments with pipelines. """
@@ -155,7 +155,7 @@ class Research:
             and define model_per_preproc as [{'device': 0}, {'device': 1}].
         name : str or None
             name folder to save research. By default is 'research'.
-        
+
         At each iteration all add pipelines will be runned with some config from grid.
         """
         self.n_reps = n_reps
@@ -171,7 +171,7 @@ class Research:
             worker = PipelineWorker
         else:
             worker = None
-        distr = Distributor(worker)
+        distr = Distributor(n_jobs, worker)
         distr.run(self.tasks, dirname=self.name)
 
     def _does_exist(self, name):

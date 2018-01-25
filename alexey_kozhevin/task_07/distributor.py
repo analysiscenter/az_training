@@ -1,5 +1,6 @@
 #pylint:disable=too-few-public-methods
 #pylint:disable=bare-except
+#pylint:disable=too-many-function-args
 
 """ Classes for multiprocess task running. """
 
@@ -24,7 +25,7 @@ class Worker:
         ----------
         dirname : str or None
             folder name to save log file
-        args, kwargs : 
+        args, kwargs
             will be used in init, post and task
         """
         self.args = args
@@ -38,7 +39,7 @@ class Worker:
         """
         Parameters
         ----------
-        args, kwargs : 
+        args, kwargs
             will be used in init, post and task
         """
         self.args = args
@@ -57,7 +58,7 @@ class Worker:
         _ = task, args, kwargs
 
     def __call__(self, queue):
-        """ Run worker. 
+        """ Run worker.
 
         Parameters
         ----------
@@ -123,20 +124,20 @@ class Distributor:
         return queue
 
     def run(self, tasks, *args, **kwargs):
-        """ Run disributor and workers. 
+        """ Run disributor and workers.
 
         Parameters
         ----------
         tasks : iterable
 
-        args, kwargs: 
-            will be used in worker        
+        args, kwargs
+            will be used in worker
         """
         queue = self._tasks_to_queue(tasks)
-        if isinstance(n_workers, int):
-            n_workers = [self.worker_class(*args, **kwargs) for _ in range(n_workers)]
+        if isinstance(self.n_workers, int):
+            n_workers = [self.worker_class(*args, **kwargs) for _ in range(self.n_workers)]
         else:
-            for worker in n_workers:
+            for worker in self.n_workers:
                 worker.set_args_kwargs(args, kwargs)
         for worker in n_workers:
             mp.Process(target=worker, args=(queue, )).start()

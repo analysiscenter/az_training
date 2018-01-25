@@ -73,7 +73,7 @@ class SingleRunning:
         """ Get values of variables from pipelines.
         Returns
         -------
-        dict 
+        dict
             key : pipeline name
             value : dict
                 key : variable name
@@ -115,7 +115,7 @@ class SingleRunning:
         ----------
         name : str
             pipeline name
-        """        
+        """
         return self.pipelines[name]['ppl'].next_batch()
 
     def run(self, n_iters):
