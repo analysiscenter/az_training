@@ -126,7 +126,7 @@ class Grid:
         return [[option.option() for option in options] for options in self.grid]
 
     def description(self):
-        """ Return description of used aliases. 
+        """ Return description of used aliases.
         Returns
         -------
         dict

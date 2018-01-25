@@ -194,7 +194,7 @@ class Research:
             file.write(json.dumps(self.grid_config.description(), default=self._set_default_json))
 
     def _set_default_json(self, obj):
-        try:    
+        try:
             json.dumps(obj)
         except TypeError:
             return str(obj)
