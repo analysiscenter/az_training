@@ -2,10 +2,10 @@
 
 """ Options and configs. """
 
-from dataset import Config
-
 from itertools import product
 import collections
+
+from dataset.dataset import Config
 
 class KV:
     """ Class for value and alias. """
@@ -100,16 +100,16 @@ class Grid:
         grid: Option, Grid or list of lists of Options
         """
         if isinstance(grid, Option):
-            self._grid = [[grid]]
+            self.grid = [[grid]]
         elif isinstance(grid, Grid):
-            self._grid = grid._grid
+            self.grid = grid._grid
         elif isinstance(grid, dict):
-            self._grid = self._dict_to_grid(grid)
+            self.grid = self._dict_to_grid(grid)
         else:
-            self._grid = grid
+            self.grid = grid
 
         if len(kwargs) > 0:
-            self._grid.append(self._dict_to_grid(kwargs))
+            self.grid.append(self._dict_to_grid(kwargs))
 
     def _dict_to_grid(self, grid):
         _grid = []
@@ -119,18 +119,18 @@ class Grid:
 
     def alias(self):
         """ Returns alias of Grid. """
-        return [[option.alias() for option in options] for options in self._grid]
+        return [[option.alias() for option in options] for options in self.grid]
 
     def grid(self):
         """ Returns config of Grid. """
-        return [[option.option() for option in options] for options in self._grid]
+        return [[option.option() for option in options] for options in self.grid]
 
     def __len__(self):
-        return len(self._grid)
+        return len(self.grid)
 
     def __mul__(self, other):
         if isinstance(other, Grid):
-            res = list(product(self._grid, other._grid))
+            res = list(product(self.grid, other._grid))
             res = [item[0] + item[1] for item in res]
             return Grid(res)
         elif isinstance(other, Option):
@@ -138,7 +138,7 @@ class Grid:
 
     def __add__(self, other):
         if isinstance(other, Grid):
-            return Grid(self._grid + other._grid)
+            return Grid(self.grid + other._grid)
         elif isinstance(other, Option):
             return self + Grid([[other]])
 
@@ -146,14 +146,14 @@ class Grid:
         return 'Grid(' + str(self.alias()) + ')'
 
     def __getitem__(self, index):
-        return Grid([self._grid[index]])
+        return Grid([self.grid[index]])
 
     def __eq__(self, other):
         return self.grid() == other.grid()
 
     def gen_configs(self, n_items=None):
         """ Generate Configs from grid. """
-        for item in self._grid:
+        for item in self.grid:
             keys = [option.parameter for option in item]
             values = [option.values for option in item]
             if n_items is None:
