@@ -127,7 +127,7 @@ class DetectionBatch(ImagesBatch):
         try:
             noise[x_left:x_right, y_left:y_right] = np.zeros((x_right - x_left, y_right - y_left)) 
         except Exception as e:
-            print('wrong size', x_right - x_left, y_right - y_left, ' ', x_left, x_right, y_left, y_right )
+            print('wrong slicing')
             return ValueError
 
         if self.images.shape[-1] != 1:
