@@ -7,8 +7,10 @@
 """ Class Research and auxiliary classes for multiple experiments. """
 
 import os
+from copy import copy
 from collections import OrderedDict
 import pickle
+import json
 
 from dataset.dataset import Config, Pipeline, inbatch_parallel
 from distributor import Tasks, Distributor, Worker
@@ -47,6 +49,7 @@ class PipelineWorker(Worker):
             else:
                 model_per_preproc = Config()
             single_running.add_common_config(config.config()+model_per_preproc)
+            print((config.config()+model_per_preproc).flatten())
             single_running.init()
             single_runnings.append(single_running)
 
@@ -66,9 +69,6 @@ class Research:
     """ Class Research for multiple experiments with pipelines. """
     def __init__(self):
         self.pipelines = OrderedDict()
-        self.config = Config()
-        self.results = None
-        self.has_preproc = False
 
     def add_pipeline(self, pipeline, variables, preproc=None, config=None, name=None, import_model_from=None):
         """ Add new pipeline to research.
@@ -96,8 +96,6 @@ class Research:
         name = name or 'ppl_' + str(len(self.pipelines))
         config = config or Config()
         variables = variables or []
-        if preproc is not None:
-            self.has_preproc = True
 
         if not isinstance(variables, list):
             variables = [variables]
@@ -165,7 +163,7 @@ class Research:
 
         self.name = self._does_exist(name)
 
-        # self.save()
+        self.save()
         self._create_tasks(n_reps, n_iters, model_per_preproc, self.name)
         if isinstance(n_jobs, int):
             worker = PipelineWorker
@@ -190,6 +188,27 @@ class Research:
         """ Save description of the research to name/description. """
         with open(os.path.join(self.name, 'description'), 'wb') as file:
             pickle.dump(self, file)
+        with open(os.path.join(self.name, 'description_research.json'), 'w') as file:
+            file.write(json.dumps(self._json(), default=self._set_default_json))
+        with open(os.path.join(self.name, 'description_alias.json'), 'w') as file:
+            file.write(json.dumps(self.grid_config.description(), default=self._set_default_json))
+
+    def _set_default_json(self, obj):
+        try:    
+            json.dumps(obj)
+        except TypeError:
+            return str(obj)
+
+    def _json(self):
+        description = copy(self.__dict__)
+        description['grid_config'] = self.grid_config.value()
+        _pipelines = dict()
+        for name, pipeline in self.pipelines.items():
+            _pipelines[name] = copy(pipeline)
+            del _pipelines[name]['ppl']
+            _pipelines[name]['cfg'] = _pipelines[name]['cfg'].flatten()
+        description['pipelines'] = _pipelines
+        return description
 
     @classmethod
     def load(cls, name):

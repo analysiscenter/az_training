@@ -75,14 +75,14 @@ class ConfigAlias:
         """
         self._config = config
 
-    def alias(self, as_string=False, delim='_'):
+    def alias(self, as_string=False, delim='-'):
         """ Returns alias. """
         config_alias = {item[0].alias: item[1].alias for item in self._config}
         if as_string is False:
             return config_alias
         else:
             config_alias = collections.OrderedDict(sorted(config_alias.items()))
-            return delim.join([str(key)+'-'+str(value) for key, value in config_alias.items()])
+            return delim.join([str(key)+'_'+str(value) for key, value in config_alias.items()])
 
     def config(self):
         """ Returns values. """
@@ -124,6 +124,22 @@ class Grid:
     def value(self):
         """ Returns config of Grid. """
         return [[option.option() for option in options] for options in self.grid]
+
+    def description(self):
+        """ Return description of used aliases. 
+        Returns
+        -------
+        dict
+        """
+        options = [option for grid_item in self.grid for option in grid_item]
+        descr = dict()
+        for option in options:
+            values = {value.alias: value.value for value in option.values}
+            if option.parameter.alias not in descr:
+                descr[option.parameter.alias] = {'name': option.parameter.value, 'values': values}
+            else:
+                descr[option.parameter.alias]['values'].update(values)
+        return descr
 
     def __len__(self):
         return len(self.grid)

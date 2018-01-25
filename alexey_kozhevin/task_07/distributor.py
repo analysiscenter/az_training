@@ -89,8 +89,8 @@ class Worker:
         task = queue.get()
         try:
             self.init(task, *self.args, **self.kwargs)
-            self.task(task, *self.args, **self.kwargs)
-            self.post(task, *self.args, **self.kwargs)
+            res = self.task(task, *self.args, **self.kwargs)
+            self.post(task, res, *self.args, **self.kwargs)
         except:
             self._log()
         queue.task_done()
