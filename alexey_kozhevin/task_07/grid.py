@@ -93,7 +93,7 @@ class ConfigAlias:
 
 class Grid:
     """ Class for grid of parameters. """
-    def __init__(self, grid):
+    def __init__(self, grid, **kwargs):
         """
         Parameters
         ----------
@@ -103,8 +103,19 @@ class Grid:
             self._grid = [[grid]]
         elif isinstance(grid, Grid):
             self._grid = grid._grid
+        elif isinstance(grid, dict):
+            self._grid = self._dict_to_grid(grid)
         else:
             self._grid = grid
+
+        if len(kwargs) > 0:
+            self._grid.append(self._dict_to_grid(kwargs))
+
+    def _dict_to_grid(self, grid):
+        _grid = []
+        for key, value in grid.items():
+            _grid.append(Option(key, value))
+        return [_grid]
 
     def alias(self):
         """ Returns alias of Grid. """

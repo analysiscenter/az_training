@@ -1,133 +1,79 @@
-#pylint:disable=attribute-defined-outside-init
 #pylint:disable=too-many-instance-attributes
-#pylint:disable=too-many-arguments
-#pylint:disable=too-many-locals
+#pylint:disable=too-few-public-methods
+#pylint:disable=attribute-defined-outside-init
 
-""" Experiments with models. """
+""" Training of model. """
 
 import os
-from copy import deepcopy
+import sys
+from itertools import product
+from collections import OrderedDict
+from copy import copy, deepcopy
 import pickle
-import numpy as np
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing as mp
 
+from dataset import Config, Pipeline, inbatch_parallel
+from distributor import Tasks, Distributor, Worker
+from grid import Grid
 from singlerun import SingleRunning
-from grid import Grid, Option
 
-class ResearchResults:
-    """ Class for results of research. """
-    def __init__(self, results=None):
-        self.results = results if results is not None else list()
+class PipelineWorker(Worker):
 
-    def append(self, config, new_results):
-        """ Append results.
+    @inbatch_parallel(init='_parallel_init')
+    def _parallel_run(self, sr, single_runnings, batch, name):
+        sr.run_on_batch(batch, name)
 
-        Parameters
-        ----------
-        config : Config
-        new_results : Results
-        """
-        self.results.append((config, new_results))
+    def _parallel_init(self, single_runnings, batch, name):
+        return [sr for sr in single_runnings]
 
-    def __iter__(self):
-        return self.results
+    def task(self, item):
+        try:
+            i, task = item
+            single_runnings = []
+            print('Task', i)
+            for idx, config in enumerate(task['configs']):
+                print(config)
+                single_running = SingleRunning()
+                for name, pipeline in task['pipelines'].items():
+                    pipeline_copy = pipeline['ppl'] + Pipeline()
+                    single_running.add_pipeline(pipeline_copy, pipeline['var'], config=pipeline['cfg'],
+                                                name=name, import_model_from=pipeline['import_model_from'])
+                if isinstance(task['model_per_preproc'], list):
+                    model_per_preproc = task['model_per_preproc'][idx]
+                else:
+                    model_per_preproc = Config()
+                single_running.add_common_config(config.config()+model_per_preproc)
+                single_running.init()
+                single_runnings.append(single_running)
 
-    def _index_by_aliases(self, aliases):
-        output = []
-        for alias in aliases:
-            if isinstance(alias, dict):
-                index = self._index_by_alias(alias)
-            else:
-                index = [alias]
-            output.extend(index)
-        return output
+            @inbatch_parallel(init=single_runnings)
+            def _parallel_run(self, sr, batch, name):
+                sr.run_on_batch(batch, name)
 
-    def _index_by_alias(self, alias):
-        index = []
-        for i, (config, _) in enumerate(self.results):
-            if self._is_subset(alias, config.alias()):
-                index.append(i)
-        return index
-
-    def _index_by_grid(self, grid):
-        aliases = [config.alias() for config in grid.gen_configs()]
-        return self._index_by_aliases(aliases)
-
-    def _is_subset(self, subset, superset):
-        return all(item in superset.items() for item in subset.items())
-
-    def _load_results(self, filename):
-        with open(filename, 'rb') as file:
-            return pickle.load(file)
-
-    def __getitem__(self, ind):
-        res = self.results[ind]
-        if isinstance(res[1], str):
-            res = (res[0], self._load_results(res[1]))
-        return res
-
-    def get_results(self, cond):
-        """ Get results for configs that satisfy cond
-
-        Parameters
-        ----------
-        cond : Grid, Option; dict, int or list
-        """
-        if isinstance(cond, (Grid, Option)):
-            cond = self._index_by_grid(cond)
-        elif isinstance(cond, list):
-            cond = self._index_by_aliases(cond)
-        else:
-            cond = self._index_by_aliases([cond])
-        cond = np.unique(cond)
-        return [self[i] for i in self._index_by_aliases(cond)]
-
+            for i in range(task['n_iters']):
+                for name, pipeline in task['pipelines'].items():
+                    if pipeline['preproc'] is not None:
+                        batch = pipeline['preproc'].next_batch()
+                        self._parallel_run(single_runnings, batch, name)
+                    else:
+                        for sr in single_runnings:
+                            sr.next_batch(name)
+            for sr, config in zip(single_runnings, task['configs']):
+                sr.save_results(os.path.join(task['name'], 'results', config.alias(as_string=True), str(task['repetition'])))
+        except:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
 
 class Research:
-    """ Class for multiple experiments with models. """
-    def __init__(self, name=None):
-        """ Initial experiment settings.
+    def __init__(self):
+        self.pipelines = OrderedDict()
+        self.config = Config()
+        self.results = None
+        self.has_preproc = False
 
-        Parameters
-        ----------
-        pipelines : dataset.Pipeline
-            base_config : dict
-                model config with parameters which are not changes between experiments
-            grid_config : dict
-                key : str or tuple of str
-                    if str - parameter name. if tuple - (parameter name, parameter alias)
-                value : list
-                    if aliases=True it must be list of tuples (parameter value, value alias)
-                    if aliases=False list of parameter values
-        feed_dict : dict
-
-        data : str or Dataset
-            input data. If str, must be 'mnist', 'cifar', 'cifar10' or 'cifar100'. If Dataset, it must has attributes
-            train and test.
-        preproc_template : Pipeline
-            pipeline to preprocess data which is applied to data.test and data.train. Default - None (empty pipeline).
-        metrics : str or list of str
-            metrics to compute on train and test. If None 'loss' will be assigned.
-        aliases : bool
-            see models
-        name : str
-        """
-        super().__init__()
-        if name is None:
-            name = 'research'
-        self.name = name
-
-        if not os.path.exists(self.name):
-            os.makedirs(self.name)
-        tmp_dir = os.path.join(self.name, '.tmp')
-        if not os.path.exists(tmp_dir):
-            os.makedirs(tmp_dir)
-
-        self.pipelines = list()
-        self.grid = None
-        self.results = ResearchResults()
-
-    def add_pipeline(self, pipeline, variables, config=None, name=None):
+    def add_pipeline(self, pipeline, variables, preproc=None, config=None, name=None, import_model_from=None):
         """ Add new pipeline to research.
         Parameters
         ----------
@@ -139,81 +85,71 @@ class Research:
         names : str (default None)
             name of pipeline. If None - name will be 'ppl_{index}'
         """
-        if name is None:
-            name = 'ppl_' + str(len(self.pipelines))
-        if config is None:
-            config = dict()
-        if variables is None:
-            variables = []
+        name = name or 'ppl_' + str(len(self.pipelines))
+        config = config or Config()
+        variables = variables or []
+        if preproc is not None:
+            self.has_preproc = True
+
         if not isinstance(variables, list):
             variables = [variables]
-        if name in [pipeline['name'] for pipeline in self.pipelines]:
+        if name in self.pipelines:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
-        self.pipelines.append({'name': name, 'ppl': pipeline, 'cfg': config, 'var': variables})
+        self.pipelines[name] = {'ppl': pipeline, 'cfg': config, 'var': variables, 'preproc': preproc, 'import_model_from': import_model_from}
 
-    def add_grid_config(self, grid):
-        """ Add Grid.
+    def add_grid_config(self, grid_config):
+        self.grid_config = Grid(grid_config)
 
-        Parameters
-        ----------
-        grid: Grid
-        """
-        self.grid = grid
+    def _create_tasks(self, n_reps, n_iters, model_per_preproc, name):
+        if isinstance(model_per_preproc, int):
+            n_models = model_per_preproc
+        elif model_per_preproc is None:
+            n_models = 1
+        else:
+            n_models = len(model_per_preproc)
+        self.tasks = (
+            {'pipelines': self.pipelines,
+             'n_iters': n_iters,
+             'configs': configs,
+             'repetition': idx,
+             'model_per_preproc': model_per_preproc,
+             'name': name
+             }
+             for configs in self.grid_config.gen_configs(n_models)
+             for idx in range(n_reps)
+        )
+        self.tasks = Tasks(self.tasks)
 
-    def run(self, n_iters, n_reps=1, names=None, max_workers=None):
-        """ Run experiments.
+    def run(self, n_reps, n_iters, n_jobs=1, model_per_preproc=1, name=None):
+        self.n_reps = n_reps
+        self.n_iters = n_iters
+        self.n_jobs = n_jobs
+        self.model_per_preproc = model_per_preproc
 
-        Parameters
-        ----------
-        n_reps : int
-            the number of repetitions for each combination of parameters
-        batch_size : int
+        self.name = self._does_exist(name)
 
-        n_iters : int
-        """
-        self.results = ResearchResults()
-        self._clear_tmp_folder()
+        # self.save()
+        self._create_tasks(n_reps, n_iters, model_per_preproc, self.name)
+        distr = Distributor(n_jobs, PipelineWorker)
+        distr.run(self.tasks, dirname=self.name)
 
-        def _run(arg):
-            indices, additional_config = arg
-            single_run = SingleRunning()
-            results = dict()
-            for experiment in indices:
-                single_run.pipelines = deepcopy(self.pipelines)
-                save_to = os.path.join('.', self.name, 'results',
-                                       additional_config.alias(as_string=True), str(experiment))
-                experiment_result = single_run.run(n_iters, names, additional_config.config())
-                self._save_results(experiment_result, save_to)
-                results[experiment] = save_to
-            del single_run
-            return results
+    def _does_exist(self, name):
+        name = name or 'research'
+        if not os.path.exists(name):
+            dirname = name
+        else:
+            i = 1
+            while os.path.exists(name + '_' + str(i)):
+                i += 1
+            dirname = name + '_' + str(i)
+        os.makedirs(dirname)
+        return dirname        
 
-        for additional_config in self.grid.gen_configs():
-            tasks = [([i], additional_config) for i in range(n_reps)]
-            with ThreadPoolExecutor(max_workers) as executor:
-                exec_output = executor.map(_run, tasks)
-                exec_output = dict(item for dct in exec_output for item in dct.items())
-                self.results.append(additional_config, exec_output)
-
-    def _save_results(self, results, name=None):
-        foldername, _ = os.path.split(name)
-        if len(foldername) != 0:
-            if not os.path.exists(foldername):
-                os.makedirs(foldername)
-        with open(name, 'wb') as file:
-            pickle.dump(results, file)
-
-    def _clear_tmp_folder(self):
-        dirname = os.path.join(self.name, '.tmp')
-        for root, dirs, files in os.walk(dirname, topdown=False):
-            for name in files:
-                os.remove(os.path.join(root, name))
-            for name in dirs:
-                os.rmdir(os.path.join(root, name))
+    def save(self):
+        with open(os.path.join(self.name, 'description'), 'wb') as file:
+            pickle.dump(self, file)
 
     @classmethod
-    def load_results(cls, name):
-        """ Load experiment. """
-        with open(os.path.join(name, 'research'), 'rb') as file:
-            res = pickle.load(file)
-        return res
+    def load(cls, name):
+        with open(os.path.join(name, 'description'), 'rb') as file:
+            return pickle.load(file)

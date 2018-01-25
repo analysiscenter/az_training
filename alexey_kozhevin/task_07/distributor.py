@@ -62,10 +62,14 @@ class Worker:
         queue.task_done()
 
     def _log(self):
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print(exc_type, fname, exc_tb.tb_lineno)
+        #print(str(sys.exc_info()))
         logging.error(str(sys.exc_info()))
 
 class Distributor:
-    def __init__(self, n_workers, reuse_batch, worker_class, *args, **kwargs):
+    def __init__(self, n_workers, worker_class):
         self.n_workers = n_workers
         self.worker_class = worker_class
 
