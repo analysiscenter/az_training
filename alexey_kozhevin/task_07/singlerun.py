@@ -42,12 +42,12 @@ class SingleRunning:
         if name in self.pipelines:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
         if import_model_from is not None:
-            import_dict = Config(import_model_from=self.pipelines[import_model_from]['ppl'])
+            import_model = Config(import_model_from=self.pipelines[import_model_from]['ppl'])
         else:
-            import_dict = dict()
+            import_model = dict()
         self.pipelines[name] = {
             'ppl': pipeline,
-            'cfg': config + import_dict,
+            'cfg': config + import_model,
             'var': variables
         }
 
