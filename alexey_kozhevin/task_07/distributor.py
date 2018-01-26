@@ -28,6 +28,7 @@ class Worker:
         args, kwargs
             will be used in init, post and task
         """
+        self.task = None
         self.args = args
         self.kwargs = kwargs
         self.dirname = dirname or ''
