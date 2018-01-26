@@ -28,14 +28,10 @@ class PipelineWorker(Worker):
         _ = batch, name
         return single_runnings
 
-    def task(self, item):
-        """
-        Parameters
-        ----------
-        item : tuple (index, task)
-        """
-        i, task = item
-        single_runnings = []
+    def init(self):
+        """ Run before task execution. """
+        i, task = self.task
+        self.single_runnings = []
         print('Task', i)
         for idx, config in enumerate(task['configs']):
             print(config)
@@ -51,19 +47,29 @@ class PipelineWorker(Worker):
             single_running.add_common_config(config.config()+model_per_preproc)
             print((config.config()+model_per_preproc).flatten())
             single_running.init()
-            single_runnings.append(single_running)
+            self.single_runnings.append(single_running)
 
+    def post(self):
+        super().post()
+        i, task = self.task
+        for item in self.single_runnings:
+            print('!!!')            
+
+    def run_task(self):
+        """ Task execution. """
+        _, task = self.task
         for i in range(task['n_iters']):
             for name, pipeline in task['pipelines'].items():
                 if pipeline['preproc'] is not None:
                     batch = pipeline['preproc'].next_batch()
-                    self._parallel_run(single_runnings, batch, name)
+                    self._parallel_run(self.single_runnings, batch, name)
                 else:
-                    for item in single_runnings:
+                    for item in self.single_runnings:
                         item.next_batch(name)
-        for item, config in zip(single_runnings, task['configs']):
+        for item, config in zip(self.single_runnings, task['configs']):
             item.save_results(os.path.join(task['name'], 'results',
                                            config.alias(as_string=True), str(task['repetition'])))
+
 
 class Research:
     """ Class Research for multiple experiments with pipelines. """

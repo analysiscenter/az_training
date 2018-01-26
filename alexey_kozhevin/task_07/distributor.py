@@ -45,17 +45,17 @@ class Worker:
         self.args = args
         self.kwargs = kwargs
 
-    def init(self, task, *args, **kwargs):
+    def init(self):
         """ Run before task. """
-        _ = task, args, kwargs
+        pass
 
-    def post(self, task, *args, **kwargs):
+    def post(self):
         """ Run after task. """
-        _ = task, args, kwargs
+        pass
 
-    def task(self, task, *args, **kwargs):
+    def run_task(self):
         """ Main part of the worker. """
-        _ = task, args, kwargs
+        pass
 
     def __call__(self, queue):
         """ Run worker.
@@ -86,11 +86,11 @@ class Worker:
         logfile = os.path.join(self.dirname, 'errors.log')
         logging.basicConfig(filename=logfile, level=logging.ERROR)
 
-        task = queue.get()
+        self.task = queue.get()
         try:
-            self.init(task, *self.args, **self.kwargs)
-            res = self.task(task, *self.args, **self.kwargs)
-            self.post(task, res, *self.args, **self.kwargs)
+            self.init()
+            self.run_task()
+            self.post()
         except:
             self._log()
         queue.task_done()
@@ -98,7 +98,7 @@ class Worker:
     def _log(self):
         exc_type, _, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        logging.error(' '.join(exc_type, fname, exc_tb.tb_lineno))
+        logging.error(exc_type, fname, exc_tb.tb_lineno)
 
 class Distributor:
     """ Distributor of tasks between workers. """
@@ -133,13 +133,15 @@ class Distributor:
         args, kwargs
             will be used in worker
         """
-        queue = self._tasks_to_queue(tasks)
         if isinstance(self.n_workers, int):
-            n_workers = [self.worker_class(*args, **kwargs) for _ in range(self.n_workers)]
+            workers = [self.worker_class(*args, **kwargs) for _ in range(self.n_workers)]
         else:
             for worker in self.n_workers:
                 worker.set_args_kwargs(args, kwargs)
-        for worker in n_workers:
+            workers = self.n_workers
+            self.n_workers = len(self.n_workers)
+        queue = self._tasks_to_queue(tasks)
+        for worker in workers:
             mp.Process(target=worker, args=(queue, )).start()
 
         queue.join()
