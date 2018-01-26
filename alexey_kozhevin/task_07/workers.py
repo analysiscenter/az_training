@@ -1,3 +1,5 @@
+""" Workers for research. """
+
 import os
 from copy import copy
 from collections import OrderedDict
@@ -68,6 +70,6 @@ class SavingWorker(PipelineWorker):
             for item, config in zip(self.single_runnings, task['configs']):
                 filename = os.path.join(task['name'],
                                         'results',
-                                         config.alias(as_string=True),
-                                         str(task['repetition']) + '_model')
+                                        config.alias(as_string=True),
+                                        str(task['repetition']) + '_model')
                 item.get_pipeline('train')['ppl'].get_model_by_name('model').save(filename)

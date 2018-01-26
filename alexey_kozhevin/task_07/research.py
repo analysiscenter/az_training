@@ -56,6 +56,7 @@ class Research:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
         self.pipelines[name] = {'ppl': pipeline, 'cfg': config, 'var': variables,
                                 'preproc': preproc, 'import_model_from': import_model_from}
+        return self
 
     def add_grid_config(self, grid_config):
         """ Add grid of pipeline parameters.
@@ -66,6 +67,7 @@ class Research:
             if dict it should have items parameter_name: list of values.
         """
         self.grid_config = Grid(grid_config)
+        return self
 
     def _create_tasks(self, n_reps, n_iters, model_per_preproc, name):
         if isinstance(model_per_preproc, int):
@@ -124,6 +126,7 @@ class Research:
             worker = None
         distr = Distributor(n_jobs, worker)
         distr.run(self.tasks, dirname=self.name)
+        return self
 
     def _does_exist(self, name):
         name = name or 'research'
