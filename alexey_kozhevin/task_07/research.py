@@ -23,7 +23,7 @@ class Research:
     def __init__(self):
         self.pipelines = OrderedDict()
 
-    def add_pipeline(self, pipeline, variables, preproc=None, config=None, name=None, import_model_from=None):
+    def add_pipeline(self, pipeline, variables, preproc=None, config=None, name=None, **kwargs):
         """ Add new pipeline to research.
 
         Parameters
@@ -42,9 +42,11 @@ class Research:
             pipeline config which doesn't change between experiments
         name : str (default None)
             name of pipeline. If name is None pipeline will have name 'ppl_{index}'
-        import_model_from : str or None
-            name of pipeline in Research to import model from. If pipeline imports model from other pipeline,
-            corresponding parameter in import_model must have name 'import_model_from'.
+        kwargs :
+            parameters in pipeline config that depends on the name of the other config. For example,
+            if test pipeline imports model from the other pipeline with name 'train' in SingleRunning,
+            corresponding parameter in import_model must be C('import_from') and add_pipeline
+            must be called with parameter import_from='train'.
         """
         name = name or 'ppl_' + str(len(self.pipelines))
         config = config or Config()
@@ -55,7 +57,7 @@ class Research:
         if name in self.pipelines:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
         self.pipelines[name] = {'ppl': pipeline, 'cfg': config, 'var': variables,
-                                'preproc': preproc, 'import_model_from': import_model_from}
+                                'preproc': preproc, 'kwargs': kwargs}
         return self
 
     def add_grid_config(self, grid_config):

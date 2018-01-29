@@ -33,7 +33,7 @@ class PipelineWorker(Worker):
             for name, pipeline in task['pipelines'].items():
                 pipeline_copy = pipeline['ppl'] + Pipeline()
                 single_running.add_pipeline(pipeline_copy, pipeline['var'], config=pipeline['cfg'],
-                                            name=name, import_model_from=pipeline['import_model_from'])
+                                            name=name, **pipeline['kwargs'])
             if isinstance(task['model_per_preproc'], list):
                 model_per_preproc = task['model_per_preproc'][idx]
             else:

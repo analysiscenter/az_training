@@ -18,7 +18,7 @@ class SingleRunning:
         self.config = Config()
         self.results = None
 
-    def add_pipeline(self, pipeline, variables=None, config=None, name=None, import_model_from=None):
+    def add_pipeline(self, pipeline, variables=None, config=None, name=None, **kwargs):
         """ Add new pipeline to research.
         Parameters
         ----------
@@ -30,9 +30,11 @@ class SingleRunning:
             pipeline config
         name : str (default None)
             name of pipeline. If name is None pipeline will have name 'ppl_{index}'
-        import_model_from : str or None
-            name of pipeline in SingleRunning to import model from. If pipeline imports model from other pipeline,
-            corresponding parameter in import_model must have name 'import_model_from'.
+        kwargs :
+            parameters in pipeline config that depends on the name of the other config. For example,
+            if test pipeline imports model from the other pipeline with name 'train' in SingleRunning,
+            corresponding parameter in import_model must be C('import_from') and add_pipeline
+            must be called with parameter import_from='train'.
         """
         name = name or 'ppl_' + str(len(self.pipelines))
         config = Config(config) or Config()
@@ -41,13 +43,12 @@ class SingleRunning:
             variables = [variables]
         if name in self.pipelines:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
-        if import_model_from is not None:
-            import_model = Config(import_model_from=self.pipelines[import_model_from]['ppl'])
-        else:
-            import_model = Config()
+        import_config = {key: self.pipelines[value]['ppl'] for key, value in kwargs.items()}
+        import_config = Config(import_config)
+        print(kwargs, import_config)
         self.pipelines[name] = {
             'ppl': pipeline,
-            'cfg': config + import_model,
+            'cfg': config + import_config,
             'var': variables
         }
 
