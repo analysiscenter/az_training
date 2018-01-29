@@ -12,11 +12,10 @@ from collections import OrderedDict
 import pickle
 import json
 
-from dataset.dataset import Config, Pipeline, inbatch_parallel
-from distributor import Tasks, Distributor, Worker
+from dataset.dataset import Config
+from distributor import Tasks, Distributor
 from workers import PipelineWorker
 from grid import Grid
-from singlerun import SingleRunning
 
 class Research:
     """ Class Research for multiple experiments with pipelines. """

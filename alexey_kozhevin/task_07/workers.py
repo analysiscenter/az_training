@@ -1,14 +1,12 @@
+#pylint:disable=no-value-for-parameter
+#pylint:disable=attribute-defined-outside-init
+
 """ Workers for research. """
 
 import os
-from copy import copy
-from collections import OrderedDict
-import pickle
-import json
 
 from dataset.dataset import Config, Pipeline, inbatch_parallel
-from distributor import Tasks, Distributor, Worker
-from grid import Grid
+from distributor import Worker
 from singlerun import SingleRunning
 
 class PipelineWorker(Worker):
@@ -44,6 +42,7 @@ class PipelineWorker(Worker):
             self.single_runnings.append(single_running)
 
     def post(self):
+        """ Run after task execution. """
         _, task = self.task
         for item, config in zip(self.single_runnings, task['configs']):
             item.save_results(os.path.join(task['name'], 'results',
@@ -52,7 +51,7 @@ class PipelineWorker(Worker):
     def run_task(self):
         """ Task execution. """
         _, task = self.task
-        for i in range(task['n_iters']):
+        for _ in range(task['n_iters']):
             for name, pipeline in task['pipelines'].items():
                 if pipeline['preproc'] is not None:
                     batch = pipeline['preproc'].next_batch()
@@ -64,8 +63,9 @@ class PipelineWorker(Worker):
 
 class SavingWorker(PipelineWorker):
     def post(self):
+        """ Run after task execution. """
         super().post()
-        i, task = self.task
+        _, task = self.task
         if task['repetition'] == 0:
             for item, config in zip(self.single_runnings, task['configs']):
                 filename = os.path.join(task['name'],
