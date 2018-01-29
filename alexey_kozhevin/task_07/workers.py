@@ -5,7 +5,7 @@
 
 import os
 
-from dataset.dataset import Config, Pipeline, inbatch_parallel
+from dataset.dataset import Config, Pipeline, inbatch_parallel, any_action_failed
 from distributor import Worker
 from singlerun import SingleRunning
 
@@ -14,7 +14,12 @@ class PipelineWorker(Worker):
     @inbatch_parallel(init='_parallel_init')
     def _parallel_run(self, item, single_runnings, batch, name):
         _ = single_runnings
-        item.run_on_batch(batch, name)
+        logfile = os.path.join(self.dirname, 'errors.log')
+        logging.basicConfig(filename=logfile, level=logging.ERROR)
+        try:
+            item.run_on_batch(batch, name)
+        except:
+            self._log()
 
     def _parallel_init(self, single_runnings, batch, name):
         _ = batch, name
@@ -26,7 +31,6 @@ class PipelineWorker(Worker):
         self.single_runnings = []
         print('Task', i)
         for idx, config in enumerate(task['configs']):
-            print(config)
             single_running = SingleRunning()
             for name, pipeline in task['pipelines'].items():
                 pipeline_copy = pipeline['ppl'] + Pipeline()
@@ -37,7 +41,6 @@ class PipelineWorker(Worker):
             else:
                 model_per_preproc = Config()
             single_running.add_common_config(config.config()+model_per_preproc)
-            print((config.config()+model_per_preproc).flatten())
             single_running.init()
             self.single_runnings.append(single_running)
 

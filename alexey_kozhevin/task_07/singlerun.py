@@ -45,7 +45,6 @@ class SingleRunning:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
         import_config = {key: self.pipelines[value]['ppl'] for key, value in kwargs.items()}
         import_config = Config(import_config)
-        print(kwargs, import_config)
         self.pipelines[name] = {
             'ppl': pipeline,
             'cfg': config + import_config,
