@@ -62,6 +62,7 @@ class PipelineWorker(Worker):
 
 
 class SavingWorker(PipelineWorker):
+    """ Worker that run pipelines and save first model. """
     def post(self):
         """ Run after task execution. """
         super().post()
