@@ -9,7 +9,7 @@
 import os
 from copy import copy
 from collections import OrderedDict
-import pickle
+import dill
 import json
 
 from dataset.dataset import Config
@@ -144,7 +144,7 @@ class Research:
     def save(self):
         """ Save description of the research to name/description. """
         with open(os.path.join(self.name, 'description'), 'wb') as file:
-            pickle.dump(self, file)
+            dill.dump(self, file)
         with open(os.path.join(self.name, 'description_research.json'), 'w') as file:
             file.write(json.dumps(self._json(), default=self._set_default_json))
         with open(os.path.join(self.name, 'description_alias.json'), 'w') as file:

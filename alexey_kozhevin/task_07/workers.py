@@ -4,6 +4,7 @@
 """ Workers for research. """
 
 import os
+import logging
 
 from dataset.dataset import Config, Pipeline, inbatch_parallel, any_action_failed
 from distributor import Worker
@@ -14,8 +15,6 @@ class PipelineWorker(Worker):
     @inbatch_parallel(init='_parallel_init')
     def _parallel_run(self, item, single_runnings, batch, name):
         _ = single_runnings
-        logfile = os.path.join(self.dirname, 'errors.log')
-        logging.basicConfig(filename=logfile, level=logging.ERROR)
         try:
             item.run_on_batch(batch, name)
         except:
@@ -29,7 +28,6 @@ class PipelineWorker(Worker):
         """ Run before task execution. """
         i, task = self.task
         self.single_runnings = []
-        print('Task', i)
         for idx, config in enumerate(task['configs']):
             single_running = SingleRunning()
             for name, pipeline in task['pipelines'].items():
@@ -62,7 +60,6 @@ class PipelineWorker(Worker):
                 else:
                     for item in self.single_runnings:
                         item.next_batch(name)
-
 
 class SavingWorker(PipelineWorker):
     """ Worker that run pipelines and save first model. """
