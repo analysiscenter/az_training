@@ -94,14 +94,13 @@ class Worker:
     def _run(self, queue):
         try:
             self.task = queue.get()
-            self.log_info('Task {} started by {}'.format(self.task[0], self.name), filename=self.logfile)
-            self.log_info('Task {} is {}'.format(self.task[0], self.task[1]['configs']), filename=self.logfile)
+            self.log_info('Task {} was started by {}'.format(self.task[0], self.name), filename=self.logfile)
             self.init()
             self.run_task()
             self.post()
         except Exception as exception:
             self.log_error(exception, filename=self.errorfile)
-        self.log_info('Task {} finished by {}'.format(self.task[0], self.name), filename=self.logfile)
+        self.log_info('Task {} was finished by {}'.format(self.task[0], self.name), filename=self.logfile)
         queue.task_done()
 
     @classmethod
@@ -140,13 +139,14 @@ class Distributor:
     @classmethod
     def log_info(cls, message, filename):
         """ Write message into log. """
-        logging.basicConfig(filename=filename, level=logging.INFO)
+
+        logging.basicConfig(format='%(levelname)-8s [%(asctime)s] %(message)s', filename=filename, level=logging.INFO)
         logging.info(message)
 
     @classmethod
     def log_error(cls, obj, filename):
         """ Write error message into log. """
-        logging.basicConfig(filename=filename, level=logging.INFO)
+        logging.basicConfig(format='%(levelname)-8s [%(asctime)s] %(message)s', filename=filename, level=logging.INFO)
         logging.error(obj, exc_info=True)
 
     def run(self, tasks, dirname=None, logfile=None, errorfile=None, *args, **kwargs):
@@ -160,8 +160,8 @@ class Distributor:
         args, kwargs
             will be used in worker
         """
-        self.logfile = logfile or 'research1.log'
-        self.errorfile = errorfile or 'errors1.log'
+        self.logfile = logfile or 'research.log'
+        self.errorfile = errorfile or 'errors.log'
 
         self.logfile = os.path.join(dirname, self.logfile)
         self.errorfile = os.path.join(dirname, self.errorfile)
@@ -184,7 +184,7 @@ class Distributor:
         except Exception as exception:
             logging.error(exception, exc_info=True)
         else:
-            self.log_info('Run workers', filename=self.logfile)
+            self.log_info('Run {} workers'.format(len(workers)), filename=self.logfile)
             for worker in workers:
                 worker.log_info = self.log_info
                 worker.log_error = self.log_error
@@ -194,4 +194,5 @@ class Distributor:
                 except Exception as exception:
                     logging.error(exception, exc_info=True)
             queue.join()
+        self.log_info('All workers finished the work.', filename=self.logfile)
     
