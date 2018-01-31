@@ -9,8 +9,8 @@
 import os
 from copy import copy
 from collections import OrderedDict
-import dill
 import json
+import dill
 
 from dataset.dataset import Config
 from distributor import Tasks, Distributor
@@ -171,4 +171,4 @@ class Research:
     def load(cls, name):
         """ Load description of the research from name/description. """
         with open(os.path.join(name, 'description'), 'rb') as file:
-            return pickle.load(file)
+            return dill.load(file)

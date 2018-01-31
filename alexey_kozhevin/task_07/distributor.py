@@ -1,11 +1,11 @@
 #pylint:disable=too-few-public-methods
-#pylint:disable=bare-except
+#pylint:disable=broad-except
 #pylint:disable=too-many-function-args
+#pylint:disable=attribute-defined-outside-init
 
 """ Classes for multiprocess task running. """
 
 import os
-import sys
 import multiprocess as mp
 import logging
 
@@ -32,7 +32,7 @@ class Worker:
         self.args = args
         self.kwargs = kwargs
         if isinstance(worker_name, int):
-            self.name  = "Worker " + str(worker_name)
+            self.name = "Worker " + str(worker_name)
         elif worker_name is None:
             self.name = 'Worker'
         self.logfile = logfile or 'research.log'
@@ -59,7 +59,7 @@ class Worker:
     def run_task(self):
         """ Main part of the worker. """
         pass
-        
+
 
     def __call__(self, queue):
         """ Run worker.
@@ -73,8 +73,8 @@ class Worker:
 
         try:
             item = queue.get()
-        except Exception as e:
-            self.log_error(e, filename=self.errorfile)
+        except Exception as exception:
+            self.log_error(exception, filename=self.errorfile)
         else:
             while item is not None:
                 sub_queue = mp.JoinableQueue()
@@ -84,8 +84,8 @@ class Worker:
                     worker = mp.Process(target=self._run, args=(sub_queue, ))
                     worker.start()
                     sub_queue.join()
-                except Exception as e:
-                    self.log_error(e, filename=self.errorfile)
+                except Exception as exception:
+                    self.log_error(exception, filename=self.errorfile)
                 queue.task_done()
                 item = queue.get()
         queue.task_done()
@@ -98,17 +98,19 @@ class Worker:
             self.init()
             self.run_task()
             self.post()
-        except Exception as e:
-            self.log_error(e, filename=self.errorfile)
+        except Exception as exception:
+            self.log_error(exception, filename=self.errorfile)
         self.log_info('Task {} finished by {}'.format(self.task[0], self.name), filename=self.logfile)
         queue.task_done()
 
     @classmethod
     def log_info(cls, *args, **kwargs):
+        """ Write message into log. """
         pass
 
     @classmethod
     def log_error(cls, *args, **kwargs):
+        """ Write error message into log. """
         pass
 
 class Distributor:
@@ -136,11 +138,13 @@ class Distributor:
 
     @classmethod
     def log_info(cls, message, filename):
+        """ Write message into log. """
         logging.basicConfig(filename=filename, level=logging.INFO)
         logging.info(message)
 
     @classmethod
     def log_error(cls, obj, filename):
+        """ Write error message into log. """
         logging.basicConfig(filename=filename, level=logging.INFO)
         logging.error(obj, exc_info=True)
 
@@ -176,8 +180,8 @@ class Distributor:
         try:
             self.log_info('Create tasks queue', filename=self.logfile)
             queue = self._tasks_to_queue(tasks)
-        except Exception as e:
-            logging.error(e, exc_info=True)
+        except Exception as exception:
+            logging.error(exception, exc_info=True)
         else:
             self.log_info('Run workers', filename=self.logfile)
             for worker in workers:
@@ -186,10 +190,7 @@ class Distributor:
 
                 try:
                     mp.Process(target=worker, args=(queue, )).start()
-                except Exception as e:
-                    logging.error(e, exc_info=True)
-                    while not queue.empty():
-                        q.get(item)
-                        q.task_done()
+                except Exception as exception:
+                    logging.error(exception, exc_info=True)
             queue.join()
     

@@ -4,9 +4,8 @@
 """ Workers for research. """
 
 import os
-import logging
 
-from dataset.dataset import Config, Pipeline, inbatch_parallel, any_action_failed
+from dataset.dataset import Config, Pipeline, inbatch_parallel
 from distributor import Worker
 from singlerun import SingleRunning
 
@@ -17,8 +16,8 @@ class PipelineWorker(Worker):
         _ = single_runnings
         try:
             item.run_on_batch(batch, name)
-        except:
-            self._log()
+        except Exception as e:
+            self.log_error(e, filename=self.errorfile)
 
     def _parallel_init(self, single_runnings, batch, name):
         _ = batch, name
@@ -26,7 +25,7 @@ class PipelineWorker(Worker):
 
     def init(self):
         """ Run before task execution. """
-        i, task = self.task
+        _, task = self.task
         self.single_runnings = []
         for idx, config in enumerate(task['configs']):
             single_running = SingleRunning()
