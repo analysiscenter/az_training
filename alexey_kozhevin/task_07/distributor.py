@@ -2,12 +2,13 @@
 #pylint:disable=broad-except
 #pylint:disable=too-many-function-args
 #pylint:disable=attribute-defined-outside-init
+#pylint:disable=import-error
 
 """ Classes for multiprocess task running. """
 
 import os
-import multiprocess as mp
 import logging
+import multiprocess as mp
 
 class Tasks:
     """ Tasks to workers. """

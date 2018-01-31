@@ -1,5 +1,6 @@
 #pylint:disable=no-value-for-parameter
 #pylint:disable=attribute-defined-outside-init
+#pylint:disable=broad-except
 
 """ Workers for research. """
 
@@ -16,8 +17,8 @@ class PipelineWorker(Worker):
         _ = single_runnings
         try:
             item.run_on_batch(batch, name)
-        except Exception as e:
-            self.log_error(e, filename=self.errorfile)
+        except Exception as exception:
+            self.log_error(exception, filename=self.errorfile)
 
     def _parallel_init(self, single_runnings, batch, name):
         _ = batch, name
