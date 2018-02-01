@@ -23,7 +23,7 @@ class KV:
         else:
             self.value = value
             if alias is None:
-                self.alias = value
+                self.alias = str(value)
             else:
                 self.alias = alias
 

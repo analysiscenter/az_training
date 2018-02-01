@@ -19,12 +19,19 @@ class Tasks:
         return self.tasks
 
 class Worker:
-    """ Worker that creates subprocess to execute task"""
+    """ Worker that creates subprocess to execute task.
+    Worker get queue of tasks, pop one task and execute it in subprocess. That subprocess
+    call init, run_task and post class methods.
+    """
     def __init__(self, worker_name=None, logfile=None, errorfile=None, *args, **kwargs):
         """
         Parameters
         ----------
         worker_name : str or int
+
+        logfile : str (default: 'research.log')
+
+        errorfile : str (default: 'errors.log')
 
         args, kwargs
             will be used in init, post and task
