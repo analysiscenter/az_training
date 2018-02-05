@@ -3,6 +3,9 @@
 """ Options and configs. """
 
 from itertools import product
+from functools import reduce # Valid in Python 2.6+, required in Python 3
+import operator
+
 import collections
 
 from dataset.dataset import Config
@@ -50,6 +53,18 @@ class Option:
         """ Returns config. """
         return {self.parameter.value: [value.value for value in self.values]}
 
+    @classmethod
+    def product(cls, *args):
+        """ Element-wise product of options. """
+        lens = [len(item.values) for item in args]
+        if len(set(lens)) != 1:
+            raise ValueError('Options must be of the same length.')
+
+        grid = Grid()
+        for i in range(lens[0]):
+            grid += reduce(operator.mul, [Option(item.parameter, [item.values[i]]) for item in args])
+        return grid
+
     def __repr__(self):
         return 'Option(' + str(self.alias()) + ')'
 
@@ -93,7 +108,7 @@ class ConfigAlias:
 
 class Grid:
     """ Class for grid of parameters. """
-    def __init__(self, grid, **kwargs):
+    def __init__(self, grid=None, **kwargs):
         """
         Parameters
         ----------
@@ -142,10 +157,17 @@ class Grid:
         return descr
 
     def __len__(self):
-        return len(self.grid)
+        if self.grid is None:
+            return 0
+        else:
+            return len(self.grid)
 
     def __mul__(self, other):
-        if isinstance(other, Grid):
+        if self.grid is None:
+            return other
+        elif isinstance(other, Grid):
+            if other.grid is None:
+                return self
             res = list(product(self.grid, other.grid))
             res = [item[0] + item[1] for item in res]
             return Grid(res)
@@ -153,7 +175,11 @@ class Grid:
             return self * Grid([[other]])
 
     def __add__(self, other):
-        if isinstance(other, Grid):
+        if self.grid is None:
+            return other
+        elif other.grid is None:
+            return self
+        elif isinstance(other, Grid):
             return Grid(self.grid + other.grid)
         elif isinstance(other, Option):
             return self + Grid([[other]])

@@ -173,6 +173,6 @@ class Results(Config):
                     variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']
                 }
                 self[name] = {
-                    'execute_for': pipeline['execute_for'],
+                    'iterations': pipeline['execute_for'],
                     **variables
                 }
