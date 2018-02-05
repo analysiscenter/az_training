@@ -41,6 +41,11 @@ class Research:
             pipeline config which doesn't change between experiments
         name : str (default None)
             name of pipeline. If name is None pipeline will have name 'ppl_{index}'
+        execute_for : int, list or None
+            If -1, pipeline will be executed just at last iteration.
+            If other int, pipeline will be excuted for iterations with that step
+            If list, pipeline will be excuted for that iterations
+            If None, pipeline will executed on each iteration.
         kwargs :
             parameters in pipeline config that depends on the name of the other config. For example,
             if test pipeline imports model from the other pipeline with name 'train' in SingleRunning,
