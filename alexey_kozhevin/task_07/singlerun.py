@@ -74,24 +74,11 @@ class SingleRunning:
         """ Get values of variables from pipelines.
         Returns
         -------
-        dict
-            key : pipeline name
-            value : dict
-                key : variable name
-                value : variable
+        Results
 
         If some pipeline was added without variables it will not be included into results.
         """
-        results = dict()
-        for name, pipeline in self.pipelines.items():
-            if len(pipeline['var']) != 0:
-                results[name] = {
-                    'execute_for': pipeline['execute_for'],
-                    'variables': {
-                        variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']
-                    }
-                }
-        return results
+        return Results(self.pipelines)
 
     def init(self):
         """
@@ -153,3 +140,34 @@ class SingleRunning:
                 os.makedirs(foldername)
         with open(save_to, 'wb') as file:
             pickle.dump(self.results, file)
+
+    @classmethod
+    def get_iterations(cls, execute_for, n_iters=None):
+        """ Get indices of iterations from execute_for. """
+        if n_iters is not None:
+            if isinstance(execute_for, int):
+                if execute_for == -1:
+                    execute_for = [n_iters - 1]
+                else:
+                    execute_for = list(range(0, n_iters, execute_for))
+            elif execute_for is None:
+                execute_for = list(range(n_iters))
+        return execute_for
+
+
+class Results(Config):
+    """ Results of single experiment. """
+    def __init__(self, pipelines, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._add_results(pipelines)
+
+    def _add_results(self, pipelines):
+        for name, pipeline in pipelines.items():
+            if len(pipeline['var']) != 0:
+                variables = {
+                    variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']
+                }
+                self[name] = {
+                    'execute_for': pipeline['execute_for'],
+                    **variables
+                }

@@ -34,6 +34,9 @@ class PipelineWorker(Worker):
             single_running = SingleRunning()
             for name, pipeline in task['pipelines'].items():
                 pipeline_copy = pipeline['ppl'] + Pipeline()
+
+                pipeline['execute_for'] = SingleRunning.get_iterations(pipeline['execute_for'], task['n_iters'])
+
                 single_running.add_pipeline(pipeline_copy, pipeline['var'], config=pipeline['cfg'],
                                             name=name, execute_for=pipeline['execute_for'], **pipeline['kwargs'])
             if isinstance(task['model_per_preproc'], list):
@@ -54,16 +57,6 @@ class PipelineWorker(Worker):
     def run_task(self):
         """ Task execution. """
         _, task = self.task
-        for name, pipeline in task['pipelines'].items():
-            iterations = pipeline['execute_for']
-            if isinstance(iterations, int):
-                if iterations == -1:
-                    iterations = [task['n_iters'] - 1]
-                else:
-                    iterations = list(range(0, task['n_iters'], iterations))
-            elif iterations is None:
-                iterations = list(range(task['n_iters']))
-            pipeline['execute_for'] = iterations
 
         for i in range(task['n_iters']):
             for name, pipeline in task['pipelines'].items():
