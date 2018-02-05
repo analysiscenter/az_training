@@ -35,7 +35,7 @@ class PipelineWorker(Worker):
             for name, pipeline in task['pipelines'].items():
                 pipeline_copy = pipeline['ppl'] + Pipeline()
                 single_running.add_pipeline(pipeline_copy, pipeline['var'], config=pipeline['cfg'],
-                                            name=name, **pipeline['kwargs'])
+                                            name=name, execute_for=pipeline['execute_for'], **pipeline['kwargs'])
             if isinstance(task['model_per_preproc'], list):
                 model_per_preproc = task['model_per_preproc'][idx]
             else:
@@ -54,14 +54,26 @@ class PipelineWorker(Worker):
     def run_task(self):
         """ Task execution. """
         _, task = self.task
-        for _ in range(task['n_iters']):
-            for name, pipeline in task['pipelines'].items():
-                if pipeline['preproc'] is not None:
-                    batch = pipeline['preproc'].next_batch()
-                    self._parallel_run(self.single_runnings, batch, name)
+        for name, pipeline in task['pipelines'].items():
+            iterations = pipeline['execute_for']
+            if isinstance(iterations, int):
+                if iterations == -1:
+                    iterations = [task['n_iters'] - 1]
                 else:
-                    for item in self.single_runnings:
-                        item.next_batch(name)
+                    iterations = list(range(0, task['n_iters'], iterations))
+            elif iterations is None:
+                iterations = list(range(task['n_iters']))
+            pipeline['execute_for'] = iterations
+
+        for i in range(task['n_iters']):
+            for name, pipeline in task['pipelines'].items():
+                if i in pipeline['execute_for']:
+                    if pipeline['preproc'] is not None:
+                        batch = pipeline['preproc'].next_batch()
+                        self._parallel_run(self.single_runnings, batch, name)
+                    else:
+                        for item in self.single_runnings:
+                            item.next_batch(name)
 
 class SavingWorker(PipelineWorker):
     """ Worker that run pipelines and save first model. """

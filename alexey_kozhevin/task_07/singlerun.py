@@ -18,7 +18,7 @@ class SingleRunning:
         self.config = Config()
         self.results = None
 
-    def add_pipeline(self, pipeline, variables=None, config=None, name=None, **kwargs):
+    def add_pipeline(self, pipeline, variables=None, config=None, name=None, execute_for=None, **kwargs):
         """ Add new pipeline to research.
         Parameters
         ----------
@@ -48,7 +48,8 @@ class SingleRunning:
         self.pipelines[name] = {
             'ppl': pipeline,
             'cfg': config + import_config,
-            'var': variables
+            'var': variables,
+            'execute_for': execute_for
         }
 
     def get_pipeline(self, name):
@@ -69,7 +70,7 @@ class SingleRunning:
         """
         self.config = Config(config)
 
-    def get_results(self):
+    def get_results(self, n_iters):
         """ Get values of variables from pipelines.
         Returns
         -------
@@ -83,8 +84,13 @@ class SingleRunning:
         """
         results = dict()
         for name, pipeline in self.pipelines.items():
+            if n_iters is None:
+                execute_for = pipeline['execute_for']
             if len(pipeline['var']) != 0:
-                results[name] = {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
+                results[name] = {
+                    'execute_for': execute_for,
+                    'variables': {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
+                }
         return results
 
     def init(self):
@@ -133,14 +139,14 @@ class SingleRunning:
                 pipeline['ppl'].next_batch()
         self.results = self.get_results()
 
-    def save_results(self, save_to):
+    def save_results(self, save_to, n_iters=None):
         """ Pickle results to file.
 
         Parameters
         ----------
         save_to : str
         """
-        self.results = self.get_results()
+        self.results = self.get_results(n_iters)
         foldername, _ = os.path.split(save_to)
         if len(foldername) != 0:
             if not os.path.exists(foldername):

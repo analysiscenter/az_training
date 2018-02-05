@@ -22,7 +22,7 @@ class Research:
     def __init__(self):
         self.pipelines = OrderedDict()
 
-    def add_pipeline(self, pipeline, variables, preproc=None, config=None, name=None, **kwargs):
+    def add_pipeline(self, pipeline, variables, preproc=None, config=None, name=None, execute_for=None, **kwargs):
         """ Add new pipeline to research.
 
         Parameters
@@ -55,7 +55,7 @@ class Research:
             variables = [variables]
         if name in self.pipelines:
             raise ValueError('Pipeline with name {} was alredy existed'.format(name))
-        self.pipelines[name] = {'ppl': pipeline, 'cfg': config, 'var': variables,
+        self.pipelines[name] = {'ppl': pipeline, 'cfg': config, 'var': variables, 'execute_for': execute_for,
                                 'preproc': preproc, 'kwargs': kwargs}
         return self
 
