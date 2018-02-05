@@ -87,7 +87,9 @@ class SingleRunning:
             if len(pipeline['var']) != 0:
                 results[name] = {
                     'execute_for': pipeline['execute_for'],
-                    'variables': {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
+                    'variables': {
+                        variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']
+                    }
                 }
         return results
 
