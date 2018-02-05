@@ -56,17 +56,21 @@ class PipelineWorker(Worker):
 
     def run_task(self):
         """ Task execution. """
-        _, task = self.task
+        i, task = self.task
 
-        for i in range(task['n_iters']):
-            for name, pipeline in task['pipelines'].items():
-                if i in pipeline['execute_for']:
-                    if pipeline['preproc'] is not None:
-                        batch = pipeline['preproc'].next_batch()
-                        self._parallel_run(self.single_runnings, batch, name)
-                    else:
-                        for item in self.single_runnings:
-                            item.next_batch(name)
+        for j in range(task['n_iters']):
+            try:
+                for name, pipeline in task['pipelines'].items():
+                    if j in pipeline['execute_for']:
+                        if pipeline['preproc'] is not None:
+                            batch = pipeline['preproc'].next_batch()
+                            self._parallel_run(self.single_runnings, batch, name)
+                        else:
+                            for item in self.single_runnings:
+                                item.next_batch(name)
+            except StopIteration:
+                self.log_info('Task {} was stopped after {} iterations'.format(i, j+1), filename=self.logfile)
+                break
 
 class SavingWorker(PipelineWorker):
     """ Worker that run pipelines and save first model. """
