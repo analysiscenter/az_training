@@ -70,7 +70,7 @@ class SingleRunning:
         """
         self.config = Config(config)
 
-    def get_results(self, n_iters):
+    def get_results(self):
         """ Get values of variables from pipelines.
         Returns
         -------
@@ -84,11 +84,9 @@ class SingleRunning:
         """
         results = dict()
         for name, pipeline in self.pipelines.items():
-            if n_iters is None:
-                execute_for = pipeline['execute_for']
             if len(pipeline['var']) != 0:
                 results[name] = {
-                    'execute_for': execute_for,
+                    'execute_for': pipeline['execute_for'],
                     'variables': {variable: copy(pipeline['ppl'].get_variable(variable)) for variable in pipeline['var']}
                 }
         return results
@@ -139,14 +137,14 @@ class SingleRunning:
                 pipeline['ppl'].next_batch()
         self.results = self.get_results()
 
-    def save_results(self, save_to, n_iters=None):
+    def save_results(self, save_to):
         """ Pickle results to file.
 
         Parameters
         ----------
         save_to : str
         """
-        self.results = self.get_results(n_iters)
+        self.results = self.get_results()
         foldername, _ = os.path.split(save_to)
         if len(foldername) != 0:
             if not os.path.exists(foldername):
