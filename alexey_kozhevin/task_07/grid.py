@@ -26,12 +26,18 @@ class KV:
         else:
             self.value = value
             if alias is None:
-                self.alias = str(value)
+                self.alias = self._get_name(value)
             else:
                 self.alias = alias
 
     def __repr__(self):
         return 'KV(' + str(self.alias) + ': ' + str(self.value) + ')'
+
+    def _get_name(self, value):
+        if hasattr(value, '__name__'):
+            return value.__name__
+        else:
+            return str(value)
 
 class Option:
     """ Class for single-parameter option. """

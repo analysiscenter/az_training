@@ -28,7 +28,9 @@ class PipelineWorker(Worker):
         """ Run before task execution. """
         i, task = self.task
         description = '\n'.join([str(config.alias()) for config in task['configs']])
+
         self.log_info('Task {} has the following configs:\n{}'.format(i, description), filename=self.logfile)
+
         self.single_runnings = []
         for idx, config in enumerate(task['configs']):
             single_running = SingleRunning()
