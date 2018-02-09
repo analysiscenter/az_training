@@ -1,11 +1,14 @@
+#pylint:disable=broad-except
+#pylint:disable=too-few-public-methods
+
 """ Class for research results. """
 
 import os
+import glob
 import numpy as np
 import dill
-import glob
 
-from dataset import Config
+from dataset.dataset import Config
 
 class Stat:
     """ Get statistics from research results. """
@@ -34,7 +37,7 @@ class Stat:
         elif isinstance(index, int):
             mask = str(index)
         else:
-            mask =  '[' + ','.join([str(i) for i in index]) + ']'
+            mask = '[' + ','.join([str(i) for i in index]) + ']'
         path_mask = os.path.join(self.name, 'results', alias, mask)
         for name in glob.iglob(path_mask):
             with open(name, 'rb') as file:
