@@ -215,7 +215,7 @@ def plot_weights(model_names, model_weights, model_params, colors, num_axis, num
             num_plot += 1
     plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
 
-def draw_avgpooling(maps, answers, model=True):
+def draw_avgpooling(maps, answers, span=350, axis=[0, 2060, 0, 1.], model=True):
     """ Draw maps from GAP
 
     Parameters
@@ -225,8 +225,14 @@ def draw_avgpooling(maps, answers, model=True):
 
     answers : np.array
         answers to all maps
+    
+    span : float, optional
+        Specify decay in terms of span
+    
+    axis : list, optional
+        sets the min and max of the x and y axes, with ``[xmin, xmax, ymin, ymax]``
 
-    model : bool
+    model : bool, optional
         se resnet or simple resnet
     """
     col = sns.color_palette("Set2", 8) + sns.color_palette(["#9b59b6", "#3498db"])
@@ -235,13 +241,13 @@ def draw_avgpooling(maps, answers, model=True):
 
     filters = np.array([np.mean(maps[indices[i]], axis=0).reshape(-1) for i in range(10)])
     for i in range(10):
-        plt.plot(ewma(filters[i], span=350, adjust=False), color=col[i], label=str(i))
+        plt.plot(ewma(filters[i], span=span, adjust=False), color=col[i], label=str(i))
 
     plt.title("Distribution of average pooling in "+("SE ResNet" if model else 'simple ResNet'))
     plt.legend(fontsize=16, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    plt.ylabel('Activation', fontsize=18)
-    plt.xlabel('Filter index', fontsize=18)
-    plt.axis([0, 2060, 0, 1.])
+    plt.ylabel('Activation value', fontsize=18)
+    plt.xlabel('Future map index', fontsize=18)
+    plt.axis(axis)
     plt.show()
 
 def axis_draw(freeze_loss, res_loss, src, axis):
