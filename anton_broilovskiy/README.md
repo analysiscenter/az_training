@@ -9,3 +9,4 @@
 * [Squeeze and excitation block](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/researches/squeeze_and_excitation/squeeze_and_excitation.ipynb) in ResNet.
 * [FreezeOut](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/researches/freezeout/freezeout.ipynb) ResNet.
 * The impact of [augmentation](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/researches/augmentation/augmentation.ipynb) on network quality.
+* [A comparison of the distributions](https://github.com/analysiscenter/az_training/blob/master/anton_broilovskiy/research/weights_distributions/Weights_distributions.ipynb) of the weights of the two ResNet models

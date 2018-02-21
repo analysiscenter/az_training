@@ -215,7 +215,7 @@ def plot_weights(model_names, model_weights, model_params, colors, num_axis, num
             num_plot += 1
     plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
 
-def draw_avgpooling(maps, answers, span=350, axis=[0, 2060, 0, 1.], model=True):
+def draw_avgpooling(maps, answers, axis=None, span=350, model=True):
     """ Draw maps from GAP
 
     Parameters
@@ -225,16 +225,17 @@ def draw_avgpooling(maps, answers, span=350, axis=[0, 2060, 0, 1.], model=True):
 
     answers : np.array
         answers to all maps
-    
+
     span : float, optional
         Specify decay in terms of span
-    
+
     axis : list, optional
         sets the min and max of the x and y axes, with ``[xmin, xmax, ymin, ymax]``
 
     model : bool, optional
         se resnet or simple resnet
     """
+    axis = [0, 2060, 0, 1] if axis is None else axis
     col = sns.color_palette("Set2", 8) + sns.color_palette(["#9b59b6", "#3498db"])
 
     indices = np.array([np.where(answers == i)[0] for i in range(10)])
