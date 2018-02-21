@@ -4,7 +4,7 @@ from time import time
 import tensorflow as tf
 
 
-from dataset.dataset import Batch, model, action
+from dataset.dataset import Batch, model, action # pylint: disable=no-name-in-module
 from networks import conv_net_layers
 
 def subbatch_static_model(sess, scope, n_subbatches, layers):
