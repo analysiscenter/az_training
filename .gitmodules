@@ -1,3 +1,7 @@
+[submodule "anton_broilovskiy/dataset"]
+	path = anton_broilovskiy/dataset
+	url = https://github.com/analysiscenter/dataset.git
+
 [submodule "alexey_kozhevin/dataset"]
 	path = alexey_kozhevin/dataset
 	url = https://github.com/analysiscenter/dataset.git
