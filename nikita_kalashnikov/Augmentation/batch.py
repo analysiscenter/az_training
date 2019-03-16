@@ -20,3 +20,8 @@ class MyBatch(ImagesBatch):
                                      x_from + shape, y_from + shape))
             image_to.paste(crop, box=(x_to, y_to))       
         return image_to
+
+    @action
+    def labels_to_long(self):
+        self.labels = np.array(self.labels, dtype='int64')
+        return self
