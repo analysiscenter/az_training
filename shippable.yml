@@ -14,8 +14,8 @@ build:
   pre_ci:
     docker pull $DOCKER_ACC/$DOCKER_REPO:$TAG
   ci:
-    - find . -not -path "*/batchflow/*" -iname "*.py" | xargs -r pylint -rn --rcfile pylintrc
-
+    - find ./az_training/nikita_kalashnikov  -iname "*.py" | xargs -r pylint -rn --rcfile pylintrc
+# -not -path "*/batchflow/*"
 integrations:
   hub:
     - integrationName: DockerHub analysiscenter.ru
