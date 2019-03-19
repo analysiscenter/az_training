@@ -5,3 +5,6 @@
 [submodule "alexey_kozhevin/dataset"]
 	path = alexey_kozhevin/dataset
 	url = https://github.com/analysiscenter/dataset.git
+[submodule "nikita_kalashnikov/batchflow"]
+	path = nikita_kalashnikov/batchflow
+	url = https://github.com/analysiscenter/batchflow.git
