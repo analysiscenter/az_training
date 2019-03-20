@@ -12,7 +12,7 @@ def show_digits(batch, pred=None):
     Parameters
     ----------
     batch: MyBatch
-        Batch with data.
+        Batch with augmentated data.
 
     pred: ndarray
         Array with predictions.
@@ -29,7 +29,7 @@ def show_digits(batch, pred=None):
         axis.set_title('Digit - {}'.format(batch.labels[i]))
         axis.axis('off')
         if not isinstance(image, Image.Image):
-            image = batch.images[i].reshape(66, 66, -1).astype('uint8')
+            image = batch.images[i].reshape(64, 64, -1).astype('uint8')
             image = Image.fromarray(image, mode='RGB')
         axis.imshow(image)
         if pred is not None:
@@ -37,3 +37,28 @@ def show_digits(batch, pred=None):
             label = batch.labels[i]
             axis.set_title('Real - {} \n Pred - {}, \
                         conf - {:.2f}'.format(label, np.argmax(p), p.max()))
+
+def plot_bar(metrics):
+    """ Plot bars for true positive and false positive rates.
+
+    Parameters
+    ----------
+
+    metrics: ClassificationMetric
+        Object which stores classifacation metrics on the test data.
+    """
+    false_positive = metrics.evaluate('false_positive')
+    true_positive = metrics.evaluate('true_positive')
+    tp_rate = true_positive / (true_positive + false_positive)
+    mpl_fig = plt.figure(figsize=(13, 5))
+    axis = mpl_fig.add_subplot(111)
+    x = range(10)
+    axis.bar(x, tp_rate, width=0.6, color=(0.2588, 0.4433, 1.0))
+    axis.bar(x, 1-tp_rate, width=0.6, color=(1.0, 0.5, 0.62),
+             bottom=tp_rate)
+    axis.set_xticks(x)
+    axis.set_xlabel('classes')
+    axis.set_ylabel('rate')
+    axis.legend(['tp_rate', 'fp_rate'], bbox_to_anchor=(1.15, 1))
+    axis.set_title('True positive and false positive rates for each class')
+    
