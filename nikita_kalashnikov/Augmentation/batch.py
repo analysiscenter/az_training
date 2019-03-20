@@ -1,7 +1,7 @@
 """"Custom Batch class for images.
 """
 import numpy as np
-from batchflow import ImagesBatch
+from batchflow import ImagesBatch 
 from batchflow.batch_image import transform_actions
 from batchflow.decorators import action, inbatch_parallel
 
@@ -37,7 +37,7 @@ class MyBatch(ImagesBatch):
 
         Returns
         -------
-        batch: MyBatch
+        batch : MyBatch
             Batch with labels component type being casted.
         """
         setattr(self, 'labels', np.array(self.labels, dtype=int))
@@ -48,12 +48,12 @@ class MyBatch(ImagesBatch):
 
         Parameters
         ----------
-        image: PIL.Image
+        image : PIL.Image
             Image in the batch.
 
         Returns
         -------
-        image_reshape: np.array
+        image_reshape : np.array
             Reshaped image with channels dimension first.
         """
         image_reshape = np.array(image).reshape(3, 64, 64).astype('float32')
@@ -64,12 +64,12 @@ class MyBatch(ImagesBatch):
 
         Parameters
         ----------
-        image: PIL.Image
+        image : PIL.Image
             Image in grayskale format.
 
         Returns
         -------
-        image_converted: PIL.Image
+        image_converted : PIL.Image
             Image in RGB format.
         """
         image_converted = image.convert('RGB')

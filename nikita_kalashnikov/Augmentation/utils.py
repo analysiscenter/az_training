@@ -11,10 +11,10 @@ def show_digits(batch, pred=None):
 
     Parameters
     ----------
-    batch: MyBatch
+    batch : MyBatch
         Batch with augmentated data.
 
-    pred: ndarray
+    pred : ndarray
         Array with predictions.
     """
     n_cols = 5
@@ -44,7 +44,7 @@ def plot_bar(metrics):
     Parameters
     ----------
 
-    metrics: ClassificationMetric
+    metrics : ClassificationMetric
         Object which stores classifacation metrics on the test data.
     """
     false_positive = metrics.evaluate('false_positive')
@@ -61,4 +61,3 @@ def plot_bar(metrics):
     axis.set_ylabel('rate')
     axis.legend(['tp_rate', 'fp_rate'], bbox_to_anchor=(1.15, 1))
     axis.set_title('True positive and false positive rates for each class')
-    
