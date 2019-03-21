@@ -7,7 +7,7 @@ from PIL import Image
 
 
 def show_digits(batch, pred=None):
-    """ Plot function.
+    """ The plot function.
 
     Parameters
     ----------

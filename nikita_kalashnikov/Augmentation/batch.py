@@ -1,7 +1,7 @@
 """"Custom Batch class for images.
 """
 import numpy as np
-from batchflow import ImagesBatch 
+from batchflow import ImagesBatch
 from batchflow.batch_image import transform_actions
 from batchflow.decorators import action, inbatch_parallel
 
@@ -33,12 +33,7 @@ class MyBatch(ImagesBatch):
 
     @action
     def preprocess_labels(self):
-        """Cast labels to type int64.
-
-        Returns
-        -------
-        batch : MyBatch
-            Batch with labels component type being casted.
+        """Cast labels to type int64
         """
         setattr(self, 'labels', np.array(self.labels, dtype=int))
         return self

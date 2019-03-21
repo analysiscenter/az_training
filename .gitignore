@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+# Mine
+.vscode/
+alexey_kozhevin/
+anton_broilovskiy/
+
 # Distribution / packaging
 .Python
 env/
