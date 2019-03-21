@@ -39,16 +39,20 @@ def show_digits(batch, pred=None):
                         conf - {:.2f}'.format(label, np.argmax(p), p.max()))
 
 def plot_bar(metrics):
-    """ Plot bars for true positive and false positive rates.
+    """ Plot bars for true positive and false positive rates avaraged
+    across all batches.
 
     Parameters
     ----------
 
-    metrics : ClassificationMetric
-        Object which stores classifacation metrics on the test data.
+    metrics : list
+        List with ClassificationMetric objects which store
+        classifacation metrics on the test data.
     """
-    false_positive = metrics.evaluate('false_positive')
-    true_positive = metrics.evaluate('true_positive')
+    false_positive = sum(m.evaluate('false_positive', agg=None) for m in metrics)
+    false_positive = false_positive / len(metrics)
+    true_positive = sum(m.evaluate('true_positive', agg=None) for m in metrics)
+    true_positive = true_positive / len(metrics)
     tp_rate = true_positive / (true_positive + false_positive)
     mpl_fig = plt.figure(figsize=(13, 5))
     axis = mpl_fig.add_subplot(111)

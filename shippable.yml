@@ -16,7 +16,7 @@ build:
   ci:
     - pip3 install git+https://github.com/analysiscenter/batchflow.git 
     - find ./nikita_kalashnikov -not -path "./nikita_kalashnikov/batchflow/*" -iname "*.py" | xargs -r pylint -rn --rcfile pylintrc
-# -not -path "*/batchflow/*"
+
 integrations:
   hub:
     - integrationName: DockerHub analysiscenter.ru
