@@ -31,5 +31,5 @@ def plot_pred_mask(test_batch, pred):
         if image.shape[0] == 3:
             image = image.reshape(w, w, 3) / 255
         elif image.shape[0] == 2:
-            image = np.where(image[1, :, :] > image[0, :, :], 1, 0)
+            image = np.argmax(image, axis=0)
         ax.imshow(image)

@@ -15,24 +15,26 @@ class MyBatch(ImagesBatch):
     @inbatch_parallel(init='indices', post='post_fn')
     def mask(self, ind):
         """ Get the mask out of MNIST image. Mask is not default square
-        28x28 but restricted to the digit boundaries.
+        28x28 but restricted to the digit boundaries. Returns PIL.Image.
 
-        Patameters:
+        Patameters
         ----------
         ind: int
             Index of the image in the dataset.
-        Returns:
+
+        Returns
         -------
-        mask: np.array(dtype='uint8)
+        mask: PIL.Image
             Mask of the digit.
         """
         i = self.get_pos(None, None, ind)
-        image = np.array(self.images[i])
-        x_min, x_max = np.nonzero(image)[1].min(), np.nonzero(image)[1].max()
-        y_min, y_max = np.nonzero(image)[0].min(), np.nonzero(image)[0].max()
+        image = np.array(getattr(self, 'images')[i])
+        boundary = np.nonzero(image)
+        x_min, x_max = boundary[1].min(), boundary[1].max()
+        y_min, y_max = boundary[0].min(), boundary[0].max()
         mask = np.zeros_like(image)
         mask[y_min:y_max+1, x_min:x_max+1] = 1
-        return mask.astype('uint8')
+        return PIL.Image.fromarray(mask.astype('uint8'))
 
     def post_fn(self, list_of_res):
         """ Post assmble function for inbatch_parallel decorator.
@@ -42,67 +44,79 @@ class MyBatch(ImagesBatch):
 
     @action
     @inbatch_parallel(init='indices')
-    def custom_rotate(self, ind, angle=0):
+    def custom_rotate(self, ind, src=('images'), angle=0):
         """ Rotate mask and image by the given angle value.
+        Input and output are both PIL.Image.
 
-        Parameters:
+        Parameters
         ----------
         ind: int
-            Index of the element in dataset
+            Index of the element in dataset.
         angle: int
-            Angle to rotate images
+            Angle to rotate images.
+        src: array-like
+            The source to get data from.
         """
         i = self.get_pos(None, None, ind)
-        self.images[i] = self.images[i].rotate(angle=angle)
-        mask = PIL.Image.fromarray(self.masks[i])
-        self.masks[i] = mask.rotate(angle=angle)
+        for comp in src:
+            getattr(self, comp)[i] = getattr(self, comp)[i].rotate(angle)
+        return self
 
     @action
     @inbatch_parallel(init='indices')
-    def background_and_mask(self, ind, bg_shape=(128, 128)):
+    def background_and_mask(self, ind, src=('images'), bg_shape=(128, 128), shape=(28, 28)):
         """ Place the image and the mask on the black background.
+        Input and output are both PIL.Image.
 
-        Parameters:
+        Parameters
+        ----------
         ind: int
             Index of the object in the dataset.
+        src: array-like
+            The source to get data from.
         bg_shape: tuple
             Size of the background.
+        shape: tuple
+            Size of the components object.
         """
         i = self.get_pos(None, None, ind)
-        image = self.images[i]
-        background = PIL.Image.fromarray(np.zeros(bg_shape), mode='RGB')
-        shape = image.size
         x, y = self._calc_origin(image_shape=shape, origin='random', background_shape=bg_shape)
-        background.paste(image, (x, y))
-        self.images[i] = background
-        background_2 = PIL.Image.fromarray(np.zeros(bg_shape).astype('uint8'), mode='L')
-        mask = self.masks[i]
-        background_2.paste(mask, (x, y))
-        self.masks[i] = background_2
+        for comp in src:
+            mode = 'RGB' if comp == 'images' else 'L'
+            obj = getattr(self, comp)[i]
+            background = PIL.Image.fromarray(np.zeros(bg_shape), mode=mode)
+            background.paste(obj, (x, y))
+            getattr(self, comp)[i] = background
+        return self
 
     @action
     @inbatch_parallel(init='indices', target='for')
-    def noise(self, ind, n=10):
+    def noise(self, ind, n=30, src=('images')):
         """ Add noise to the current image from other images
-        in the batch.
+        in the batch. Input is PIL.Image.
 
-        Parameters:
+        Parameters
+        ----------
         ind: int
             Index of the object in the dataset.
         n: int
             Number of crops sampled from other images.
+        src: array-like
+            The source to get data from.
         """
         i = self.get_pos(None, None, ind)
-        size = self.images[i].width
-        for image in self.images:
+        for comp in src:
+            size = getattr(self, comp)[i].size
             for _ in range(n):
+                index_from = np.random.choice(self.__len__())
+                image_from = getattr(self, comp)[index_from]
                 shape = np.random.randint(3, 7, size=2)
                 x_to, y_to = np.random.randint(0, size-max(*shape), size=2)
-                crop = self._crop_(image, origin='random', shape=shape)
-                self.images[i].paste(crop, (x_to, y_to))
+                crop = self._crop_(image_from, origin='random', shape=shape)
+                getattr(self, comp)[i].paste(crop, (x_to, y_to))
 
     def _custom_to_array_(self, image, mask):
-        """ Convert image and mask images from PIL format to np.array.
+        """ Convert image and mask images from PIL.Image format to np.array.
         Images are reshaped to the format 'channels-first'
 
         Parameters:
