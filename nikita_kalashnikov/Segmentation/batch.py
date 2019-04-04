@@ -13,7 +13,7 @@ class MyBatch(ImagesBatch):
     components = 'images', 'masks', 'ang'
     @action
     @inbatch_parallel(init='indices', post='post_fn')
-    def add_mask(self, ind):
+    def add_mask(self, ind, src, **kwargs):
         """ Get the mask out of MNIST image. Mask is not default square
         28x28 but restricted to the digit boundaries. Returns PIL.Image.
 
@@ -28,7 +28,7 @@ class MyBatch(ImagesBatch):
             Mask of the digit.
         """
         i = self.get_pos(None, None, ind)
-        image = np.array(getattr(self, 'images')[i])
+        image = np.array(getattr(self, src)[i])
         boundary = np.nonzero(image)
         x_min, x_max = boundary[1].min(), boundary[1].max()
         y_min, y_max = boundary[0].min(), boundary[0].max()
@@ -36,10 +36,10 @@ class MyBatch(ImagesBatch):
         mask[y_min:y_max+1, x_min:x_max+1] = 1
         return PIL.Image.fromarray(mask.astype('uint8'))
 
-    def post_fn(self, list_of_res):
+    def post_fn(self, list_of_res, dst, **kwargs):
         """ Post assmble function for inbatch_parallel decorator.
         """
-        setattr(self, 'masks', list_of_res)
+        setattr(self, dst, list_of_res)
         return self
 
     @action
